@@ -536,9 +536,9 @@ def main():
                     cover_html_found = False
                     for ln in proc.splitlines():
                         if ln.find('Warning') != -1:
-                            print ln
+                            print(ln)
                         if ln.find('Error') != -1:
-                            print ln
+                            print(ln)
                         if ln.find('I1052') != -1:
                             cover_html_found = True
                     if not cover_html_found:
