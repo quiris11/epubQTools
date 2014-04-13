@@ -41,17 +41,17 @@ def check_meta_html_covers(tree, dir, epub, file_dec):
         epub.read(dir + html_cover_path), parser
     )
     if html_cover_tree is None:
-        print 'Error loading HTML cover... Probably not a html file...'
+        print('Error loading HTML cover... Probably not a html file...')
         return 0
     allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(html_cover_tree)
     if len(allimgs) > 1:
-        print file_dec + ': Too many cover images...'
+        print(file_dec + ': Too many cover images...')
     for img in allimgs:
         if img.get('src').find(meta_cover_path) == -1:
             print(file_dec + ': Meta cover and HTML cover mismatched.')
     allsvgimgs = etree.XPath('//svg:image', namespaces=SVGNS)(html_cover_tree)
     if len(allimgs) > 1:
-        print file_dec + ': Too many cover images...'
+        print(file_dec + ': Too many cover images...')
     for svgimg in allsvgimgs:
         if svgimg.get('{http://www.w3.org/1999/xlink}href').find(
                 meta_cover_path
@@ -77,7 +77,7 @@ def find_cover_image(_opftree, _file_dec):
             print(_file_dec + ': No candidate cover images found. '
                   'Check a list of all images:')
             for imag in images:
-                print imag.get('href')
+                print(imag.get('href'))
     else:
         print(_file_dec + ': No images in an entire book found...')
 
