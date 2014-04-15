@@ -253,6 +253,9 @@ def qcheck(_documents, _moded, _validator):
             if _file.endswith(fe) and not _file.endswith(nfe):
                 epubfile = zipfile.ZipFile(os.path.join(root, _file))
                 for singlefile in epubfile.namelist():
+                    if singlefile.find('encryption.xml') > 0:
+                        print(file_dec + ': encryption.xml file found... '
+                              'Publisher fonts will be inaccessible...')
                     if singlefile.find('.opf') > 0:
                         qcheck_single_file(singlefile, epubfile, file_dec)
 
