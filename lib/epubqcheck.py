@@ -239,7 +239,30 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
         break
 
 
-def qcheck(_documents, _moded, _validator):
+def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
+    opftree = etree.fromstring(_epubfile.read(_singlefile))
+    try:
+        dc_title = etree.XPath('//dc:title/text()',
+                               namespaces=DCNS)(opftree)[0]
+    except:
+        print(_file_dec + ': dc:title not found. Skipping renaming file...')
+        return 0
+    try:
+        dc_creator = etree.XPath('//dc:creator/text()',
+                                 namespaces=DCNS)(opftree)[0]
+    except:
+        print(_file_dec + ': dc:creator not found. Skipping renaming file...')
+        return 0
+    _newfilename = dc_creator + ' - ' + dc_title + '.epub'
+    _newfilename = _newfilename.encode(sys.getfilesystemencoding())
+    if not os.path.exists(os.path.join(_root, _newfilename)):
+        os.rename(os.path.join(_root, _filename),
+                  os.path.join(_root, _newfilename))
+    else:
+        print('File exists: ' + _filename + '. Skipping...')
+
+
+def qcheck(_documents, _moded, _validator, _rename):
     if _moded:
         fe = '_moh.epub'
         nfe = '_org.epub'
@@ -253,13 +276,17 @@ def qcheck(_documents, _moded, _validator):
             if _file.endswith(fe) and not _file.endswith(nfe):
                 epubfile = zipfile.ZipFile(os.path.join(root, _file))
                 for singlefile in epubfile.namelist():
-                    if singlefile.find('encryption.xml') > 0:
+                    if singlefile.find('encryption.xml') > 0 and not _rename:
                         print(file_dec + ': encryption.xml file found... '
                               'Publisher fonts will be inaccessible...')
                     if singlefile.find('.opf') > 0:
-                        qcheck_single_file(singlefile, epubfile, file_dec)
+                        if _rename:
+                            rename_files(singlefile, root, epubfile, _file,
+                                         file_dec)
+                        else:
+                            qcheck_single_file(singlefile, epubfile, file_dec)
 
-                if _validator:
+                if _validator and not _rename:
                     _epubchecker_path = os.path.join(
                         os.path.dirname(__file__), os.pardir, 'resources',
                         'epubcheck-3.0.1', 'epubcheck-3.0.1.jar'
@@ -280,12 +307,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("directory",
                         help="Directory with EPUB files stored")
+    parser.add_argument("-n", "--rename",
+                        help="rename files to 'author - title.epub'",
+                        action="store_true")
     parser.add_argument("-m", "--mod",
                         help="Check only _mod.epub files",
                         action="store_true")
-    parser.add_argument("-p", "--epubcheck",
+    parser.add_argument("-q", "--epubcheck",
                         help="Validate files with epubcheck",
                         action="store_true")
     args = parser.parse_args()
 
-    qcheck(args.directory, args.mod, args.epubcheck)
+    qcheck(args.directory, args.mod, args.epubcheck, args.rename)

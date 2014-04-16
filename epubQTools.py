@@ -38,6 +38,9 @@ SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", help="Directory with EPUB files stored")
+parser.add_argument("-n", "--rename", help="rename files to 'author - title."
+                    "epub'",
+                    action="store_true")
 parser.add_argument("-q", "--qcheck", help="validate files with epubqcheck "
                     "internal tool",
                     action="store_true")
@@ -511,8 +514,8 @@ def append_reset_css(source_file):
 
 
 def main():
-    if args.qcheck:
-        qcheck(_documents, args.mod, args.epubcheck)
+    if args.qcheck or args.rename:
+        qcheck(_documents, args.mod, args.epubcheck, args.rename)
     elif args.kindlegen:
         compression = '-c2' if args.huffdic else '-c1'
         for root, dirs, files in os.walk(_documents):
