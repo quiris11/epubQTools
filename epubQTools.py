@@ -38,8 +38,8 @@ SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", help="Directory with EPUB files stored")
-parser.add_argument("-n", "--rename", help="rename files to 'author - title."
-                    "epub'",
+parser.add_argument("-n", "--rename", help="rename .epub files to "
+                    "'author - title.epub'",
                     action="store_true")
 parser.add_argument("-q", "--qcheck", help="validate files with epubqcheck "
                     "internal tool",

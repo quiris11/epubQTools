@@ -308,7 +308,7 @@ if __name__ == "__main__":
     parser.add_argument("directory",
                         help="Directory with EPUB files stored")
     parser.add_argument("-n", "--rename",
-                        help="rename files to 'author - title.epub'",
+                        help="rename .epub files to 'author - title.epub'",
                         action="store_true")
     parser.add_argument("-m", "--mod",
                         help="Check only _mod.epub files",
