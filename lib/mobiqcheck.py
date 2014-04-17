@@ -5,8 +5,6 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-import subprocess
-import re
 import os
 import sys
 import struct
