@@ -267,10 +267,12 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
     _newfilename = dc_creator + ' - ' + dc_title + '.epub'
     _newfilename = _newfilename.encode(sys.getfilesystemencoding())
     if not os.path.exists(os.path.join(_root, _newfilename)):
+        _epubfile.close()
         os.rename(os.path.join(_root, _filename),
                   os.path.join(_root, _newfilename))
     else:
-        print('File exists: ' + _filename + '. Skipping...')
+        print('File exists: ' + _filename.decode(sys.getfilesystemencoding()) +
+              '. Skipping...')
 
 
 def qcheck(_documents, _moded, _validator, _rename):
