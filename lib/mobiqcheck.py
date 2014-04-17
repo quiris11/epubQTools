@@ -9,6 +9,7 @@ import os
 import sys
 import struct
 
+
 def find_headers(content, mobi_file):
     if content[60:68] != 'BOOKMOBI':
         print(mobi_file + ': invalid file format. Skipping...')
@@ -32,8 +33,10 @@ def find_headers(content, mobi_file):
             print('Unexpected book language \'' +
                   exth_record.decode('utf-8') + '\': ' + mobi_file)
         if (id == 129 and exth_record != '' and
-            os.path.splitext(mobi_file)[1].lower() == '.azw'):
+                os.path.splitext(mobi_file)[1].lower() == '.azw'):
             print('Incorrect file extension. Should be: azw3: ' + mobi_file)
+        if id == 501:
+            print(mobi_file + ': ' + exth_record.decode('utf-8'))
         if id == 129:
             found_129 = True
         if (id == 129 and exth_record == ''):
@@ -42,7 +45,7 @@ def find_headers(content, mobi_file):
     if not found_129:
         print('Old AZW (Mobi6) format: ' + mobi_file)
     if book_autor_found and book_title_found:
-        pass #print(mobi_file + ': ' + book_author + ' - ' + book_title)
+        pass  # print(mobi_file + ': ' + book_author + ' - ' + book_title)
     else:
         print('Book title or author not properly defined.' + mobi_file)
 
@@ -58,6 +61,11 @@ def mobi_check(_documents, _rename):
                 mobi_content = f.read()
                 find_headers(mobi_content, file_dec)
 
+            # experimental feature
+            if args.ebok:
+                mobi_content = mobi_content.replace('PDOC', 'EBOK')
+                with open(os.path.join(root, 'mod_' + file), 'wb') as f:
+                    f.write(mobi_content)
 
 if __name__ == "__main__":
 
@@ -68,6 +76,9 @@ if __name__ == "__main__":
                         help="Directory with EPUB files stored")
     parser.add_argument("-n", "--rename",
                         help="rename .epub files to 'author - title.epub'",
+                        action="store_true")
+    parser.add_argument("-b", "--ebok",
+                        help="replace PDOC to EBOK",
                         action="store_true")
     args = parser.parse_args()
 
