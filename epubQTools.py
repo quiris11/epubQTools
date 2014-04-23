@@ -6,6 +6,7 @@
 #
 
 import argparse
+import hashlib
 import os
 import re
 import tempfile
@@ -13,11 +14,15 @@ import shutil
 import subprocess
 import sys
 import zipfile
+import uuid
+
+from itertools import cycle
 from lxml import etree
 if not hasattr(sys, 'frozen'):
     sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
 from hyphenator import Hyphenator
 from epubqcheck import qcheck
+
 
 _my_language = 'pl'
 _hyphen_mark = u'\u00AD'
@@ -35,6 +40,9 @@ XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
 DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
+ADOBE_OBFUSCATION = 'http://ns.adobe.com/pdf/enc#RC'
+IDPF_OBFUSCATION = 'http://www.idpf.org/2008/embedding'
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", help="Directory with EPUB files stored")
@@ -73,6 +81,72 @@ args = parser.parse_args()
 _documents = args.directory
 validator = args.epubcheck
 verbose = args.verbose
+
+
+def find_encryption_key(opf):
+    uid = None
+    for dcid in etree.parse(opf).xpath("//dc:identifier", namespaces=DCNS):
+        if dcid.get("{http://www.idpf.org/2007/opf}scheme") == "UUID":
+            if dcid.text[:9] == "urn:uuid:":
+                uid = dcid.text
+                break
+        if dcid.text is not None:
+            if dcid.text[:9] == "urn:uuid:":
+                uid = dcid.text
+                break
+    if uid is None:
+        print('UUID identifier in content.opf missing')
+    else:
+        print('UUID: ' + uid)
+    return uid
+
+
+# based on calibri work
+def process_encryption(_encfile, _key):
+    root = etree.parse(_encfile)
+    for em in root.xpath(
+            'descendant::*[contains(name(), "EncryptionMethod")]'
+    ):
+        algorithm = em.get('Algorithm', '')
+        if algorithm not in {ADOBE_OBFUSCATION, IDPF_OBFUSCATION}:
+            return False
+        cr = em.getparent().xpath(
+            'descendant::*[contains(name(), "CipherReference")]'
+        )[0]
+        uri = cr.get('URI')
+        font_path = os.path.abspath(os.path.join(os.path.dirname(_encfile),
+                                    '..', *uri.split('/')))
+        print font_path
+        if (_key and os.path.exists(font_path)):
+            decrypt_font(font_path, _key, algorithm)
+    return True
+
+
+# based on calibri work
+def decrypt_font(path, key, method):
+    if method == ADOBE_OBFUSCATION:
+        crypt_len = 1024
+        key = key.replace('\x20', '').replace('\x09', '').\
+            replace('\x0D', '').replace('\x0A', '').\
+            replace('-', '').replace('urn:uuid:', '').\
+            replace(':', '')
+        key = bytes(key)
+        key = uuid.UUID(key).bytes
+    elif method == IDPF_OBFUSCATION:
+        crypt_len = 1040
+        key = key.replace('\x20', '').replace('\x09', '').\
+            replace('\x0D', '').replace('\x0A', '')
+        key = hashlib.sha1(key).digest()
+    print repr(key)
+    print len(key)
+    with open(path, 'rb') as f:
+        raw = f.read()
+    crypt = bytearray(raw[:crypt_len])
+    key = cycle(iter(bytearray(key)))
+    decrypt = bytes(bytearray(x ^ key.next() for x in crypt))
+    with open(path, 'wb') as f:
+        f.write(decrypt)
+        f.write(raw[crypt_len:])
 
 
 def unpack_epub(source_epub):
@@ -599,6 +673,16 @@ def main():
                         _opf_file, _rootepubdir,
                         _xhtml_files, _xhtml_file_paths
                     )
+
+                    # parse encryption.xml file
+                    enc_file = os.path.join(
+                        _tempdir, 'META-INF', 'encryption.xml'
+                    )
+                    if os.path.exists(enc_file):
+                        enc_key = find_encryption_key(_opf_file)
+                        process_encryption(enc_file, enc_key)
+                        os.remove(enc_file)
+
                     for _single_xhtml in _xhtml_files:
                         with open(_single_xhtml, 'r') as content_file:
                             c = content_file.read()

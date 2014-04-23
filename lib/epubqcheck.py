@@ -249,6 +249,21 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
         print(_file_dec + ': other calibre staff found')
         break
 
+    uid = None
+    for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
+        if dcid.get("{http://www.idpf.org/2007/opf}scheme") == "UUID":
+            if dcid.text[:9] == "urn:uuid:":
+                uid = dcid.text
+                break
+        if dcid.text is not None:
+            if dcid.text[:9] == "urn:uuid:":
+                uid = dcid.text
+                break
+    if uid is None:
+        print(_file_dec + ': UUID identifier in content.opf missing')
+#     else:
+#         print(_file_dec + ': UUID: ' + uid)
+
 
 def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
     opftree = etree.fromstring(_epubfile.read(_singlefile))
