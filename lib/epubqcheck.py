@@ -10,7 +10,10 @@ import subprocess
 import re
 import os
 import sys
+import tempfile
+import shutil
 from lxml import etree
+from PIL import ImageFont
 
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
@@ -306,7 +309,25 @@ def qcheck(_documents, _moded, _validator, _rename):
                 for singlefile in epubfile.namelist():
                     if singlefile.find('encryption.xml') > 0 and not _rename:
                         print(file_dec + ': encryption.xml file found... '
-                              'Publisher fonts will be inaccessible...')
+                              'Embedded fonts probably are encrypted...')
+
+                    # check font files for encryption
+                    if (
+                            singlefile.lower().endswith('.otf') or
+                            singlefile.lower().endswith('.ttf') and
+                            not _rename
+                    ):
+                        temp_font_dir = tempfile.mkdtemp()
+                        epubfile.extract(singlefile, temp_font_dir)
+                        try:
+                            font_pil = ImageFont.truetype(
+                                os.path.join(temp_font_dir, singlefile), 14
+                            )
+                        except IOError:
+                            print(file_dec + ': ' + singlefile +
+                                  ': probably encrypted font file!')
+                        if os.path.isdir(temp_font_dir):
+                            shutil.rmtree(temp_font_dir)
                     if singlefile.find('.opf') > 0:
                         if _rename:
                             rename_files(singlefile, root, epubfile, _file,
