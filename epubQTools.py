@@ -351,8 +351,26 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
 
         allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
         for img in allimgs:
-            if (img.get('src').find(_itemcoverhref) != -1 or
-                    img.get('src').find('okladka_fmt') != -1):
+            if img.get('src').find('okladka_fmt') != -1:
+                meta_cover_id = _soup.xpath(
+                    '//opf:meta[@name="cover"]',
+                    namespaces=OPFNS
+                )[0].get('content')
+                meta_image = _soup.xpath(
+                    '//opf:item[@id="' + meta_cover_id + '"]',
+                    namespaces=OPFNS
+                )[0].get('href').split('/')[-1]
+                img_file = img.get('src').split('/')[-1]
+                img.set('src', img.get('src').replace(img_file, meta_image))
+                with open(xhtml_file, "w") as f:
+                    f.write(etree.tostring(
+                        xhtmltree,
+                        pretty_print=True,
+                        xml_declaration=True,
+                        encoding="utf-8",
+                        doctype=DTD)
+                    )
+            if img.get('src').find(_itemcoverhref) != -1:
                 cover_file = xhtml_file
                 break
         allsvgimgs = etree.XPath('//svg:image', namespaces=SVGNS)(xhtmltree)
@@ -534,12 +552,17 @@ def fix_various_opf_problems(source_file, tempdir, xhtml_files,
                         'opf': 'http://www.idpf.org/2007/opf'}
             ):
         dcid.getparent().remove(dcid)
+    with open(source_file, 'w') as f:
+        f.write(etree.tostring(soup.getroot(), pretty_print=True,
+                xml_declaration=True, encoding='utf-8'))
 
+
+def fix_meta_cover_order(source_file):
+    soup = etree.parse(source_file)
     # name='cover' should be before content attribute
     for cover in soup.xpath('//opf:meta[@name="cover" and @content]',
                             namespaces=OPFNS):
         cover.set('content', cover.attrib.pop('content'))
-
     with open(source_file, 'w') as f:
         f.write(etree.tostring(soup.getroot(), pretty_print=True,
                 xml_declaration=True, encoding='utf-8'))
@@ -682,15 +705,20 @@ def main():
                         _opf_file,
                         _rootepubdir
                     ) = find_xhtml_files(_epubzipfile, _tempdir)
+
                     fix_various_opf_problems(
                         _opf_file, _rootepubdir,
                         _xhtml_files, _xhtml_file_paths
                     )
+
                     fix_ncx_dtd_uid(_opf_file, _rootepubdir)
+
                     fix_html_toc(
                         _opf_file, _rootepubdir,
                         _xhtml_files, _xhtml_file_paths
                     )
+
+                    fix_meta_cover_order(_opf_file)
 
                     # parse encryption.xml file
                     enc_file = os.path.join(
