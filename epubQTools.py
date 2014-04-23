@@ -16,12 +16,14 @@ import sys
 import zipfile
 import uuid
 
+from PIL import ImageFont
 from itertools import cycle
 from lxml import etree
 if not hasattr(sys, 'frozen'):
     sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
 from hyphenator import Hyphenator
 from epubqcheck import qcheck
+from os.path import expanduser
 
 
 _my_language = 'pl'
@@ -33,6 +35,7 @@ else:
     _hyph = Hyphenator(os.path.join(os.path.dirname(sys.executable),
                        'resources', 'dictionaries', 'hyph_pl_PL.dic'))
 
+HOME = expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
        '"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">')
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
@@ -96,13 +99,12 @@ def find_encryption_key(opf):
                 break
     if uid is None:
         print('UUID identifier in content.opf missing')
-    else:
-        print('UUID: ' + uid)
     return uid
 
 
 # based on calibri work
 def process_encryption(_encfile, _key):
+    print('Font decoding started...')
     root = etree.parse(_encfile)
     for em in root.xpath(
             'descendant::*[contains(name(), "EncryptionMethod")]'
@@ -116,7 +118,6 @@ def process_encryption(_encfile, _key):
         uri = cr.get('URI')
         font_path = os.path.abspath(os.path.join(os.path.dirname(_encfile),
                                     '..', *uri.split('/')))
-        print font_path
         if (_key and os.path.exists(font_path)):
             decrypt_font(font_path, _key, algorithm)
     return True
@@ -137,8 +138,6 @@ def decrypt_font(path, key, method):
         key = key.replace('\x20', '').replace('\x09', '').\
             replace('\x0D', '').replace('\x0A', '')
         key = hashlib.sha1(key).digest()
-    print repr(key)
-    print len(key)
     with open(path, 'rb') as f:
         raw = f.read()
     crypt = bytearray(raw[:crypt_len])
@@ -147,6 +146,25 @@ def decrypt_font(path, key, method):
     with open(path, 'wb') as f:
         f.write(decrypt)
         f.write(raw[crypt_len:])
+    try:
+        font_pil = ImageFont.truetype(path, 14)
+        print(os.path.basename(path) + ': OK! Decoded...')
+    except IOError:
+        print(os.path.basename(path) + ': DECODING FAILED!')
+        font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
+                      os.path.join(HOME, 'Library', 'Fonts')]
+        for font_path in font_paths:
+            if os.path.exists(os.path.join(font_path, os.path.basename(path))):
+                os.remove(path)
+                shutil.copyfile(
+                    os.path.join(font_path, os.path.basename(path)),
+                    path
+                )
+        try:
+            font_pil = ImageFont.truetype(path, 14)
+            print(os.path.basename(path) + ': OK! File replaced...')
+        except:
+            print(os.path.basename(path) + ': not replaced...')
 
 
 def unpack_epub(source_epub):
