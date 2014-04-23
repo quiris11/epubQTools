@@ -312,11 +312,10 @@ def qcheck(_documents, _moded, _validator, _rename):
                               'Embedded fonts probably are encrypted...')
 
                     # check font files for encryption
-                    if (
+                    if ((
                             singlefile.lower().endswith('.otf') or
-                            singlefile.lower().endswith('.ttf') and
-                            not _rename
-                    ):
+                            singlefile.lower().endswith('.ttf')
+                    ) and not _rename):
                         temp_font_dir = tempfile.mkdtemp()
                         epubfile.extract(singlefile, temp_font_dir)
                         try:
