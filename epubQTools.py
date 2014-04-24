@@ -357,6 +357,51 @@ def fix_html_toc(opf_file, tempdir, xhtml_files, xhtml_file_paths):
         ))
 
 
+def fix_mismatched_covers(opf, tempdir):
+    print('Checking for mismatched meta and HTML covers...')
+    opftree = etree.parse(opf)
+    refcovers = etree.XPath('//opf:reference[@type="cover"]',
+                            namespaces=OPFNS)(opftree)
+    if len(refcovers) > 1:
+        print('Too many cover references in OPF. Giving up...')
+        return 1
+    cover_xhtml_file = os.path.join(tempdir, refcovers[0].get('href'))
+    xhtmltree = etree.parse(cover_xhtml_file,
+                            parser=etree.XMLParser(recover=True))
+    allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
+    if len(allimgs) != 1:
+        print('HTML cover should have only one image. Giving up...')
+        return 1
+    html_cover_img_file = allimgs[0].get('src').split('/')[-1]
+    meta_cover_id = opftree.xpath(
+        '//opf:meta[@name="cover"]',
+        namespaces=OPFNS
+    )[0].get('content')
+    if meta_cover_id is None:
+        print('Meta cover image not properly defined. Giving up...')
+        return 1
+    meta_cover_image_file = opftree.xpath(
+        '//opf:item[@id="' + meta_cover_id + '"]',
+        namespaces=OPFNS
+    )[0].get('href').split('/')[-1]
+    if html_cover_img_file != meta_cover_image_file:
+        print('Mismatched meta and HTML covers. Fixing...')
+        allimgs[0].set(
+            'src',
+            allimgs[0].get('src').replace(
+                html_cover_img_file, meta_cover_image_file
+            )
+        )
+        with open(cover_xhtml_file, "w") as f:
+            f.write(etree.tostring(
+                xhtmltree,
+                pretty_print=True,
+                xml_declaration=True,
+                encoding="utf-8",
+                doctype=DTD)
+            )
+
+
 def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
                         _soup):
     cover_file = None
@@ -366,25 +411,6 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
 
         allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
         for img in allimgs:
-            if img.get('src').find('okladka_fmt') != -1:
-                meta_cover_id = _soup.xpath(
-                    '//opf:meta[@name="cover"]',
-                    namespaces=OPFNS
-                )[0].get('content')
-                meta_image = _soup.xpath(
-                    '//opf:item[@id="' + meta_cover_id + '"]',
-                    namespaces=OPFNS
-                )[0].get('href').split('/')[-1]
-                img_file = img.get('src').split('/')[-1]
-                img.set('src', img.get('src').replace(img_file, meta_image))
-                with open(xhtml_file, "w") as f:
-                    f.write(etree.tostring(
-                        xhtmltree,
-                        pretty_print=True,
-                        xml_declaration=True,
-                        encoding="utf-8",
-                        doctype=DTD)
-                    )
             if img.get('src').find(_itemcoverhref) != -1:
                 cover_file = xhtml_file
                 break
@@ -742,6 +768,8 @@ def main():
                     if os.path.exists(enc_file):
                         process_encryption(enc_file, _opf_file)
                         os.remove(enc_file)
+
+                    fix_mismatched_covers(_opf_file, _rootepubdir)
 
                     for _single_xhtml in _xhtml_files:
                         with open(_single_xhtml, 'r') as content_file:
