@@ -176,7 +176,7 @@ def decrypt_font(path, key, method):
             font_pil = ImageFont.truetype(path, 14)
             print(os.path.basename(path) + ': OK! File replaced...')
         except:
-            print(os.path.basename(path) + ': File NOT replaced!')
+            pass
 
 
 def unpack_epub(source_epub):
