@@ -68,9 +68,12 @@ def check_meta_html_covers(tree, dir, epub, file_dec):
     if len(allsvgimgs) > 1:
         print(file_dec + ': HTML cover should have only one image...')
     for svgimg in allsvgimgs:
-        if svgimg.get('{http://www.w3.org/1999/xlink}href').find(
-                meta_cover_path
-        ) == -1:
+        if (
+                len(allsvgimgs) == 1 and
+                svgimg.get('{http://www.w3.org/1999/xlink}href').find(
+                    meta_cover_path
+                ) == -1
+        ):
             print(file_dec + ': Meta cover and HTML cover mismatched.')
 
 
