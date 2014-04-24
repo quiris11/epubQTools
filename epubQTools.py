@@ -690,7 +690,10 @@ def main():
                     print('Kindlegen: Converting file: ' +
                           _file.decode(sys.getfilesystemencoding()))
                     proc = subprocess.Popen([
-                        'kindlegen', compression, os.path.join(root, _file)
+                        'kindlegen',
+                        '-dont_append_source',
+                        compression,
+                        os.path.join(root, _file)
                     ], stdout=subprocess.PIPE).communicate()[0]
 
                     cover_html_found = False
