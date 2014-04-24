@@ -50,8 +50,7 @@ def check_meta_html_covers(tree, dir, epub, file_dec):
         )(html_cover_tree)
         cover_texts = ' '.join(cover_texts).strip()
         if cover_texts != '':
-            print(file_dec + ': HTML cover contains text! Kindlegen will'
-                  ' not remove a duplicated cover.')
+            print(file_dec + ': HTML cover should not contain any text...')
     except:
         pass
     if html_cover_tree is None:
@@ -59,13 +58,15 @@ def check_meta_html_covers(tree, dir, epub, file_dec):
         return 0
     allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(html_cover_tree)
     if len(allimgs) > 1:
-        print(file_dec + ': Too many cover images...')
+        print(file_dec + ': HTML cover should have only one image...')
     for img in allimgs:
-        if img.get('src').find(meta_cover_path) == -1:
+        if len(allimgs) == 1 and img.get('src').find(meta_cover_path) == -1:
+            print meta_cover_path
+            print img.get('src')
             print(file_dec + ': Meta cover and HTML cover mismatched.')
     allsvgimgs = etree.XPath('//svg:image', namespaces=SVGNS)(html_cover_tree)
-    if len(allimgs) > 1:
-        print(file_dec + ': Too many cover images...')
+    if len(allsvgimgs) > 1:
+        print(file_dec + ': HTML cover should have only one image...')
     for svgimg in allsvgimgs:
         if svgimg.get('{http://www.w3.org/1999/xlink}href').find(
                 meta_cover_path
