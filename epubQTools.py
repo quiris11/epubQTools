@@ -356,6 +356,7 @@ def fix_mismatched_covers(opftree, tempdir):
         cover_xhtml_file = os.path.join(tempdir, refcvs[0].get('href'))
     except:
         print('HTML cover reference not found. Giving up...')
+        return 1
     xhtmltree = etree.parse(cover_xhtml_file,
                             parser=etree.XMLParser(recover=True))
     allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
