@@ -87,7 +87,7 @@ verbose = args.verbose
 
 
 # based on calibri work
-def process_encryption(encfile, opf):
+def process_encryption(encfile, opftree):
     print('Font decrypting started...')
     root = etree.parse(encfile)
     for em in root.xpath(
@@ -102,15 +102,14 @@ def process_encryption(encfile, opf):
         uri = cr.get('URI')
         font_path = os.path.abspath(os.path.join(os.path.dirname(encfile),
                                     '..', *uri.split('/')))
-        key = find_encryption_key(opf, algorithm)
+        key = find_encryption_key(opftree, algorithm)
         if (key and os.path.exists(font_path)):
             decrypt_font(font_path, key, algorithm)
     return True
 
 
-def find_encryption_key(opf, method):
+def find_encryption_key(opftree, method):
     uid = None
-    opftree = etree.parse(opf)
     if method == ADOBE_OBFUSCATION:
         # find first UUID URN-based unique identifier
         for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
@@ -121,7 +120,6 @@ def find_encryption_key(opf, method):
             print('UUID URN-based unique identifier in content.opf does '
                   'not found')
             return uid
-        print method, uid
         uid = uid.replace('\x20', '').replace('\x09', '').\
             replace('\x0D', '').replace('\x0A', '').\
             replace('-', '').replace('urn:uuid:', '').\
@@ -140,7 +138,6 @@ def find_encryption_key(opf, method):
         if uid is None:
             print('Unique identifier in content.opf does not found')
             return uid
-        print method, uid
         uid = uid.replace('\x20', '').replace('\x09', '').\
             replace('\x0D', '').replace('\x0A', '')
         uid = hashlib.sha1(uid).digest()
@@ -273,8 +270,7 @@ def fix_styles(source_file):
     return source_file
 
 
-def fix_html_toc(opf_file, tempdir, xhtml_files, xhtml_file_paths):
-    soup = etree.parse(opf_file)
+def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
     reftocs = etree.XPath('//opf:reference[@type="toc"]',
                           namespaces=OPFNS)(soup)
     if len(reftocs) == 0:
@@ -347,32 +343,36 @@ def fix_html_toc(opf_file, tempdir, xhtml_files, xhtml_file_paths):
             newguide.append(newtocreference)
             soup.xpath('//opf:package',
                        namespaces=OPFNS)[0].append(newguide)
-
-    with open(opf_file, 'w') as f:
-        f.write(etree.tostring(
-            soup.getroot(),
-            pretty_print=True,
-            xml_declaration=True,
-            encoding='utf-8'
-        ))
+    return soup
 
 
-def fix_mismatched_covers(opf, tempdir):
+def fix_mismatched_covers(opftree, tempdir):
     print('Checking for mismatched meta and HTML covers...')
-    opftree = etree.parse(opf)
-    refcovers = etree.XPath('//opf:reference[@type="cover"]',
-                            namespaces=OPFNS)(opftree)
-    if len(refcovers) > 1:
+    refcvs = opftree.xpath('//opf:reference[@type="cover"]', namespaces=OPFNS)
+    if len(refcvs) > 1:
         print('Too many cover references in OPF. Giving up...')
         return 1
-    cover_xhtml_file = os.path.join(tempdir, refcovers[0].get('href'))
+    try:
+        cover_xhtml_file = os.path.join(tempdir, refcvs[0].get('href'))
+    except:
+        print('HTML cover reference not found. Giving up...')
     xhtmltree = etree.parse(cover_xhtml_file,
                             parser=etree.XMLParser(recover=True))
     allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
-    if len(allimgs) != 1:
+    if not allimgs:
+        allsvgimgs = etree.XPath('//svg:image', namespaces=SVGNS)(xhtmltree)
+        len_svg_images = len(allsvgimgs)
+    else:
+        len_svg_images = 0
+    if len(allimgs) != 1 and len_svg_images != 1:
         print('HTML cover should have only one image. Giving up...')
         return 1
-    html_cover_img_file = allimgs[0].get('src').split('/')[-1]
+    if allimgs:
+        html_cover_img_file = allimgs[0].get('src').split('/')[-1]
+    elif allsvgimgs:
+        html_cover_img_file = allsvgimgs[0].get(
+            '{http://www.w3.org/1999/xlink}href'
+        ).split('/')[-1]
     meta_cover_id = opftree.xpath(
         '//opf:meta[@name="cover"]',
         namespaces=OPFNS
@@ -400,6 +400,8 @@ def fix_mismatched_covers(opf, tempdir):
                 encoding="utf-8",
                 doctype=DTD)
             )
+    else:
+        print('Meta and HTML covers are identical...')
 
 
 def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
@@ -411,14 +413,15 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
 
         allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
         for img in allimgs:
-            if img.get('src').find(_itemcoverhref) != -1:
+            if (img.get('src').find(_itemcoverhref) != -1 or
+                    img.get('src').lower().find('okladka_fmt') != -1):
                 cover_file = xhtml_file
                 break
         allsvgimgs = etree.XPath('//svg:image', namespaces=SVGNS)(xhtmltree)
         for svgimg in allsvgimgs:
             svg_img_href = svgimg.get('{http://www.w3.org/1999/xlink}href')
             if (svg_img_href.find(itemcoverhref) != -1 or
-                    svg_img_href.find('okladka_fmt') != -1):
+                    svg_img_href.lower().find('okladka_fmt') != -1):
                 cover_file = xhtml_file
                 break
     if cover_file is not None:
@@ -427,7 +430,7 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
                 cover_file = xhtml_file_path
                 break
         _newcoverreference = etree.Element(
-            'reference', title='Cover',
+            '{http://www.idpf.org/2007/opf}reference', title='Cover',
             type="cover",   href=cover_file
         )
         _refcovers = etree.XPath('//opf:reference[@type="cover"]',
@@ -449,10 +452,15 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
 def set_cover_meta_elem(_metacovers, _soup, _content):
     _metadatas = etree.XPath('//opf:metadata', namespaces=OPFNS)(_soup)
     if len(_metadatas) == 1 and len(_metacovers) == 0:
-        _newmeta = etree.Element('meta', name='cover', content=_content)
+        _newmeta = etree.Element(
+            '{http://www.idpf.org/2007/opf}meta',
+            name='cover',
+            content=_content
+        )
         _metadatas[0].insert(0, _newmeta)
     elif len(_metadatas) == 1 and len(_metacovers) == 1:
         _metacovers[0].set('content', _content)
+    return _soup
 
 
 def force_cover_find(_soup):
@@ -558,7 +566,7 @@ def fix_various_opf_problems(source_file, tempdir, xhtml_files,
                 soup = set_cover_guide_ref(
                     xhtml_files, imag_href, xhtml_file_paths, soup
                 )
-                set_cover_meta_elem(metacovers, soup, imag_id)
+                soup = set_cover_meta_elem(metacovers, soup, imag_id)
             else:
                 print('No images found...')
         if cover_image is not None:
@@ -569,7 +577,7 @@ def fix_various_opf_problems(source_file, tempdir, xhtml_files,
                 '"]', namespaces=OPFNS
             )(soup)
             if len(itemhrefcovers) == 1:
-                set_cover_meta_elem(
+                soup = set_cover_meta_elem(
                     metacovers, soup, itemhrefcovers[0].get('id')
                 )
 
@@ -579,7 +587,7 @@ def fix_various_opf_problems(source_file, tempdir, xhtml_files,
             soup = set_cover_guide_ref(
                 xhtml_files, imag_href, xhtml_file_paths, soup
             )
-            set_cover_meta_elem(metacovers, soup, imag_id)
+            soup = set_cover_meta_elem(metacovers, soup, imag_id)
         else:
             print('No images found...')
 
@@ -593,24 +601,18 @@ def fix_various_opf_problems(source_file, tempdir, xhtml_files,
                         'opf': 'http://www.idpf.org/2007/opf'}
             ):
         dcid.getparent().remove(dcid)
-    with open(source_file, 'w') as f:
-        f.write(etree.tostring(soup.getroot(), pretty_print=True,
-                xml_declaration=True, encoding='utf-8'))
+    return soup
 
 
-def fix_meta_cover_order(source_file):
-    soup = etree.parse(source_file)
+def fix_meta_cover_order(soup):
     # name='cover' should be before content attribute
     for cover in soup.xpath('//opf:meta[@name="cover" and @content]',
                             namespaces=OPFNS):
         cover.set('content', cover.attrib.pop('content'))
-    with open(source_file, 'w') as f:
-        f.write(etree.tostring(soup.getroot(), pretty_print=True,
-                xml_declaration=True, encoding='utf-8'))
+    return soup
 
 
-def fix_ncx_dtd_uid(source_file, tempdir):
-    opftree = etree.parse(source_file)
+def fix_ncx_dtd_uid(opftree, tempdir):
     ncxfile = etree.XPath(
         '//opf:item[@media-type="application/x-dtbncx+xml"]',
         namespaces=OPFNS
@@ -627,9 +629,6 @@ def fix_ncx_dtd_uid(source_file, tempdir):
                 break
         opftree.xpath('//opf:package',
                       namespaces=OPFNS)[0].set('unique-identifier', uniqid)
-        with open(source_file, "w") as f:
-            f.write(etree.tostring(opftree.getroot(), pretty_print=True,
-                                   xml_declaration=True, encoding='utf-8'))
     dc_identifier = etree.XPath('//dc:identifier[@id="' + uniqid + '"]/text()',
                                 namespaces=DCNS)(opftree)[0]
     try:
@@ -648,6 +647,7 @@ def fix_ncx_dtd_uid(source_file, tempdir):
     with open(os.path.join(tempdir, ncxfile), 'w') as f:
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
                 xml_declaration=True, encoding='utf-8'))
+    return opftree
 
 
 def append_reset_css(source_file):
@@ -747,29 +747,38 @@ def main():
                         _rootepubdir
                     ) = find_xhtml_files(_epubzipfile, _tempdir)
 
-                    fix_various_opf_problems(
+                    opftree = fix_various_opf_problems(
                         _opf_file, _rootepubdir,
                         _xhtml_files, _xhtml_file_paths
                     )
 
-                    fix_ncx_dtd_uid(_opf_file, _rootepubdir)
+                    opftree = fix_ncx_dtd_uid(opftree, _rootepubdir)
 
-                    fix_html_toc(
-                        _opf_file, _rootepubdir,
+                    opftree = fix_html_toc(
+                        opftree, _rootepubdir,
                         _xhtml_files, _xhtml_file_paths
                     )
 
-                    fix_meta_cover_order(_opf_file)
+                    opftree = fix_meta_cover_order(opftree)
+
+                    fix_mismatched_covers(opftree, _rootepubdir)
 
                     # parse encryption.xml file
                     enc_file = os.path.join(
                         _tempdir, 'META-INF', 'encryption.xml'
                     )
                     if os.path.exists(enc_file):
-                        process_encryption(enc_file, _opf_file)
+                        process_encryption(enc_file, opftree)
                         os.remove(enc_file)
 
-                    fix_mismatched_covers(_opf_file, _rootepubdir)
+                    # write all OPF changes back to file
+                    with open(_opf_file, 'w') as f:
+                        f.write(etree.tostring(
+                            opftree.getroot(),
+                            pretty_print=True,
+                            xml_declaration=True,
+                            encoding='utf-8'
+                        ))
 
                     for _single_xhtml in _xhtml_files:
                         with open(_single_xhtml, 'r') as content_file:
