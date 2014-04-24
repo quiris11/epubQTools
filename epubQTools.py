@@ -86,26 +86,10 @@ validator = args.epubcheck
 verbose = args.verbose
 
 
-def find_encryption_key(opf):
-    uid = None
-    for dcid in etree.parse(opf).xpath("//dc:identifier", namespaces=DCNS):
-        if dcid.get("{http://www.idpf.org/2007/opf}scheme") == "UUID":
-            if dcid.text[:9] == "urn:uuid:":
-                uid = dcid.text
-                break
-        if dcid.text is not None:
-            if dcid.text[:9] == "urn:uuid:":
-                uid = dcid.text
-                break
-    if uid is None:
-        print('UUID identifier in content.opf missing')
-    return uid
-
-
 # based on calibri work
-def process_encryption(_encfile, _key):
-    print('Font decoding started...')
-    root = etree.parse(_encfile)
+def process_encryption(encfile, opf):
+    print('Font decrypting started...')
+    root = etree.parse(encfile)
     for em in root.xpath(
             'descendant::*[contains(name(), "EncryptionMethod")]'
     ):
@@ -116,28 +100,59 @@ def process_encryption(_encfile, _key):
             'descendant::*[contains(name(), "CipherReference")]'
         )[0]
         uri = cr.get('URI')
-        font_path = os.path.abspath(os.path.join(os.path.dirname(_encfile),
+        font_path = os.path.abspath(os.path.join(os.path.dirname(encfile),
                                     '..', *uri.split('/')))
-        if (_key and os.path.exists(font_path)):
-            decrypt_font(font_path, _key, algorithm)
+        key = find_encryption_key(opf, algorithm)
+        if (key and os.path.exists(font_path)):
+            decrypt_font(font_path, key, algorithm)
     return True
+
+
+def find_encryption_key(opf, method):
+    uid = None
+    opftree = etree.parse(opf)
+    if method == ADOBE_OBFUSCATION:
+        # find first UUID URN-based unique identifier
+        for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
+            if dcid.text.startswith('urn:uuid:'):
+                uid = dcid.text
+                break
+        if uid is None:
+            print('UUID URN-based unique identifier in content.opf does '
+                  'not found')
+            return uid
+        print method, uid
+        uid = uid.replace('\x20', '').replace('\x09', '').\
+            replace('\x0D', '').replace('\x0A', '').\
+            replace('-', '').replace('urn:uuid:', '').\
+            replace(':', '')
+        uid = bytes(uid)
+        uid = uuid.UUID(uid).bytes
+    elif method == IDPF_OBFUSCATION:
+        # find unique-identifier
+        uniq_id = opftree.xpath('//opf:package',
+                                namespaces=OPFNS)[0].get('unique-identifier')
+        if uniq_id is not None:
+            for elem in opftree.xpath("//dc:identifier", namespaces=DCNS):
+                if elem.get('id') == uniq_id:
+                    uid = elem.text
+                    break
+        if uid is None:
+            print('Unique identifier in content.opf does not found')
+            return uid
+        print method, uid
+        uid = uid.replace('\x20', '').replace('\x09', '').\
+            replace('\x0D', '').replace('\x0A', '')
+        uid = hashlib.sha1(uid).digest()
+    return uid
 
 
 # based on calibri work
 def decrypt_font(path, key, method):
     if method == ADOBE_OBFUSCATION:
         crypt_len = 1024
-        key = key.replace('\x20', '').replace('\x09', '').\
-            replace('\x0D', '').replace('\x0A', '').\
-            replace('-', '').replace('urn:uuid:', '').\
-            replace(':', '')
-        key = bytes(key)
-        key = uuid.UUID(key).bytes
     elif method == IDPF_OBFUSCATION:
         crypt_len = 1040
-        key = key.replace('\x20', '').replace('\x09', '').\
-            replace('\x0D', '').replace('\x0A', '')
-        key = hashlib.sha1(key).digest()
     with open(path, 'rb') as f:
         raw = f.read()
     crypt = bytearray(raw[:crypt_len])
@@ -148,9 +163,9 @@ def decrypt_font(path, key, method):
         f.write(raw[crypt_len:])
     try:
         font_pil = ImageFont.truetype(path, 14)
-        print(os.path.basename(path) + ': OK! Decoded...')
+        print(os.path.basename(path) + ': OK! Decrypted...')
     except IOError:
-        print(os.path.basename(path) + ': DECODING FAILED!')
+        print(os.path.basename(path) + ': Decrypting FAILED!')
         font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
                       os.path.join(HOME, 'Library', 'Fonts')]
         for font_path in font_paths:
@@ -725,8 +740,7 @@ def main():
                         _tempdir, 'META-INF', 'encryption.xml'
                     )
                     if os.path.exists(enc_file):
-                        enc_key = find_encryption_key(_opf_file)
-                        process_encryption(enc_file, enc_key)
+                        process_encryption(enc_file, _opf_file)
                         os.remove(enc_file)
 
                     for _single_xhtml in _xhtml_files:
