@@ -69,6 +69,9 @@ parser.add_argument("-r", "--resetmargins", help="reset CSS margins for "
 parser.add_argument("-c", "--findcover", help="force find cover (risky) "
                     "(only with -e)",
                     action="store_true")
+parser.add_argument("-t", "--replacefonts", help="replace font (experimental) "
+                    "(only with -e)",
+                    action="store_true")
 parser.add_argument("-k", "--kindlegen", help="convert _moh.epub files to"
                     " .mobi with kindlegen", action="store_true")
 parser.add_argument("-d", "--huffdic", help="tell kindlegen to use huffdic "
@@ -177,6 +180,35 @@ def decrypt_font(path, key, method):
             print(os.path.basename(path) + ': OK! File replaced...')
         except:
             pass
+
+
+def find_and_replace_fonts(opftree, rootepubdir):
+    print('Replacing fonts procedure started...')
+    items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree)
+    for item in items:
+        if item.get('href').endswith('.otf'):
+            actual_font_path = os.path.join(rootepubdir, item.get('href'))
+            replace_font(actual_font_path)
+            continue
+        if item.get('href').endswith('.ttf'):
+            actual_font_path = os.path.join(rootepubdir, item.get('href'))
+            replace_font(actual_font_path)
+            continue
+
+
+def replace_font(actual_font_path):
+    font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
+                  os.path.join(HOME, 'Library', 'Fonts')]
+    for font_path in font_paths:
+        if os.path.exists(
+                os.path.join(font_path, os.path.basename(actual_font_path))
+        ):
+            print('Replacing font: ' + os.path.basename(actual_font_path))
+            os.remove(actual_font_path)
+            shutil.copyfile(
+                os.path.join(font_path, os.path.basename(actual_font_path)),
+                actual_font_path
+            )
 
 
 def unpack_epub(source_epub):
@@ -774,6 +806,9 @@ def main():
                     if os.path.exists(enc_file):
                         process_encryption(enc_file, opftree)
                         os.remove(enc_file)
+
+                    if args.replacefonts:
+                        find_and_replace_fonts(opftree, _rootepubdir)
 
                     # write all OPF changes back to file
                     with open(_opf_file, 'w') as f:
