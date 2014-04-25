@@ -27,7 +27,7 @@ encryption_file_found = False
 def check_wm_info(singlefile, epub, file_dec):
     tree = etree.fromstring(epub.read(singlefile))
     alltexts = etree.XPath('//xhtml:body//text()',
-                                namespaces=XHTMLNS)(tree)
+                           namespaces=XHTMLNS)(tree)
     alltext = ' '.join(alltexts)
     alltext = alltext.replace(u'\u00AD', '').strip()
     if 'Plik jest zabezpieczony znakiem wodnym' in alltext:
