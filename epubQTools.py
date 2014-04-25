@@ -702,6 +702,39 @@ def append_reset_css(source_file):
     return source_file
 
 
+def replace_svg_html_cover(opftree, rootepubdir):
+    print('Replacing svg cover procedure starting...')
+    html_cover_path = os.path.join(rootepubdir, opftree.xpath(
+        '//opf:reference[@type="cover"]',
+        namespaces=OPFNS
+    )[0].get('href'))
+    html_cover_tree = etree.parse(html_cover_path,
+                                  parser=etree.XMLParser(recover=True))
+    svg_imgs = html_cover_tree.xpath('//svg:image', namespaces=SVGNS)
+    if len(svg_imgs) == 1:
+        if not hasattr(sys, 'frozen'):
+            new_cover_tree = etree.parse(os.path.join(
+                os.path.dirname(__file__), 'resources', 'cover.xhtml'
+            ))
+        else:
+            new_cover_tree = etree.parse(os.path.join(
+                os.path.dirname(sys.executable), 'resources',
+                'cover.xhtml'
+            ))
+        new_cover_tree.xpath(
+            '//xhtml:img',
+            namespaces=XHTMLNS
+        )[0].set('src', svg_imgs[0].get('{http://www.w3.org/1999/xlink}href'))
+        with open(html_cover_path, "w") as f:
+            f.write(etree.tostring(
+                new_cover_tree,
+                pretty_print=True,
+                xml_declaration=True,
+                encoding="utf-8",
+                doctype=DTD)
+            )
+
+
 def main():
     if args.qcheck or args.rename:
         qcheck(_documents, args.mod, args.epubcheck, args.rename)
@@ -796,6 +829,9 @@ def main():
                     )
 
                     opftree = fix_meta_cover_order(opftree)
+
+                    # experimental - disabled
+                    # replace_svg_html_cover(opftree, _rootepubdir)
 
                     fix_mismatched_covers(opftree, _rootepubdir)
 
