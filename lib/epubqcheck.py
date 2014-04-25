@@ -60,7 +60,12 @@ def check_meta_html_covers(tree, dir, epub, file_dec):
     if len(allimgs) > 1:
         print(file_dec + ': HTML cover should have only one image...')
     for img in allimgs:
-        if len(allimgs) == 1 and img.get('src').find(meta_cover_path) == -1:
+        if (
+                len(allimgs) == 1 and
+                img.get('src').split('/')[-1].find(
+                    meta_cover_path.split('/')[-1]
+                )
+        ) == -1:
             print(file_dec + ': Meta cover and HTML cover mismatched.')
     allsvgimgs = etree.XPath('//svg:image', namespaces=SVGNS)(html_cover_tree)
     if len(allsvgimgs) > 1:
