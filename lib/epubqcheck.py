@@ -21,6 +21,19 @@ DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 
+encryption_file_found = False
+
+
+def check_dl_in_html_toc(tree, dir, epub, file_dec):
+    try:
+        html_toc_path = dir + tree.xpath('//opf:reference[@type="toc"]',
+                                         namespaces=OPFNS)[0].get('href')
+        raw = epub.read(html_toc_path)
+        if '<dl>' in raw:
+            print(file_dec + ': Problematic DL tag in HTML TOC found...')
+    except:
+        pass
+
 
 def check_meta_html_covers(tree, dir, epub, file_dec):
     html_cover_path = etree.XPath('//opf:reference[@type="cover"]',
@@ -157,6 +170,8 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
     if _refcovcount == 1 and len(_metacovers) == 1:
         check_meta_html_covers(opftree, _folder, _epubfile, _file_dec)
 
+    check_dl_in_html_toc(opftree, _folder, _epubfile, _file_dec)
+
     _htmlfiletags = etree.XPath(
         '//opf:item[@media-type="application/xhtml+xml"]', namespaces=OPFNS
     )(opftree)
@@ -258,21 +273,21 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
     ):
         print(_file_dec + ': other calibre staff found')
         break
-
-    uid = None
-    for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
-        if dcid.get("{http://www.idpf.org/2007/opf}scheme") == "UUID":
-            if dcid.text[:9] == "urn:uuid:":
-                uid = dcid.text
-                break
-        if dcid.text is not None:
-            if dcid.text[:9] == "urn:uuid:":
-                uid = dcid.text
-                break
-    if uid is None:
-        print(_file_dec + ': UUID identifier in content.opf missing')
-#     else:
-#         print(_file_dec + ': UUID: ' + uid)
+    if encryption_file_found:
+        uid = None
+        for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
+            if dcid.get("{http://www.idpf.org/2007/opf}scheme") == "UUID":
+                if dcid.text[:9] == "urn:uuid:":
+                    uid = dcid.text
+                    break
+            if dcid.text is not None:
+                if dcid.text[:9] == "urn:uuid:":
+                    uid = dcid.text
+                    break
+        if uid is None:
+            print(_file_dec + ': UUID identifier in content.opf missing')
+    #     else:
+    #         print(_file_dec + ': UUID: ' + uid)
 
 
 def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
@@ -312,9 +327,11 @@ def qcheck(_documents, _moded, _validator, _rename):
         for _file in files:
             file_dec = _file.decode(sys.getfilesystemencoding())
             if _file.endswith(fe) and not _file.endswith(nfe):
+                encryption_file_found = False
                 epubfile = zipfile.ZipFile(os.path.join(root, _file))
                 for singlefile in epubfile.namelist():
                     if singlefile.find('encryption.xml') > 0 and not _rename:
+                        encryption_file_found = True
                         print(file_dec + ': encryption.xml file found... '
                               'Embedded fonts probably are encrypted...')
 
