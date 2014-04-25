@@ -346,11 +346,11 @@ def qcheck(_documents, _moded, _validator, _rename):
                         os.path.dirname(__file__), os.pardir, 'resources',
                         'epubcheck-3.0.1', 'epubcheck-3.0.1.jar'
                     )
-                    print('*** EpubCheck 3.0.1 *** begin of validating '
+                    print('START of validating '
                           'file: ' + file_dec)
                     subprocess.call(['java', '-jar', '%s' % _epubchecker_path,
                                     '%s' % str(os.path.join(root, _file))])
-                    print('*** EpubCheck 3.0.1 *** end of validating '
+                    print('FINISH of validating '
                           'file: ' + file_dec)
                     print('')
 
