@@ -735,6 +735,25 @@ def replace_svg_html_cover(opftree, rootepubdir):
             )
 
 
+def convert_dl_to_ul(opftree, rootepubdir):
+    html_toc_path = os.path.join(rootepubdir, opftree.xpath(
+        '//opf:reference[@type="toc"]',
+        namespaces=OPFNS
+    )[0].get('href'))
+    with open(html_toc_path, 'r') as f:
+        raw = f.read()
+    if '<dl>' in raw:
+        print('Coverting HTML TOC from definition list to unsorted list...')
+        raw = re.sub(r'<dd>(\s*)<dl>', '<li><ul>', raw)
+        raw = re.sub(r'</dl>(\s*)</dd>', '</ul></li>', raw)
+        raw = raw.replace('<dl>', '<ul>')
+        raw = raw.replace('</dl>', '</ul>')
+        raw = raw.replace('<dt>', '<li>')
+        raw = raw.replace('</dt>', '</li>')
+        with open(html_toc_path, 'w') as f:
+            f.write(raw)
+
+
 def main():
     if args.qcheck or args.rename:
         qcheck(_documents, args.mod, args.epubcheck, args.rename)
@@ -834,6 +853,8 @@ def main():
                     # replace_svg_html_cover(opftree, _rootepubdir)
 
                     fix_mismatched_covers(opftree, _rootepubdir)
+
+                    convert_dl_to_ul(opftree, _rootepubdir)
 
                     # parse encryption.xml file
                     enc_file = os.path.join(
