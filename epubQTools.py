@@ -754,6 +754,23 @@ def convert_dl_to_ul(opftree, rootepubdir):
             f.write(raw)
 
 
+def remove_wm_info(opftree, rootepubdir):
+    try:
+        wm = opftree.xpath('//opf:item[@id="watermark-info-page"]',
+                           namespaces=OPFNS)[0]
+        wm_path = os.path.join(rootepubdir, wm.get('href'))
+        os.remove(wm_path)
+        wm.getparent().remove(wm)
+        wm_ncx = opftree.xpath('//opf:itemref[@idref="watermark-info-page"]',
+                               namespaces=OPFNS)[0]
+        wm_ncx.getparent().remove(wm_ncx)
+        print('Watermark info page removed...')
+        return opftree
+    except:
+        print('Removing watermark info page failed!')
+        return opftree
+
+
 def main():
     if args.qcheck or args.rename:
         qcheck(_documents, args.mod, args.epubcheck, args.rename)
@@ -867,15 +884,6 @@ def main():
                     if args.replacefonts:
                         find_and_replace_fonts(opftree, _rootepubdir)
 
-                    # write all OPF changes back to file
-                    with open(_opf_file, 'w') as f:
-                        f.write(etree.tostring(
-                            opftree.getroot(),
-                            pretty_print=True,
-                            xml_declaration=True,
-                            encoding='utf-8'
-                        ))
-
                     for _single_xhtml in _xhtml_files:
                         with open(_single_xhtml, 'r') as content_file:
                             c = content_file.read()
@@ -919,6 +927,17 @@ def main():
                                 encoding="utf-8",
                                 doctype=DTD)
                             )
+                    opftree = remove_wm_info(opftree, _rootepubdir)
+
+                    # write all OPF changes back to file
+                    with open(_opf_file, 'w') as f:
+                        f.write(etree.tostring(
+                            opftree.getroot(),
+                            pretty_print=True,
+                            xml_declaration=True,
+                            encoding='utf-8'
+                        ))
+
                     pack_epub(os.path.join(root, _newfile),
                               _tempdir)
                     clean_temp(_tempdir)
