@@ -25,13 +25,16 @@ encryption_file_found = False
 
 
 def check_wm_info(singlefile, epub, file_dec):
-    tree = etree.fromstring(epub.read(singlefile))
+    try:
+        tree = etree.fromstring(epub.read(singlefile))
+    except:
+        return 0
     alltexts = etree.XPath('//xhtml:body//text()',
                            namespaces=XHTMLNS)(tree)
     alltext = ' '.join(alltexts)
     alltext = alltext.replace(u'\u00AD', '').strip()
-    if 'Plik jest zabezpieczony znakiem wodnym' in alltext:
-        print(file_dec + ': watermark info found...')
+    if alltext == 'Plik jest zabezpieczony znakiem wodnym':
+        print(file_dec + ': WM info file found: ' + singlefile)
 
 
 def check_dl_in_html_toc(tree, dir, epub, file_dec):
@@ -344,7 +347,7 @@ def qcheck(_documents, _moded, _validator, _rename):
                         encryption_file_found = True
                         print(file_dec + ': encryption.xml file found... '
                               'Embedded fonts probably are encrypted...')
-                    if singlefile.find('watermark') > 0 and not _rename:
+                    if not _rename:
                         check_wm_info(singlefile, epubfile, file_dec)
 
                     # check font files for encryption
