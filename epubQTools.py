@@ -45,6 +45,7 @@ NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 ADOBE_OBFUSCATION = 'http://ns.adobe.com/pdf/enc#RC'
 IDPF_OBFUSCATION = 'http://www.idpf.org/2008/embedding'
+CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
 
 
 parser = argparse.ArgumentParser()
@@ -238,30 +239,33 @@ def clean_temp(sourcedir):
         shutil.rmtree(sourcedir)
 
 
-def find_xhtml_files(epubzipfile, tempdir):
-    for singlefile in epubzipfile.namelist():
-        if singlefile.find('.opf') > 0:
-            if singlefile.find('/') == -1:
-                rootepubdir = tempdir
-            else:
-                rootepubdir = os.path.join(tempdir,
-                                           singlefile.split('/')[0])
-            opftree = etree.fromstring(epubzipfile.read(singlefile))
-            try:
-                xhtml_items = etree.XPath(
-                    '//opf:item[@media-type="application/xhtml+xml"]',
-                    namespaces=OPFNS
-                )(opftree)
-            except:
-                print('XHTML files not found...')
-            xhtml_files = []
-            xhtml_file_paths = []
-            for xhtml_item in xhtml_items:
-                xhtml_files.append(os.path.join(rootepubdir,
-                                   xhtml_item.get('href')))
-                xhtml_file_paths.append(xhtml_item.get('href'))
-            opf_file = os.path.join(tempdir, singlefile)
-            return xhtml_files, xhtml_file_paths, opf_file, rootepubdir
+def find_roots(tempdir):
+    try:
+        cr_tree = etree.parse(os.path.join(tempdir, 'META-INF',
+                                           'container.xml'))
+        opf_path = cr_tree.xpath('//cr:rootfile',
+                                 namespaces=CRNS)[0].get('full-path')
+    except:
+        print('Parsing container.xml failed. Not an EPUB file?')
+        return 1
+    return os.path.dirname(opf_path), opf_path
+
+
+def find_xhtml_files(epubzipfile, tempdir, rootepubdir, opf_file):
+    opftree = etree.parse(opf_file)
+    try:
+        xhtml_items = etree.XPath(
+            '//opf:item[@media-type="application/xhtml+xml"]',
+            namespaces=OPFNS
+        )(opftree)
+    except:
+        print('XHTML files not found...')
+    xhtml_files = []
+    xhtml_file_paths = []
+    for xhtml_item in xhtml_items:
+        xhtml_files.append(os.path.join(rootepubdir, xhtml_item.get('href')))
+        xhtml_file_paths.append(xhtml_item.get('href'))
+    return xhtml_files, xhtml_file_paths
 
 
 def hyphenate_and_fix_conjunctions(source_file, hyph, hyphen_mark):
@@ -755,20 +759,34 @@ def convert_dl_to_ul(opftree, rootepubdir):
 
 
 def remove_wm_info(opftree, rootepubdir):
-    try:
-        wm = opftree.xpath('//opf:item[@id="watermark-info-page"]',
-                           namespaces=OPFNS)[0]
-        wm_path = os.path.join(rootepubdir, wm.get('href'))
-        os.remove(wm_path)
-        wm.getparent().remove(wm)
-        wm_ncx = opftree.xpath('//opf:itemref[@idref="watermark-info-page"]',
-                               namespaces=OPFNS)[0]
-        wm_ncx.getparent().remove(wm_ncx)
-        print('Watermark info page removed...')
-        return opftree
-    except:
-        print('Removing watermark info page failed!')
-        return opftree
+    wmfiles = ['watermark.', 'default-info.', 'generated.']
+    items = opftree.xpath('//opf:item', namespaces=OPFNS)
+    for wmf in wmfiles:
+        for i in items:
+            if wmf in i.get('href'):
+                try:
+                    wmtree = etree.parse(os.path.join(rootepubdir,
+                                                      i.get('href')))
+                except:
+                    continue
+                alltexts = wmtree.xpath('//xhtml:body//text()',
+                                        namespaces=XHTMLNS)
+                alltext = ' '.join(alltexts)
+                alltext = alltext.replace(u'\u00AD', '').strip()
+                if alltext == 'Plik jest zabezpieczony znakiem wodnym':
+                    remove_file_from_epub(i.get('href'), opftree, rootepubdir)
+                    print('Watermark info page removed: ' + i.get('href'))
+    return opftree
+
+
+def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
+    item = opftree.xpath('//opf:item[@href="' + file_rel_to_opf + '"]',
+                         namespaces=OPFNS)[0]
+    item_ncx = opftree.xpath('//opf:itemref[@idref="' + item.get('id') + '"]',
+                             namespaces=OPFNS)[0]
+    item_ncx.getparent().remove(item_ncx)
+    item.getparent().remove(item)
+    os.remove(os.path.join(rootepubdir, file_rel_to_opf))
 
 
 def main():
@@ -837,6 +855,10 @@ def main():
                         os.path.join(root, _file)
                     )
 
+                    opf_dir, opf_file_path = find_roots(_tempdir)
+                    opf_dir_abs = os.path.join(_tempdir, opf_dir)
+                    opf_file_path_abs = os.path.join(_tempdir, opf_file_path)
+
                     # remove obsolete calibre_bookmarks.txt
                     try:
                         os.remove(os.path.join(
@@ -845,33 +867,30 @@ def main():
                     except OSError:
                         pass
 
-                    (
-                        _xhtml_files,
-                        _xhtml_file_paths,
-                        _opf_file,
-                        _rootepubdir
-                    ) = find_xhtml_files(_epubzipfile, _tempdir)
+                    _xhtml_files, _xhtml_file_paths = find_xhtml_files(
+                        _epubzipfile, _tempdir, opf_dir_abs, opf_file_path_abs
+                    )
 
                     opftree = fix_various_opf_problems(
-                        _opf_file, _rootepubdir,
+                        opf_file_path_abs, opf_dir_abs,
                         _xhtml_files, _xhtml_file_paths
                     )
 
-                    opftree = fix_ncx_dtd_uid(opftree, _rootepubdir)
+                    opftree = fix_ncx_dtd_uid(opftree, opf_dir_abs)
 
                     opftree = fix_html_toc(
-                        opftree, _rootepubdir,
+                        opftree, opf_dir_abs,
                         _xhtml_files, _xhtml_file_paths
                     )
 
                     opftree = fix_meta_cover_order(opftree)
 
                     # experimental - disabled
-                    # replace_svg_html_cover(opftree, _rootepubdir)
+                    # replace_svg_html_cover(opftree, opf_dir_abs)
 
-                    fix_mismatched_covers(opftree, _rootepubdir)
+                    fix_mismatched_covers(opftree, opf_dir_abs)
 
-                    convert_dl_to_ul(opftree, _rootepubdir)
+                    convert_dl_to_ul(opftree, opf_dir_abs)
 
                     # parse encryption.xml file
                     enc_file = os.path.join(
@@ -882,7 +901,7 @@ def main():
                         os.remove(enc_file)
 
                     if args.replacefonts:
-                        find_and_replace_fonts(opftree, _rootepubdir)
+                        find_and_replace_fonts(opftree, opf_dir_abs)
 
                     for _single_xhtml in _xhtml_files:
                         with open(_single_xhtml, 'r') as content_file:
@@ -927,10 +946,10 @@ def main():
                                 encoding="utf-8",
                                 doctype=DTD)
                             )
-                    opftree = remove_wm_info(opftree, _rootepubdir)
+                    opftree = remove_wm_info(opftree, opf_dir_abs)
 
                     # write all OPF changes back to file
-                    with open(_opf_file, 'w') as f:
+                    with open(opf_file_path_abs, 'w') as f:
                         f.write(etree.tostring(
                             opftree.getroot(),
                             pretty_print=True,
