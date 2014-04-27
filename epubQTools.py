@@ -77,8 +77,6 @@ parser.add_argument("-k", "--kindlegen", help="convert _moh.epub files to"
                     " .mobi with kindlegen", action="store_true")
 parser.add_argument("-d", "--huffdic", help="tell kindlegen to use huffdic "
                     "compression (slow conversion)", action="store_true")
-parser.add_argument("-v", "--verbose", help="more detailed output",
-                    action="store_true")
 parser.add_argument("-f", "--force",
                     help="overwrite previously generated _moh.epub or "
                     " .mobi files (only with -k or -e)",
@@ -87,7 +85,6 @@ args = parser.parse_args()
 
 _documents = args.directory
 validator = args.epubcheck
-verbose = args.verbose
 
 
 # based on calibri work
@@ -501,8 +498,7 @@ def set_cover_meta_elem(_metacovers, _soup, _content):
 
 
 def force_cover_find(_soup):
-    if verbose:
-        print('Force cover find...')
+    print('Force cover find...')
     images = etree.XPath('//opf:item[@media-type="image/jpeg"]',
                          namespaces=OPFNS)(_soup)
     cover_found = 0
@@ -512,10 +508,9 @@ def force_cover_find(_soup):
             if (img_href_lower.find('cover') != -1 or
                     img_href_lower.find('okladka') != -1):
                 cover_found = 1
-                if verbose:
-                    print('Candidate image for cover found:' +
-                          ' href=' + imag.get('href') +
-                          ' id=' + imag.get('id'))
+                print('Candidate image for cover found:' +
+                      ' href=' + imag.get('href') +
+                      ' id=' + imag.get('id'))
                 return imag.get('href'), imag.get('id')
                 break
     if cover_found == 0:
@@ -523,8 +518,7 @@ def force_cover_find(_soup):
 
 
 def set_correct_font_mime_types(_soup):
-    if verbose:
-        print('Setting correct font mime types...')
+    print('Setting correct font mime types...')
     _items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(_soup)
     for _item in _items:
         if _item.get('href').endswith('.otf'):
@@ -572,8 +566,7 @@ def fix_various_opf_problems(source_file, tempdir, xhtml_files,
             '//opf:item[@id="' + metacovers[0].get('content') + '"]',
             namespaces=OPFNS
         )(soup)
-        if verbose:
-            print('Defining cover guide element...')
+        print('Defining cover guide element...')
         itemcoverhref = os.path.basename(itemcovers[0].get('href'))
         soup = set_cover_guide_ref(
             xhtml_files, itemcoverhref, xhtml_file_paths, soup
@@ -688,8 +681,7 @@ def fix_ncx_dtd_uid(opftree, tempdir):
 
 
 def append_reset_css(source_file):
-    if verbose:
-        print('Resetting CSS body margin and padding...')
+    print('Resetting CSS body margin and padding...')
     try:
         heads = etree.XPath(
             '//xhtml:head',
