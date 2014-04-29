@@ -87,6 +87,23 @@ _documents = args.directory
 validator = args.epubcheck
 
 
+def remove_node(node):
+    parent = node.getparent()
+    index = parent.index(node)
+    if node.tail is not None:
+        if index == 0:
+            try:
+                parent.text += node.tail
+            except TypeError:
+                parent.text = node.tail
+        else:
+            try:
+                parent[index - 1].tail += node.tail
+            except TypeError:
+                parent[index - 1].tail = node.tail
+    parent.remove(node)
+
+
 # based on calibri work
 def process_encryption(encfile, opftree):
     print('Font decrypting started...')
@@ -920,7 +937,7 @@ def main():
                             namespaces=XHTMLNS
                         )(_xhtmltree)
                         for wm in _wmarks:
-                            wm.getparent().remove(wm)
+                            remove_node(wm)
 
                         # remove meta charsets
                         _metacharsets = etree.XPath(
