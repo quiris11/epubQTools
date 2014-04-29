@@ -717,10 +717,13 @@ def append_reset_css(source_file):
 
 def remove_text_from_html_cover(opftree, rootepubdir):
     print('Removing text from HTML cover...')
-    html_cover_path = os.path.join(rootepubdir, opftree.xpath(
-        '//opf:reference[@type="cover"]',
-        namespaces=OPFNS
-    )[0].get('href'))
+    try:
+        html_cover_path = os.path.join(rootepubdir, opftree.xpath(
+            '//opf:reference[@type="cover"]',
+            namespaces=OPFNS
+        )[0].get('href'))
+    except:
+        return 0
     html_cover_tree = etree.parse(html_cover_path,
                                   parser=etree.XMLParser(recover=True))
     try:
