@@ -715,6 +715,30 @@ def append_reset_css(source_file):
     return source_file
 
 
+def remove_text_from_html_cover(opftree, rootepubdir):
+    print('Removing text from HTML cover...')
+    html_cover_path = os.path.join(rootepubdir, opftree.xpath(
+        '//opf:reference[@type="cover"]',
+        namespaces=OPFNS
+    )[0].get('href'))
+    html_cover_tree = etree.parse(html_cover_path,
+                                  parser=etree.XMLParser(recover=True))
+    try:
+        trash = html_cover_tree.xpath('//xhtml:h1[@class="invisible"]',
+                                      namespaces=XHTMLNS)[0]
+        trash.text = ''
+    except:
+        return 0
+    with open(html_cover_path, "w") as f:
+        f.write(etree.tostring(
+            html_cover_tree,
+            pretty_print=True,
+            xml_declaration=True,
+            encoding="utf-8",
+            doctype=DTD)
+        )
+
+
 def replace_svg_html_cover(opftree, rootepubdir):
     print('Replacing svg cover procedure starting...')
     html_cover_path = os.path.join(rootepubdir, opftree.xpath(
@@ -900,6 +924,7 @@ def main():
                     fix_mismatched_covers(opftree, opf_dir_abs)
 
                     convert_dl_to_ul(opftree, opf_dir_abs)
+                    remove_text_from_html_cover(opftree, opf_dir_abs)
 
                     # parse encryption.xml file
                     enc_file = os.path.join(
