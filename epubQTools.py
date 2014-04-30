@@ -730,6 +730,30 @@ def append_reset_css(source_file):
     return source_file
 
 
+def modify_problematic_styles(source_file):
+    styles = etree.XPath('//*[@style]',
+                         namespaces=XHTMLNS)(source_file)
+    for s in styles:
+        if ('display: none' or 'display:none') in s.get('style'):
+            print('Replacing problematic style: none with visibility: hidden'
+                  '...')
+            stylestr = s.get('style')
+            stylestr = re.sub(r'display:(\s*)none', 'visibility: hidden',
+                              stylestr)
+            s.set('style', stylestr)
+    img_styles = etree.XPath('//xhtml:img[@style]',
+                             namespaces=XHTMLNS)(source_file)
+    for s in img_styles:
+        if ('max-width' and 'width') in s.get('style'):
+            print('Fixing problematic combo max-width and width...')
+            print(s.get('style'))
+            stylestr = s.get('style')
+            stylestr = re.sub(r'width:(\s*)100%;*', '',
+                              stylestr)
+            s.set('style', stylestr)
+    return source_file
+
+
 def remove_text_from_html_cover(opftree, rootepubdir):
     print('Removing text from HTML cover...')
     try:
@@ -975,6 +999,8 @@ def main():
 
                         if args.resetmargins:
                             _xhtmltree = append_reset_css(_xhtmltree)
+
+                        _xhtmltree = modify_problematic_styles(_xhtmltree)
 
                         # remove watermarks
                         _wmarks = etree.XPath(

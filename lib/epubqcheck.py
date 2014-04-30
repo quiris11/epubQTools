@@ -7,7 +7,6 @@
 
 import zipfile
 import subprocess
-import re
 import os
 import sys
 import tempfile
@@ -58,7 +57,7 @@ def check_display_none(singlefile, epub, file_dec):
     except:
         return 0
     styles = etree.XPath('//*[@style]',
-                           namespaces=XHTMLNS)(tree)
+                         namespaces=XHTMLNS)(tree)
     for s in styles:
         if ('display: none' or 'display:none') in s.get('style'):
             print(file_dec + ': Element with display:none style found: ' +
