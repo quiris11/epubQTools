@@ -52,6 +52,19 @@ def check_wm_info(singlefile, epub, file_dec):
         print(file_dec + ': WM info file found: ' + singlefile)
 
 
+def check_display_none(singlefile, epub, file_dec):
+    try:
+        tree = etree.fromstring(epub.read(singlefile))
+    except:
+        return 0
+    styles = etree.XPath('//*[@style]',
+                           namespaces=XHTMLNS)(tree)
+    for s in styles:
+        if ('display: none' or 'display:none') in s.get('style'):
+            print(file_dec + ': Element with display:none style found: ' +
+                  etree.tostring(s))
+
+
 def check_dl_in_html_toc(tree, dir, epub, file_dec):
     try:
         html_toc_path = dir + tree.xpath('//opf:reference[@type="toc"]',
@@ -347,6 +360,7 @@ def qcheck(_documents, _moded, _validator, _rename):
                               'Embedded fonts probably are encrypted...')
                     if not _rename:
                         check_wm_info(singlefile, epubfile, file_dec)
+                        check_display_none(singlefile, epubfile, file_dec)
 
                     # check font files for encryption
                     if ((
