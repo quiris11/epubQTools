@@ -12,7 +12,6 @@ import os
 import sys
 import tempfile
 import shutil
-import urllib
 from lxml import etree
 from PIL import ImageFont
 
@@ -42,7 +41,6 @@ def check_dl_in_html_toc(tree, dir, epub, file_dec):
     try:
         html_toc_path = dir + tree.xpath('//opf:reference[@type="toc"]',
                                          namespaces=OPFNS)[0].get('href')
-        html_toc_path = urllib.unquote(html_toc_path)
         raw = epub.read(html_toc_path)
         if '<dl>' in raw:
             print(file_dec + ': Problematic DL tag in HTML TOC found...')
@@ -53,7 +51,6 @@ def check_dl_in_html_toc(tree, dir, epub, file_dec):
 def check_meta_html_covers(tree, dir, epub, file_dec):
     html_cover_path = etree.XPath('//opf:reference[@type="cover"]',
                                   namespaces=OPFNS)(tree)[0].get('href')
-    html_cover_path = urllib.unquote(html_cover_path)
     try:
         meta_cover_id = etree.XPath('//opf:meta[@name="cover"]',
                                     namespaces=OPFNS)(tree)[0].get('content')
@@ -65,7 +62,6 @@ def check_meta_html_covers(tree, dir, epub, file_dec):
             '//opf:item[@id="' + meta_cover_id + '"]',
             namespaces=OPFNS
         )(tree)[0].get('href')
-        meta_cover_path = urllib.unquote(meta_cover_path)
     except IndexError:
         print(file_dec + ': Meta cover does not properly defined.')
         return 0
@@ -194,11 +190,29 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
     )(opftree)
     _linkfound = _unbfound = _ufound = _wmfound = metcharfound = False
     for _htmlfiletag in _htmlfiletags:
-        _htmlfilepath = urllib.unquote(_htmlfiletag.get('href'))
+        _htmlfilepath = _htmlfiletag.get('href')
         parser = etree.XMLParser(recover=True)
-        _xhtmlsoup = etree.fromstring(
-            _epubfile.read(_folder + _htmlfilepath), parser
-        )
+        try:
+            _xhtmlsoup = etree.fromstring(
+                _epubfile.read(_folder + _htmlfilepath), parser
+            )
+        except:
+            # First try replace %20 with spaces and check loading tree again
+            complete_path = _folder + _htmlfilepath
+            complete_path = complete_path.replace('%20', ' ')
+            try:
+                print('Potential problem with file path: ' +
+                      _folder + _htmlfilepath)
+                print('Replacing %20 with space and '
+                      'trying load a file again...')
+                _xhtmlsoup = etree.fromstring(
+                    _epubfile.read(complete_path), parser
+                )
+                print('Loading succeed…')
+            except:
+                print('There is something wrong with file path: ' +
+                      complete_path + ' Skipping...')
+                continue
         if _wmfound is False:
             _watermarks = etree.XPath('//*[starts-with(text(),"==")]',
                                       namespaces=XHTMLNS)(_xhtmlsoup)
@@ -239,7 +253,6 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
     #Check dtb:uid - should be identical go dc:identifier
     ncxfile = etree.XPath('//opf:item[@media-type="application/x-dtbncx+xml"]',
                           namespaces=OPFNS)(opftree)[0].get('href')
-    ncxfile = urllib.unquote(ncxfile)
     ncxtree = etree.fromstring(_epubfile.read(_folder + ncxfile))
     uniqid = etree.XPath('//opf:package',
                          namespaces=OPFNS)(opftree)[0].get('unique-identifier')
