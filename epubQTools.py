@@ -16,6 +16,7 @@ import sys
 import zipfile
 import uuid
 
+from urllib import unquote
 from PIL import ImageFont
 from itertools import cycle
 from lxml import etree
@@ -85,6 +86,20 @@ args = parser.parse_args()
 
 _documents = args.directory
 validator = args.epubcheck
+
+
+# based on calibri work
+def unquote_urls(tree):
+    def get_href(item):
+        raw = unquote(item.get('href', ''))
+        if not isinstance(raw, unicode):
+            raw = raw.decode('utf-8')
+        return raw
+    for item in tree.xpath('//opf:item', namespaces=OPFNS):
+        item.set('href', get_href(item))
+    for item in tree.xpath('//opf:reference', namespaces=OPFNS):
+        item.set('href', get_href(item))
+    return tree
 
 
 def remove_node(node):
@@ -267,6 +282,7 @@ def find_roots(tempdir):
 
 def find_xhtml_files(epubzipfile, tempdir, rootepubdir, opf_file):
     opftree = etree.parse(opf_file)
+    opftree = unquote_urls(opftree)
     try:
         xhtml_items = etree.XPath(
             '//opf:item[@media-type="application/xhtml+xml"]',
@@ -279,7 +295,7 @@ def find_xhtml_files(epubzipfile, tempdir, rootepubdir, opf_file):
     for xhtml_item in xhtml_items:
         xhtml_files.append(os.path.join(rootepubdir, xhtml_item.get('href')))
         xhtml_file_paths.append(xhtml_item.get('href'))
-    return xhtml_files, xhtml_file_paths
+    return opftree, xhtml_files, xhtml_file_paths
 
 
 def hyphenate_and_fix_conjunctions(source_file, hyph, hyphen_mark):
@@ -545,9 +561,8 @@ def set_correct_font_mime_types(_soup):
     return _soup
 
 
-def fix_various_opf_problems(source_file, tempdir, xhtml_files,
+def fix_various_opf_problems(soup, tempdir, xhtml_files,
                              xhtml_file_paths):
-    soup = etree.parse(source_file)
 
     soup = set_correct_font_mime_types(soup)
 
@@ -903,12 +918,14 @@ def main():
                     except OSError:
                         pass
 
-                    _xhtml_files, _xhtml_file_paths = find_xhtml_files(
+                    (
+                        opftree, _xhtml_files, _xhtml_file_paths
+                    ) = find_xhtml_files(
                         _epubzipfile, _tempdir, opf_dir_abs, opf_file_path_abs
                     )
 
                     opftree = fix_various_opf_problems(
-                        opf_file_path_abs, opf_dir_abs,
+                        opftree, opf_dir_abs,
                         _xhtml_files, _xhtml_file_paths
                     )
 
