@@ -12,6 +12,7 @@ import os
 import sys
 import tempfile
 import shutil
+from urllib import unquote
 from lxml import etree
 from PIL import ImageFont
 
@@ -22,6 +23,20 @@ NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 
 encryption_file_found = False
+
+
+# based on calibri work
+def unquote_urls(tree):
+    def get_href(item):
+        raw = unquote(item.get('href', ''))
+        if not isinstance(raw, unicode):
+            raw = raw.decode('utf-8')
+        return raw
+    for item in tree.xpath('//opf:item', namespaces=OPFNS):
+        item.set('href', get_href(item))
+    for item in tree.xpath('//opf:reference', namespaces=OPFNS):
+        item.set('href', get_href(item))
+    return tree
 
 
 def check_wm_info(singlefile, epub, file_dec):
@@ -135,6 +150,7 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
     else:
         _folder = _singlefile.split('/')[0] + '/'
     opftree = etree.fromstring(_epubfile.read(_singlefile))
+    opftree = unquote_urls(opftree)
     language_tags = etree.XPath('//dc:language/text()',
                                 namespaces=DCNS)(opftree)
     if len(language_tags) == 0:
@@ -192,27 +208,9 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
     for _htmlfiletag in _htmlfiletags:
         _htmlfilepath = _htmlfiletag.get('href')
         parser = etree.XMLParser(recover=True)
-        try:
-            _xhtmlsoup = etree.fromstring(
-                _epubfile.read(_folder + _htmlfilepath), parser
-            )
-        except:
-            # First try replace %20 with spaces and check loading tree again
-            complete_path = _folder + _htmlfilepath
-            complete_path = complete_path.replace('%20', ' ')
-            try:
-                print('Potential problem with file path: ' +
-                      _folder + _htmlfilepath)
-                print('Replacing %20 with space and '
-                      'trying load a file again...')
-                _xhtmlsoup = etree.fromstring(
-                    _epubfile.read(complete_path), parser
-                )
-                print('Loading succeed…')
-            except:
-                print('There is something wrong with file path: ' +
-                      complete_path + ' Skipping...')
-                continue
+        _xhtmlsoup = etree.fromstring(
+            _epubfile.read(_folder + _htmlfilepath), parser
+        )
         if _wmfound is False:
             _watermarks = etree.XPath('//*[starts-with(text(),"==")]',
                                       namespaces=XHTMLNS)(_xhtmlsoup)
