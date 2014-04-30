@@ -17,7 +17,6 @@ import zipfile
 import uuid
 
 from urllib import unquote
-from PIL import ImageFont
 from itertools import cycle
 from lxml import etree
 if not hasattr(sys, 'frozen'):
@@ -25,6 +24,12 @@ if not hasattr(sys, 'frozen'):
 from hyphenator import Hyphenator
 from epubqcheck import qcheck
 from os.path import expanduser
+
+try:
+    from PIL import ImageFont
+    is_pil = True
+except ImportError:
+    is_pil = False
 
 
 MY_LANGUAGE = 'pl'
@@ -191,25 +196,27 @@ def decrypt_font(path, key, method):
     with open(path, 'wb') as f:
         f.write(decrypt)
         f.write(raw[crypt_len:])
-    try:
-        font_pil = ImageFont.truetype(path, 14)
-        print(os.path.basename(path) + ': OK! Decrypted...')
-    except IOError:
-        print(os.path.basename(path) + ': Decrypting FAILED!')
-        font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
-                      os.path.join(HOME, 'Library', 'Fonts')]
-        for font_path in font_paths:
-            if os.path.exists(os.path.join(font_path, os.path.basename(path))):
-                os.remove(path)
-                shutil.copyfile(
-                    os.path.join(font_path, os.path.basename(path)),
-                    path
-                )
+    if is_pil:
         try:
             font_pil = ImageFont.truetype(path, 14)
-            print(os.path.basename(path) + ': OK! File replaced...')
-        except:
-            pass
+            print(os.path.basename(path) + ': OK! Decrypted...')
+        except IOError:
+            print(os.path.basename(path) + ': Decrypting FAILED!')
+            font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
+                          os.path.join(HOME, 'Library', 'Fonts')]
+            for font_path in font_paths:
+                if os.path.exists(os.path.join(font_path,
+                                  os.path.basename(path))):
+                    os.remove(path)
+                    shutil.copyfile(
+                        os.path.join(font_path, os.path.basename(path)),
+                        path
+                    )
+            try:
+                font_pil = ImageFont.truetype(path, 14)
+                print(os.path.basename(path) + ': OK! File replaced...')
+            except:
+                pass
 
 
 def find_and_replace_fonts(opftree, rootepubdir):
