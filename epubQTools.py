@@ -27,8 +27,8 @@ from epubqcheck import qcheck
 from os.path import expanduser
 
 
-_my_language = 'pl'
-_hyphen_mark = u'\u00AD'
+MY_LANGUAGE = 'pl'
+HYPHEN_MARK = u'\u00AD'
 if not hasattr(sys, 'frozen'):
     _hyph = Hyphenator(os.path.join(os.path.dirname(__file__), 'resources',
                        'dictionaries', 'hyph_pl_PL.dic'))
@@ -571,20 +571,23 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
     for lang in soup.xpath("//dc:language", namespaces=DCNS):
         lang_counter = lang_counter + 1
         if lang_counter > 1:
+            print('Removing multiple language definitions...')
             lang.getparent().remove(lang)
 
     # set dc:language to my language
     for lang in soup.xpath("//dc:language", namespaces=DCNS):
-        if lang.text != _my_language:
-            lang.text = _my_language
+        if lang.text != MY_LANGUAGE:
+            print('Correcting book language to: ' + MY_LANGUAGE)
+            lang.text = MY_LANGUAGE
 
     # add missing dc:language
     if len(soup.xpath("//dc:language", namespaces=DCNS)) == 0:
+        print('Setting missing book language to: ' + MY_LANGUAGE)
         for metadata in soup.xpath("//opf:metadata", namespaces=OPFNS):
             newlang = etree.Element(
                 '{http://purl.org/dc/elements/1.1/}language'
             )
-            newlang.text = _my_language
+            newlang.text = MY_LANGUAGE
             metadata.insert(0, newlang)
 
     # add missing meta cover and cover reference guide element
@@ -992,9 +995,15 @@ def main():
                         _xhtmltree = etree.fromstring(
                             c, parser=etree.XMLParser(recover=False)
                         )
-                        _xhtmltree = hyphenate_and_fix_conjunctions(
-                            _xhtmltree, _hyph, _hyphen_mark
-                        )
+
+                        if opftree.xpath(
+                                "//dc:language", namespaces=DCNS
+                        )[0].text == 'pl':
+                            print('Hyphenating book with Polish dictionary...')
+                            _xhtmltree = hyphenate_and_fix_conjunctions(
+                                _xhtmltree, _hyph, HYPHEN_MARK
+                            )
+
                         _xhtmltree = fix_styles(_xhtmltree)
 
                         if args.resetmargins:
