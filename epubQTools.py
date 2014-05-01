@@ -21,6 +21,7 @@ from itertools import cycle
 from lxml import etree
 if not hasattr(sys, 'frozen'):
     sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
+from htmlconstants import entities
 from hyphenator import Hyphenator
 from epubqcheck import qcheck
 from os.path import expanduser
@@ -991,14 +992,12 @@ def main():
                     if args.replacefonts:
                         find_and_replace_fonts(opftree, opf_dir_abs)
 
+                    hyph_info_printed = False
                     for _single_xhtml in _xhtml_files:
                         with open(_single_xhtml, 'r') as content_file:
                             c = content_file.read()
-                            c = c.replace('&shy;', '')
-                            c = c.replace('&nbsp;', ' ')
-                            c = c.replace('&ensp;', ' ')
-                            c = c.replace('&ndash;', '–')
-                            c = c.replace('&copy;', '©')
+                        for key in entities.iterkeys():
+                            c = c.replace(key, entities[key])
                         _xhtmltree = etree.fromstring(
                             c, parser=etree.XMLParser(recover=False)
                         )
@@ -1006,7 +1005,10 @@ def main():
                         if opftree.xpath(
                                 "//dc:language", namespaces=DCNS
                         )[0].text == 'pl':
-                            print('Hyphenating book with Polish dictionary...')
+                            if not hyph_info_printed:
+                                print('Hyphenating book with Polish '
+                                      'dictionary...')
+                                hyph_info_printed = True
                             _xhtmltree = hyphenate_and_fix_conjunctions(
                                 _xhtmltree, _hyph, HYPHEN_MARK
                             )
