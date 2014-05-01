@@ -455,10 +455,13 @@ def fix_mismatched_covers(opftree, tempdir):
     if meta_cover_id is None:
         print('Meta cover image not properly defined. Giving up...')
         return 1
-    meta_cover_image_file = opftree.xpath(
-        '//opf:item[@id="' + meta_cover_id + '"]',
-        namespaces=OPFNS
-    )[0].get('href').split('/')[-1]
+    try:
+        meta_cover_image_file = opftree.xpath(
+            '//opf:item[@id="' + meta_cover_id + '"]',
+            namespaces=OPFNS
+        )[0].get('href').split('/')[-1]
+    except IndexError:
+        meta_cover_image_file = html_cover_img_file
     if html_cover_img_file != meta_cover_image_file:
         print('Mismatched meta and HTML covers. Fixing...')
         allimgs[0].set(
@@ -829,7 +832,7 @@ def convert_dl_to_ul(opftree, rootepubdir):
     html_toc_path = os.path.join(rootepubdir, opftree.xpath(
         '//opf:reference[@type="toc"]',
         namespaces=OPFNS
-    )[0].get('href'))
+    )[0].get('href').split('#')[0])
     with open(html_toc_path, 'r') as f:
         raw = f.read()
     if '<dl>' in raw:
