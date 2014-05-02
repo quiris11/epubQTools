@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# This file is part of pyBookTools, licensed under GNU Affero GPLv3 or later.
+# This file is part of epubQTools, licensed under GNU Affero GPLv3 or later.
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
