@@ -1045,7 +1045,8 @@ def main():
                             res_css_info_printed = True
                             _xhtmltree = append_reset_css(_xhtmltree)
 
-                        _xhtmltree = modify_problematic_styles(_xhtmltree)
+                        # FIXME: does not work properly
+                        # _xhtmltree = modify_problematic_styles(_xhtmltree)
 
                         # remove watermarks
                         _wmarks = etree.XPath(
