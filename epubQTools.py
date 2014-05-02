@@ -204,8 +204,12 @@ def decrypt_font(path, key, method):
     else:
         print(os.path.basename(path) + ': OK! Decrypted...')
     if not is_font:
-        font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
-                      os.path.join(HOME, 'Library', 'Fonts')]
+        if sys.platform == 'win32':
+            font_paths = [os.path.abspath(os.path.join('C:', 'Windows',
+                                                       'Fonts'))]
+        else:
+            font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
+                          os.path.join(HOME, 'Library', 'Fonts')]
         for font_path in font_paths:
             if os.path.exists(os.path.join(font_path,
                               os.path.basename(path))):
