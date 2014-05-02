@@ -519,7 +519,7 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
         allsvgimgs = etree.XPath('//svg:image', namespaces=SVGNS)(xhtmltree)
         for svgimg in allsvgimgs:
             svg_img_href = svgimg.get('{http://www.w3.org/1999/xlink}href')
-            if (svg_img_href.find(itemcoverhref) != -1 or
+            if (svg_img_href.find(_itemcoverhref) != -1 or
                     svg_img_href.lower().find('okladka_fmt') != -1):
                 cover_file = xhtml_file
                 break
