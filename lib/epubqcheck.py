@@ -29,6 +29,13 @@ SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 encryption_file_found = False
 
 
+def check_font(path):
+    with open(path, 'rb') as f:
+        raw = f.read()
+    signature = raw[:4]
+    return (signature in {b'\x00\x01\x00\x00', b'OTTO'}, signature)
+
+
 # based on calibri work
 def unquote_urls(tree):
     def get_href(item):
@@ -381,6 +388,14 @@ def qcheck(_documents, _moded, _validator, _rename):
                             except IOError:
                                 print(file_dec + ': ' + singlefile +
                                       ': probably encrypted font file!')
+                        else:
+                            is_font, signature = check_font(
+                                os.path.join(temp_font_dir, singlefile)
+                            )
+                            if not is_font:
+                                print('%s: Font probably encrypted. Incorrect'
+                                      ' signature %r in file: %s'
+                                      % (file_dec, signature, singlefile))
                         if os.path.isdir(temp_font_dir):
                             shutil.rmtree(temp_font_dir)
                     if singlefile.find('.opf') > 0:

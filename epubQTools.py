@@ -94,6 +94,13 @@ _documents = args.directory
 validator = args.epubcheck
 
 
+def check_font(path):
+    with open(path, 'rb') as f:
+        raw = f.read()
+    signature = raw[:4]
+    return (signature in {b'\x00\x01\x00\x00', b'OTTO'}, signature)
+
+
 # based on calibri work
 def unquote_urls(tree):
     def get_href(item):
@@ -197,27 +204,41 @@ def decrypt_font(path, key, method):
     with open(path, 'wb') as f:
         f.write(decrypt)
         f.write(raw[crypt_len:])
+    is_encrypted_font = False
+    is_pil = False
     if is_pil:
         try:
             font_pil = ImageFont.truetype(path, 14)
-            print(os.path.basename(path) + ': OK! Decrypted...')
         except IOError:
-            print(os.path.basename(path) + ': Decrypting FAILED!')
-            font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
-                          os.path.join(HOME, 'Library', 'Fonts')]
-            for font_path in font_paths:
-                if os.path.exists(os.path.join(font_path,
-                                  os.path.basename(path))):
-                    os.remove(path)
-                    shutil.copyfile(
-                        os.path.join(font_path, os.path.basename(path)),
-                        path
-                    )
+            is_encrypted_font = True
+    else:
+        is_font, signature = check_font(path)
+        is_encrypted_font = not is_font
+    if is_encrypted_font:
+        print(os.path.basename(path) + ': Decrypting FAILED!')
+    else:
+        print(os.path.basename(path) + ': OK! Decrypted...')
+    if is_encrypted_font:
+        font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
+                      os.path.join(HOME, 'Library', 'Fonts')]
+        for font_path in font_paths:
+            if os.path.exists(os.path.join(font_path,
+                              os.path.basename(path))):
+                os.remove(path)
+                shutil.copyfile(
+                    os.path.join(font_path, os.path.basename(path)),
+                    path
+                )
+        if is_pil:
             try:
                 font_pil = ImageFont.truetype(path, 14)
                 print(os.path.basename(path) + ': OK! File replaced...')
             except:
                 pass
+        else:
+            is_font, signature = check_font(path)
+            if is_font:
+                print(os.path.basename(path) + ': OK! File replaced...')
 
 
 def find_and_replace_fonts(opftree, rootepubdir):
