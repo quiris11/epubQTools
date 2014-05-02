@@ -748,7 +748,6 @@ def fix_ncx_dtd_uid(opftree, tempdir):
 
 
 def append_reset_css(source_file):
-    print('Resetting CSS body margin and padding...')
     try:
         heads = etree.XPath(
             '//xhtml:head',
@@ -1016,7 +1015,7 @@ def main():
                     if args.replacefonts:
                         find_and_replace_fonts(opftree, opf_dir_abs)
 
-                    hyph_info_printed = False
+                    hyph_info_printed = res_css_info_printed = False
                     for _single_xhtml in _xhtml_files:
                         with open(_single_xhtml, 'r') as content_file:
                             c = content_file.read()
@@ -1040,6 +1039,10 @@ def main():
                         _xhtmltree = fix_styles(_xhtmltree)
 
                         if args.resetmargins:
+                            if not res_css_info_printed:
+                                print('Resetting CSS body margin and padding'
+                                      '...')
+                            res_css_info_printed = True
                             _xhtmltree = append_reset_css(_xhtmltree)
 
                         _xhtmltree = modify_problematic_styles(_xhtmltree)
