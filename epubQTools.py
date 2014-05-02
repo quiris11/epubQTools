@@ -245,11 +245,11 @@ def find_and_replace_fonts(opftree, rootepubdir):
     print('Replacing fonts procedure started...')
     items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree)
     for item in items:
-        if item.get('href').endswith('.otf'):
+        if item.get('href').lower().endswith('.otf'):
             actual_font_path = os.path.join(rootepubdir, item.get('href'))
             replace_font(actual_font_path)
             continue
-        if item.get('href').endswith('.ttf'):
+        if item.get('href').lower().endswith('.ttf'):
             actual_font_path = os.path.join(rootepubdir, item.get('href'))
             replace_font(actual_font_path)
             continue
@@ -586,9 +586,9 @@ def set_correct_font_mime_types(_soup):
     print('Setting correct font mime types...')
     _items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(_soup)
     for _item in _items:
-        if _item.get('href').endswith('.otf'):
+        if _item.get('href').lower().endswith('.otf'):
             _item.set('media-type', 'application/vnd.ms-opentype')
-        elif _item.get('href').endswith('.ttf'):
+        elif _item.get('href').lower().endswith('.ttf'):
             _item.set('media-type', 'application/x-font-truetype')
     return _soup
 
