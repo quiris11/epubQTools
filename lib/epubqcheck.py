@@ -14,11 +14,6 @@ import shutil
 from urllib import unquote
 from lxml import etree
 
-try:
-    from PIL import ImageFont
-    is_pil = True
-except ImportError:
-    is_pil = False
 
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
@@ -380,22 +375,13 @@ def qcheck(_documents, _moded, _validator, _rename):
                     ) and not _rename):
                         temp_font_dir = tempfile.mkdtemp()
                         epubfile.extract(singlefile, temp_font_dir)
-                        if is_pil:
-                            try:
-                                font_pil = ImageFont.truetype(
-                                    os.path.join(temp_font_dir, singlefile), 14
-                                )
-                            except IOError:
-                                print(file_dec + ': ' + singlefile +
-                                      ': probably encrypted font file!')
-                        else:
-                            is_font, signature = check_font(
-                                os.path.join(temp_font_dir, singlefile)
-                            )
-                            if not is_font:
-                                print('%s: Font probably encrypted. Incorrect'
-                                      ' signature %r in file: %s'
-                                      % (file_dec, signature, singlefile))
+                        is_font, signature = check_font(
+                            os.path.join(temp_font_dir, singlefile)
+                        )
+                        if not is_font:
+                            print('%s: Font probably encrypted. Incorrect'
+                                  ' signature %r in file: %s'
+                                  % (file_dec, signature, singlefile))
                         if os.path.isdir(temp_font_dir):
                             shutil.rmtree(temp_font_dir)
                     if singlefile.find('.opf') > 0:

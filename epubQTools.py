@@ -26,12 +26,6 @@ from hyphenator import Hyphenator
 from epubqcheck import qcheck
 from os.path import expanduser
 
-try:
-    from PIL import ImageFont
-    is_pil = True
-except ImportError:
-    is_pil = False
-
 
 MY_LANGUAGE = 'pl'
 HYPHEN_MARK = u'\u00AD'
@@ -204,21 +198,12 @@ def decrypt_font(path, key, method):
     with open(path, 'wb') as f:
         f.write(decrypt)
         f.write(raw[crypt_len:])
-    is_encrypted_font = False
-    is_pil = False
-    if is_pil:
-        try:
-            font_pil = ImageFont.truetype(path, 14)
-        except IOError:
-            is_encrypted_font = True
-    else:
-        is_font, signature = check_font(path)
-        is_encrypted_font = not is_font
-    if is_encrypted_font:
+    is_font, signature = check_font(path)
+    if not is_font:
         print(os.path.basename(path) + ': Decrypting FAILED!')
     else:
         print(os.path.basename(path) + ': OK! Decrypted...')
-    if is_encrypted_font:
+    if not is_font:
         font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
                       os.path.join(HOME, 'Library', 'Fonts')]
         for font_path in font_paths:
@@ -229,16 +214,9 @@ def decrypt_font(path, key, method):
                     os.path.join(font_path, os.path.basename(path)),
                     path
                 )
-        if is_pil:
-            try:
-                font_pil = ImageFont.truetype(path, 14)
-                print(os.path.basename(path) + ': OK! File replaced...')
-            except:
-                pass
-        else:
-            is_font, signature = check_font(path)
-            if is_font:
-                print(os.path.basename(path) + ': OK! File replaced...')
+        is_font, signature = check_font(path)
+        if is_font:
+            print(os.path.basename(path) + ': OK! File replaced...')
 
 
 def find_and_replace_fonts(opftree, rootepubdir):
