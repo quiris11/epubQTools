@@ -760,11 +760,18 @@ def modify_problematic_styles(source_file):
     img_styles = etree.XPath('//xhtml:img[@style]',
                              namespaces=XHTMLNS)(source_file)
     for s in img_styles:
-        if ('max-width' and 'width') in s.get('style'):
-            print('Fixing problematic combo max-width and width...')
-            print(s.get('style'))
+        s_words = re.split(r'[:; ]+', s.get('style'))
+        maxw = w = False
+        for sw in s_words:
+            if sw == 'max-width':
+                maxw = True
+            if sw == 'width':
+                w = True
+        if (maxw and w):
+            print('Fixing problematic combo max-width and width: "' +
+                  s.get('style') + '"')
             stylestr = s.get('style')
-            stylestr = re.sub(r'width:(\s*)100%;*', '',
+            stylestr = re.sub(r'[^-]width:(\s*)100%;*', '',
                               stylestr)
             s.set('style', stylestr)
     return source_file
@@ -1027,8 +1034,7 @@ def main():
                             res_css_info_printed = True
                             _xhtmltree = append_reset_css(_xhtmltree)
 
-                        # FIXME: does not work properly
-                        # _xhtmltree = modify_problematic_styles(_xhtmltree)
+                        _xhtmltree = modify_problematic_styles(_xhtmltree)
 
                         # remove watermarks
                         _wmarks = etree.XPath(
