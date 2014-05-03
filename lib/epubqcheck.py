@@ -404,23 +404,3 @@ def qcheck(_documents, _moded, _validator, _rename):
                           'file: ' + file_dec)
                     print('')
 
-
-if __name__ == "__main__":
-
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("directory",
-                        help="Directory with EPUB files stored")
-    parser.add_argument("-n", "--rename",
-                        help="rename .epub files to 'author - title.epub'",
-                        action="store_true")
-    parser.add_argument("-m", "--mod",
-                        help="Check only _mod.epub files",
-                        action="store_true")
-    parser.add_argument("-q", "--epubcheck",
-                        help="Validate files with epubcheck",
-                        action="store_true")
-    args = parser.parse_args()
-
-    qcheck(args.directory, args.mod, args.epubcheck, args.rename)
