@@ -238,8 +238,12 @@ def find_and_replace_fonts(opftree, rootepubdir):
 
 
 def replace_font(actual_font_path):
-    font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
-                  os.path.join(HOME, 'Library', 'Fonts')]
+    if sys.platform == 'win32':
+        font_paths = [os.path.abspath(os.path.join('C:', 'Windows',
+                                                   'Fonts'))]
+    else:
+        font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
+                      os.path.join(HOME, 'Library', 'Fonts')]
     for font_path in font_paths:
         if os.path.exists(
                 os.path.join(font_path, os.path.basename(actual_font_path))
