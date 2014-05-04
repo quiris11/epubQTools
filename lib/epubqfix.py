@@ -18,10 +18,8 @@ import uuid
 from urllib import unquote
 from itertools import cycle
 from lxml import etree
-if not hasattr(sys, 'frozen'):
-    sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
-from htmlconstants import entities
-from hyphenator import Hyphenator
+from lib.htmlconstants import entities
+from lib.hyphenator import Hyphenator
 from os.path import expanduser
 
 MY_LANGUAGE = 'pl'
