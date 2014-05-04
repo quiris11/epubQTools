@@ -9,9 +9,12 @@ import argparse
 import sys
 import os
 import subprocess
+import zipfile
+import shutil
+import tempfile
+
 from lib.epubqcheck import qcheck
 from lib.epubqfix import qfix
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", help="Directory with EPUB files stored")
@@ -53,8 +56,7 @@ parser.add_argument("-f", "--force",
                     " .mobi files (only with -k or -e)",
                     action="store_true")
 args = parser.parse_args()
-print args.kgp
-print args.echp
+
 
 def main():
     if args.qcheck or args.rename:
@@ -101,6 +103,17 @@ def main():
         qfix(args.directory, args.force, args.replacefonts, args.resetmargins,
              args.findcover)
     elif args.epubcheck:
+        try:
+            java = subprocess.Popen(
+                ['java', '-version'],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+        except:
+            sys.exit('Java is NOT installed. Giving up...')
+        echpzipfile = zipfile.ZipFile(os.path.join(args.echp,
+                                      'epubcheck-3.0.1.zip'))
+        echp_temp = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
+        echpzipfile.extractall(echp_temp)
         if args.mod:
             fe = '_moh.epub'
             nfe = '_org.epub'
@@ -111,7 +124,7 @@ def main():
             for f in files:
                 if f.endswith(fe) and not f.endswith(nfe):
                     epubchecker_path = os.path.join(
-                        args.echp,
+                        echp_temp,
                         'epubcheck-3.0.1', 'epubcheck-3.0.1.jar'
                     )
                     jp = subprocess.Popen([
@@ -128,6 +141,10 @@ def main():
                         print(f.decode(sys.getfilesystemencoding()) +
                               ': OK!')
                         print('')
+        for p in os.listdir(os.path.join(echp_temp, os.pardir)):
+            if 'quiris-tmp-' in p:
+                if os.path.isdir(os.path.join(echp_temp, os.pardir, p)):
+                    shutil.rmtree(os.path.join(echp_temp, os.pardir, p))
     else:
         parser.print_help()
         print("* * *")
