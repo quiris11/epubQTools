@@ -15,6 +15,7 @@ import sys
 import zipfile
 import uuid
 
+from pkgutil import get_data
 from urllib import unquote
 from itertools import cycle
 from lxml import etree
@@ -24,6 +25,8 @@ from os.path import expanduser
 
 MY_LANGUAGE = 'pl'
 HYPHEN_MARK = u'\u00AD'
+
+# FIXME does not work running from zip
 if not hasattr(sys, 'frozen'):
     _hyph = Hyphenator(os.path.join(os.path.dirname(__file__), '..', 
                        'resources', 'dictionaries', 'hyph_pl_PL.dic'))
@@ -331,16 +334,8 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             )
         else:
             parser = etree.XMLParser(remove_blank_text=True)
-            if not hasattr(sys, 'frozen'):
-                transform = etree.XSLT(etree.parse(os.path.join(
-                    os.path.dirname(__file__), '..',
-                    'resources', 'ncx2end-0.2.xsl'
-                )))
-            else:
-                transform = etree.XSLT(etree.parse(os.path.join(
-                    os.path.dirname(sys.executable), 'resources',
-                    'ncx2end-0.2.xsl'
-                )))
+            transform = etree.XSLT(etree.fromstring(get_data('lib',
+                                   '../resources/ncx2end-0.2.xsl')))
             toc_ncx_file = etree.XPath(
                 '//opf:item[@media-type="application/x-dtbncx+xml"]',
                 namespaces=OPFNS
@@ -775,15 +770,8 @@ def replace_svg_html_cover(opftree, rootepubdir):
                                   parser=etree.XMLParser(recover=True))
     svg_imgs = html_cover_tree.xpath('//svg:image', namespaces=SVGNS)
     if len(svg_imgs) == 1:
-        if not hasattr(sys, 'frozen'):
-            new_cover_tree = etree.parse(os.path.join(
-                os.path.dirname(__file__), '..', 'resources', 'cover.xhtml'
-            ))
-        else:
-            new_cover_tree = etree.parse(os.path.join(
-                os.path.dirname(sys.executable), 'resources',
-                'cover.xhtml'
-            ))
+        new_cover_tree = etree.fromstring(get_data('lib',
+                                          '../resources/cover.xhtml'))
         new_cover_tree.xpath(
             '//xhtml:img',
             namespaces=XHTMLNS

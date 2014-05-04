@@ -6,7 +6,6 @@
 #
 
 import zipfile
-import subprocess
 import os
 import sys
 import tempfile
@@ -345,7 +344,7 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
               '. Skipping...')
 
 
-def qcheck(_documents, _moded, _validator, _rename):
+def qcheck(_documents, _moded, _rename):
     if _moded:
         fe = '_moh.epub'
         nfe = '_org.epub'
@@ -391,16 +390,4 @@ def qcheck(_documents, _moded, _validator, _rename):
                         else:
                             qcheck_single_file(singlefile, epubfile, file_dec)
 
-                if _validator and not _rename:
-                    _epubchecker_path = os.path.join(
-                        os.path.dirname(__file__), os.pardir, 'resources',
-                        'epubcheck-3.0.1', 'epubcheck-3.0.1.jar'
-                    )
-                    print('START of validating '
-                          'file: ' + file_dec)
-                    subprocess.call(['java', '-jar', '%s' % _epubchecker_path,
-                                    '%s' % str(os.path.join(root, _file))])
-                    print('FINISH of validating '
-                          'file: ' + file_dec)
-                    print('')
 

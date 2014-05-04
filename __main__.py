@@ -8,6 +8,7 @@
 import argparse
 import sys
 import os
+import subprocess
 from lib.epubqcheck import qcheck
 from lib.epubqfix import qfix
 
@@ -50,7 +51,7 @@ args = parser.parse_args()
 
 def main():
     if args.qcheck or args.rename:
-        qcheck(args.directory, args.mod, args.epubcheck, args.rename)
+        qcheck(args.directory, args.mod, args.rename)
     elif args.kindlegen:
         compression = '-c2' if args.huffdic else '-c1'
         for root, dirs, files in os.walk(args.directory):
@@ -92,6 +93,27 @@ def main():
     elif args.epub:
         qfix(args.directory, args.force, args.replacefonts, args.resetmargins,
              args.findcover)
+    elif args.epubcheck:
+        if args.mod:
+            fe = '_moh.epub'
+            nfe = '_org.epub'
+        else:
+            fe = '.epub'
+            nfe = '_moh.epub'
+        for root, dirs, files in os.walk(args.directory):
+            for f in files:
+                if f.endswith(fe) and not f.endswith(nfe):
+                    epubchecker_path = os.path.join(
+                        os.path.dirname(__file__), 'resources',
+                        'epubcheck-3.0.1', 'epubcheck-3.0.1.jar'
+                    )
+                    print('START of validating '
+                          'file: ' + f.decode(sys.getfilesystemencoding()))
+                    subprocess.call(['java', '-jar', '%s' % epubchecker_path,
+                                    '%s' % str(os.path.join(root, f))])
+                    print('FINISH of validating '
+                          'file: ' + f.decode(sys.getfilesystemencoding()))
+                    print('')
     else:
         parser.print_help()
         print("* * *")
