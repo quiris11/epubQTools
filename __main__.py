@@ -16,13 +16,19 @@ import tempfile
 from lib.epubqcheck import qcheck
 from lib.epubqfix import qfix
 
+q_cwd = os.path.join(os.getcwd(),os.path.dirname(__file__))
+if q_cwd.endswith('.zip'):
+    q_cwd = q_cwd[:q_cwd.rfind(os.sep)]
+else:
+    q_cwd = os.path.join(q_cwd, os.pardir)
+
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", help="Directory with EPUB files stored")
 parser.add_argument("--echp", nargs='?',
-                    default=os.path.join(os.path.dirname(__file__), os.pardir),
+                    default=q_cwd,
                     help="path too epubcheck-3.0.1 dir")
 parser.add_argument("--kgp", nargs='?',
-                    default=os.path.join(os.path.dirname(__file__), os.pardir),
+                    default=q_cwd,
                     help="path too kindlegen file")
 parser.add_argument("-n", "--rename", help="rename .epub files to "
                     "'author - title.epub'",
