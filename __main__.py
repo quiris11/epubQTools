@@ -8,10 +8,8 @@
 import argparse
 import sys
 import os
-if not hasattr(sys, 'frozen'):
-    sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
-from epubqcheck import qcheck
-from epubqfix import qfix
+from lib.epubqcheck import qcheck
+from lib.epubqfix import qfix
 
 
 parser = argparse.ArgumentParser()
