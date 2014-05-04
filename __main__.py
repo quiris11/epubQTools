@@ -15,10 +15,16 @@ from lib.epubqfix import qfix
 
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", help="Directory with EPUB files stored")
+parser.add_argument("--echp", nargs='?',
+                    default=os.path.join(os.path.dirname(__file__), os.pardir),
+                    help="path too epubcheck-3.0.1 dir")
+parser.add_argument("--kgp", nargs='?',
+                    default=os.path.join(os.path.dirname(__file__), os.pardir),
+                    help="path too kindlegen file")
 parser.add_argument("-n", "--rename", help="rename .epub files to "
                     "'author - title.epub'",
                     action="store_true")
-parser.add_argument("-q", "--qcheck", help="validate files with epubqcheck "
+parser.add_argument("-q", "--qcheck", help="validate files with qcheck "
                     "internal tool",
                     action="store_true")
 parser.add_argument("-p", "--epubcheck", help="validate epub files with "
@@ -47,7 +53,8 @@ parser.add_argument("-f", "--force",
                     " .mobi files (only with -k or -e)",
                     action="store_true")
 args = parser.parse_args()
-
+print args.kgp
+print args.echp
 
 def main():
     if args.qcheck or args.rename:
@@ -69,7 +76,7 @@ def main():
                     print('Kindlegen: Converting file: ' +
                           _file.decode(sys.getfilesystemencoding()))
                     proc = subprocess.Popen([
-                        'kindlegen',
+                        os.path.join(args.kgp, 'kindlegen'),
                         '-dont_append_source',
                         compression,
                         os.path.join(root, _file)
@@ -104,7 +111,7 @@ def main():
             for f in files:
                 if f.endswith(fe) and not f.endswith(nfe):
                     epubchecker_path = os.path.join(
-                        os.path.dirname(__file__), 'resources',
+                        args.echp,
                         'epubcheck-3.0.1', 'epubcheck-3.0.1.jar'
                     )
                     jp = subprocess.Popen([
