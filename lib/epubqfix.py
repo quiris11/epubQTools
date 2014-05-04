@@ -26,14 +26,6 @@ from os.path import expanduser
 MY_LANGUAGE = 'pl'
 HYPHEN_MARK = u'\u00AD'
 
-# FIXME does not work running from zip
-if not hasattr(sys, 'frozen'):
-    _hyph = Hyphenator(os.path.join(os.path.dirname(__file__), os.pardir,
-                       'resources', 'dictionaries', 'hyph_pl_PL.dic'))
-else:
-    _hyph = Hyphenator(os.path.join(os.path.dirname(sys.executable),
-                       'resources', 'dictionaries', 'hyph_pl_PL.dic'))
-
 HOME = expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
        '"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">')
@@ -274,7 +266,19 @@ def find_xhtml_files(epubzipfile, tempdir, rootepubdir, opf_file):
     return opftree, xhtml_files, xhtml_file_paths
 
 
-def hyphenate_and_fix_conjunctions(source_file, hyph, hyphen_mark):
+def hyphenate_and_fix_conjunctions(source_file, hyphen_mark):
+    dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
+    dic_name = os.path.join(dic_tmp_dir, 'hyph_pl_PL.dic')
+    try:
+        with open(dic_name, 'wb') as f:
+            data = get_data('lib', 'resources/dictionaries/hyph_pl_PL.dic')
+            f.write(data)
+        hyph = Hyphenator(dic_name)
+    finally:
+        try:
+            os.rmdir(dic_tmp_dir)
+        except:
+            pass
     try:
         texts = etree.XPath(
             '//xhtml:body//text()',
@@ -337,7 +341,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
         else:
             parser = etree.XMLParser(remove_blank_text=True)
             transform = etree.XSLT(etree.fromstring(get_data('lib',
-                                   '../resources/ncx2end-0.2.xsl')))
+                                   'resources/ncx2end-0.2.xsl')))
             toc_ncx_file = etree.XPath(
                 '//opf:item[@media-type="application/x-dtbncx+xml"]',
                 namespaces=OPFNS
@@ -773,7 +777,7 @@ def replace_svg_html_cover(opftree, rootepubdir):
     svg_imgs = html_cover_tree.xpath('//svg:image', namespaces=SVGNS)
     if len(svg_imgs) == 1:
         new_cover_tree = etree.fromstring(get_data('lib',
-                                          '../resources/cover.xhtml'))
+                                          'resources/cover.xhtml'))
         new_cover_tree.xpath(
             '//xhtml:img',
             namespaces=XHTMLNS
@@ -931,7 +935,7 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                                   'dictionary...')
                             hyph_info_printed = True
                         _xhtmltree = hyphenate_and_fix_conjunctions(
-                            _xhtmltree, _hyph, HYPHEN_MARK
+                            _xhtmltree, HYPHEN_MARK
                         )
 
                     _xhtmltree = fix_styles(_xhtmltree)
