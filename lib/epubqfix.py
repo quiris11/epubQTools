@@ -25,11 +25,12 @@ from os.path import expanduser
 
 dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
 dic_name = os.path.join(dic_tmp_dir, 'hyph_pl_PL.dic')
-with open(dic_name, 'wb') as f:
-    data = get_data('lib', 'resources/dictionaries/hyph_pl_PL.dic')
-    f.write(data)
-hyph = Hyphenator(dic_name)
-if os.path.isdir(dic_tmp_dir):
+try:
+    with open(dic_name, 'wb') as f:
+        data = get_data('lib', 'resources/dictionaries/hyph_pl_PL.dic')
+        f.write(data)
+    hyph = Hyphenator(dic_name)
+finally:
     shutil.rmtree(dic_tmp_dir)
 
 MY_LANGUAGE = 'pl'
