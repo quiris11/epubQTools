@@ -16,7 +16,7 @@ import tempfile
 from lib.epubqcheck import qcheck
 from lib.epubqfix import qfix
 
-q_cwd = os.path.join(os.getcwd(),os.path.dirname(__file__))
+q_cwd = os.path.join(os.getcwd(), os.path.dirname(__file__))
 if q_cwd.endswith('.zip'):
     q_cwd = q_cwd[:q_cwd.rfind(os.sep)]
 else:

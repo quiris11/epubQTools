@@ -389,5 +389,3 @@ def qcheck(_documents, _moded, _rename):
                                          file_dec)
                         else:
                             qcheck_single_file(singlefile, epubfile, file_dec)
-
-
