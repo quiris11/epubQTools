@@ -107,13 +107,20 @@ def main():
                         os.path.dirname(__file__), 'resources',
                         'epubcheck-3.0.1', 'epubcheck-3.0.1.jar'
                     )
-                    print('START of validating '
-                          'file: ' + f.decode(sys.getfilesystemencoding()))
-                    subprocess.call(['java', '-jar', '%s' % epubchecker_path,
-                                    '%s' % str(os.path.join(root, f))])
-                    print('FINISH of validating '
-                          'file: ' + f.decode(sys.getfilesystemencoding()))
-                    print('')
+                    jp = subprocess.Popen([
+                        'java', '-jar', '%s' % epubchecker_path,
+                        '%s' % str(os.path.join(root, f))
+                    ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    jpout, jperr = jp.communicate()
+                    if jperr:
+                        print(f.decode(sys.getfilesystemencoding()) +
+                              ': PROBLEMS FOUND...')
+                        print('*** Details... ***')
+                        print(jperr)
+                    else:
+                        print(f.decode(sys.getfilesystemencoding()) +
+                              ': OK!')
+                        print('')
     else:
         parser.print_help()
         print("* * *")
