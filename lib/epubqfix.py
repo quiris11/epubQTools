@@ -28,7 +28,7 @@ HYPHEN_MARK = u'\u00AD'
 
 # FIXME does not work running from zip
 if not hasattr(sys, 'frozen'):
-    _hyph = Hyphenator(os.path.join(os.path.dirname(__file__), '..', 
+    _hyph = Hyphenator(os.path.join(os.path.dirname(__file__), os.pardir,
                        'resources', 'dictionaries', 'hyph_pl_PL.dic'))
 else:
     _hyph = Hyphenator(os.path.join(os.path.dirname(sys.executable),
@@ -217,7 +217,7 @@ def replace_font(actual_font_path):
 
 def unpack_epub(source_epub):
     epubzipfile = zipfile.ZipFile(source_epub)
-    tempdir = tempfile.mkdtemp()
+    tempdir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
     epubzipfile.extractall(tempdir)
     os.remove(os.path.join(tempdir, 'mimetype'))
     return epubzipfile, tempdir
@@ -238,8 +238,10 @@ def pack_epub(output_filename, source_dir):
 
 
 def clean_temp(sourcedir):
-    if os.path.isdir(sourcedir):
-        shutil.rmtree(sourcedir)
+    for p in os.listdir(os.path.join(sourcedir, os.pardir)):
+            if 'quiris-tmp-' in p:
+                if os.path.isdir(os.path.join(sourcedir, os.pardir, p)):
+                    shutil.rmtree(os.path.join(sourcedir, os.pardir, p))
 
 
 def find_roots(tempdir):
