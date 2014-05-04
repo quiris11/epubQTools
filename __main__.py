@@ -7,6 +7,7 @@
 
 import argparse
 import sys
+import subprocess
 import os
 from lib.epubqcheck import qcheck
 from lib.epubqfix import qfix
