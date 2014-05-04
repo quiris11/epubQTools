@@ -23,6 +23,15 @@ from lib.htmlconstants import entities
 from lib.hyphenator import Hyphenator
 from os.path import expanduser
 
+dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
+dic_name = os.path.join(dic_tmp_dir, 'hyph_pl_PL.dic')
+with open(dic_name, 'wb') as f:
+    data = get_data('lib', 'resources/dictionaries/hyph_pl_PL.dic')
+    f.write(data)
+hyph = Hyphenator(dic_name)
+if os.path.isdir(dic_tmp_dir):
+    shutil.rmtree(dic_tmp_dir)
+
 MY_LANGUAGE = 'pl'
 HYPHEN_MARK = u'\u00AD'
 
@@ -266,19 +275,7 @@ def find_xhtml_files(epubzipfile, tempdir, rootepubdir, opf_file):
     return opftree, xhtml_files, xhtml_file_paths
 
 
-def hyphenate_and_fix_conjunctions(source_file, hyphen_mark):
-    dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
-    dic_name = os.path.join(dic_tmp_dir, 'hyph_pl_PL.dic')
-    try:
-        with open(dic_name, 'wb') as f:
-            data = get_data('lib', 'resources/dictionaries/hyph_pl_PL.dic')
-            f.write(data)
-        hyph = Hyphenator(dic_name)
-    finally:
-        try:
-            os.rmdir(dic_tmp_dir)
-        except:
-            pass
+def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph):
     try:
         texts = etree.XPath(
             '//xhtml:body//text()',
@@ -935,7 +932,7 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                                   'dictionary...')
                             hyph_info_printed = True
                         _xhtmltree = hyphenate_and_fix_conjunctions(
-                            _xhtmltree, HYPHEN_MARK
+                            _xhtmltree, HYPHEN_MARK, hyph
                         )
 
                     _xhtmltree = fix_styles(_xhtmltree)
