@@ -951,10 +951,22 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                         continue
                     for key in entities.iterkeys():
                         c = c.replace(key, entities[key])
-                    _xhtmltree = etree.fromstring(
-                        c, parser=etree.XMLParser(recover=False)
-                    )
-
+                    try:
+                        _xhtmltree = etree.fromstring(
+                            c, parser=etree.XMLParser(recover=False)
+                        )
+                    except etree.XMLSyntaxError, e:
+                        if (
+                                'XML declaration allowed only at the '
+                                'start of the document' in str(e)
+                        ):
+                            _xhtmltree = etree.fromstring(
+                                c[c.find('<?xml'):],
+                                parser=etree.XMLParser(recover=False)
+                            )
+                        else:
+                            print('XML file not well formed: ' + str(e))
+                            continue
                     if opftree.xpath(
                             "//dc:language", namespaces=DCNS
                     )[0].text == 'pl':
