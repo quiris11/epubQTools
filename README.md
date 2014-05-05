@@ -4,7 +4,7 @@ epubQTools
 Tools for checking, correcting and hyphenating epub files.
 
 ```
-usage: epubQTools.zip [-h] [--echp [ECHP]] [--kgp [KGP]] [-n] [-q]
+usage: python epubQTools.zip [-h] [--echp [ECHP]] [--kgp [KGP]] [-n] [-q]
                                  [-p] [-m] [-e] [-r] [-c] [-t] [-k] [-d] [-f]
                                  directory
 
