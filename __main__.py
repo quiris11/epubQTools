@@ -16,11 +16,15 @@ import tempfile
 from lib.epubqcheck import qcheck
 from lib.epubqfix import qfix
 
-q_cwd = os.path.join(os.getcwd(), os.path.dirname(__file__))
-if q_cwd.endswith('.zip'):
-    q_cwd = q_cwd[:q_cwd.rfind(os.sep)]
+if not hasattr(sys, 'frozen'):
+    q_cwd = os.path.join(os.getcwd(), os.path.dirname(__file__))
+    if q_cwd.endswith('.zip'):
+        q_cwd = q_cwd[:q_cwd.rfind(os.sep)]
+    else:
+        q_cwd = os.path.join(q_cwd, os.pardir)
 else:
-    q_cwd = os.path.join(q_cwd, os.pardir)
+    q_cwd = os.path.join(os.getcwd(), os.path.dirname(sys.executable))
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", help="Directory with EPUB files stored")
@@ -83,13 +87,16 @@ def main():
                     print('')
                     print('Kindlegen: Converting file: ' +
                           _file.decode(sys.getfilesystemencoding()))
-                    proc = subprocess.Popen([
-                        os.path.join(args.kgp, 'kindlegen'),
-                        '-dont_append_source',
-                        compression,
-                        os.path.join(root, _file)
-                    ], stdout=subprocess.PIPE).communicate()[0]
-
+                    try:
+                        proc = subprocess.Popen([
+                            os.path.join(args.kgp, 'kindlegen'),
+                            '-dont_append_source',
+                            compression,
+                            os.path.join(root, _file)
+                        ], stdout=subprocess.PIPE).communicate()[0]
+                    except:
+                        sys.exit('kindlegen not found in directory: "' +
+                                 args.kgp + '" Giving up...')
                     cover_html_found = False
                     for ln in proc.splitlines():
                         if ln.find('Warning') != -1:
@@ -116,8 +123,12 @@ def main():
             )
         except:
             sys.exit('Java is NOT installed. Giving up...')
-        echpzipfile = zipfile.ZipFile(os.path.join(args.echp,
-                                      'epubcheck-3.0.1.zip'))
+        try:
+            echpzipfile = zipfile.ZipFile(os.path.join(args.echp,
+                                          'epubcheck-3.0.1.zip'))
+        except:
+            sys.exit('epubcheck-3.0.1.zip not found in directory: "' +
+                     args.echp + '" Giving up...') 
         echp_temp = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
         echpzipfile.extractall(echp_temp)
         if args.mod:
