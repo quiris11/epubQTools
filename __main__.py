@@ -129,7 +129,7 @@ def main():
                                           'epubcheck-3.0.1.zip'))
         except:
             sys.exit('epubcheck-3.0.1.zip not found in directory: "' +
-                     args.echp + '" Giving up...') 
+                     args.echp + '" Giving up...')
         echp_temp = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
         echpzipfile.extractall(echp_temp)
         if args.mod:
