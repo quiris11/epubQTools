@@ -21,5 +21,13 @@ setup(
         }
     },
     zipfile=None,
-    console=['epubQTools.py'],
+    console=[{'script': '__main__.py', 'dest_base': 'epubQTools'}],
+    packages=['lib'],
+    data_files=[('resources', [
+        'lib/resources/cover.xhtml',
+        'lib/resources/ncx2end-0.2.xsl'
+    ]), ('resources/dictionaries', [
+        'lib/resources/dictionaries/hyph_pl_PL.dic',
+        'lib/resources/dictionaries/README_hyph_pl.txt'
+    ])],
 )

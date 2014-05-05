@@ -15,6 +15,7 @@ import sys
 import zipfile
 import uuid
 
+from pkgutil import get_data
 from urllib import unquote
 from itertools import cycle
 from lxml import etree
@@ -22,14 +23,23 @@ from lib.htmlconstants import entities
 from lib.hyphenator import Hyphenator
 from os.path import expanduser
 
+if not hasattr(sys, 'frozen'):
+    dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
+    dic_name = os.path.join(dic_tmp_dir, 'hyph_pl_PL.dic')
+    try:
+        with open(dic_name, 'wb') as f:
+            data = get_data('lib', 'resources/dictionaries/hyph_pl_PL.dic')
+            f.write(data)
+        hyph = Hyphenator(dic_name)
+    finally:
+        shutil.rmtree(dic_tmp_dir)
+else:
+    hyph = Hyphenator(os.path.join(
+        os.path.dirname(sys.executable), 'resources',
+        'dictionaries', 'hyph_pl_PL.dic'
+    ))
 MY_LANGUAGE = 'pl'
 HYPHEN_MARK = u'\u00AD'
-if not hasattr(sys, 'frozen'):
-    _hyph = Hyphenator(os.path.join(os.path.dirname(__file__), '..', 
-                       'resources', 'dictionaries', 'hyph_pl_PL.dic'))
-else:
-    _hyph = Hyphenator(os.path.join(os.path.dirname(sys.executable),
-                       'resources', 'dictionaries', 'hyph_pl_PL.dic'))
 
 HOME = expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
@@ -214,7 +224,7 @@ def replace_font(actual_font_path):
 
 def unpack_epub(source_epub):
     epubzipfile = zipfile.ZipFile(source_epub)
-    tempdir = tempfile.mkdtemp()
+    tempdir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
     epubzipfile.extractall(tempdir)
     os.remove(os.path.join(tempdir, 'mimetype'))
     return epubzipfile, tempdir
@@ -235,8 +245,10 @@ def pack_epub(output_filename, source_dir):
 
 
 def clean_temp(sourcedir):
-    if os.path.isdir(sourcedir):
-        shutil.rmtree(sourcedir)
+    for p in os.listdir(os.path.join(sourcedir, os.pardir)):
+            if 'quiris-tmp-' in p:
+                if os.path.isdir(os.path.join(sourcedir, os.pardir, p)):
+                    shutil.rmtree(os.path.join(sourcedir, os.pardir, p))
 
 
 def find_roots(tempdir):
@@ -269,7 +281,7 @@ def find_xhtml_files(epubzipfile, tempdir, rootepubdir, opf_file):
     return opftree, xhtml_files, xhtml_file_paths
 
 
-def hyphenate_and_fix_conjunctions(source_file, hyph, hyphen_mark):
+def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph):
     try:
         texts = etree.XPath(
             '//xhtml:body//text()',
@@ -332,10 +344,8 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
         else:
             parser = etree.XMLParser(remove_blank_text=True)
             if not hasattr(sys, 'frozen'):
-                transform = etree.XSLT(etree.parse(os.path.join(
-                    os.path.dirname(__file__), '..',
-                    'resources', 'ncx2end-0.2.xsl'
-                )))
+                transform = etree.XSLT(etree.fromstring(get_data('lib',
+                                       'resources/ncx2end-0.2.xsl')))
             else:
                 transform = etree.XSLT(etree.parse(os.path.join(
                     os.path.dirname(sys.executable), 'resources',
@@ -585,10 +595,13 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
     elif len(metacovers) == 0 and len(refcovers) == 1:
         # set missing cover meta element
         cover_image = None
-        coversoup = etree.parse(
-            os.path.join(tempdir, refcovers[0].get('href')),
-            parser=etree.XMLParser(recover=True)
-        )
+        try:
+            coversoup = etree.parse(
+                os.path.join(tempdir, refcovers[0].get('href')),
+                parser=etree.XMLParser(recover=True)
+            )
+        except:
+            coversoup = None
         if etree.tostring(coversoup) is not None:
             imgs = etree.XPath('//xhtml:img',
                                namespaces=XHTMLNS)(coversoup)
@@ -776,13 +789,11 @@ def replace_svg_html_cover(opftree, rootepubdir):
     svg_imgs = html_cover_tree.xpath('//svg:image', namespaces=SVGNS)
     if len(svg_imgs) == 1:
         if not hasattr(sys, 'frozen'):
-            new_cover_tree = etree.parse(os.path.join(
-                os.path.dirname(__file__), '..', 'resources', 'cover.xhtml'
-            ))
+            new_cover_tree = etree.fromstring(get_data('lib',
+                                              'resources/cover.xhtml'))
         else:
             new_cover_tree = etree.parse(os.path.join(
-                os.path.dirname(sys.executable), 'resources',
-                'cover.xhtml'
+                os.path.dirname(sys.executable), 'resources', 'cover.xhtml'
             ))
         new_cover_tree.xpath(
             '//xhtml:img',
@@ -941,7 +952,7 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                                   'dictionary...')
                             hyph_info_printed = True
                         _xhtmltree = hyphenate_and_fix_conjunctions(
-                            _xhtmltree, _hyph, HYPHEN_MARK
+                            _xhtmltree, HYPHEN_MARK, hyph
                         )
 
                     _xhtmltree = fix_styles(_xhtmltree)

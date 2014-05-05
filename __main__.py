@@ -9,16 +9,36 @@ import argparse
 import sys
 import subprocess
 import os
+import subprocess
+import zipfile
+import shutil
+import tempfile
+
 from lib.epubqcheck import qcheck
 from lib.epubqfix import qfix
+
+if not hasattr(sys, 'frozen'):
+    q_cwd = os.path.join(os.getcwd(), os.path.dirname(__file__))
+    if q_cwd.endswith('.zip'):
+        q_cwd = q_cwd[:q_cwd.rfind(os.sep)]
+    else:
+        q_cwd = os.path.join(q_cwd, os.pardir)
+else:
+    q_cwd = os.path.join(os.getcwd(), os.path.dirname(sys.executable))
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", help="Directory with EPUB files stored")
+parser.add_argument("--echp", nargs='?',
+                    default=q_cwd,
+                    help="path too epubcheck-3.0.1 dir")
+parser.add_argument("--kgp", nargs='?',
+                    default=q_cwd,
+                    help="path too kindlegen file")
 parser.add_argument("-n", "--rename", help="rename .epub files to "
                     "'author - title.epub'",
                     action="store_true")
-parser.add_argument("-q", "--qcheck", help="validate files with epubqcheck "
+parser.add_argument("-q", "--qcheck", help="validate files with qcheck "
                     "internal tool",
                     action="store_true")
 parser.add_argument("-p", "--epubcheck", help="validate epub files with "
@@ -51,7 +71,7 @@ args = parser.parse_args()
 
 def main():
     if args.qcheck or args.rename:
-        qcheck(args.directory, args.mod, args.epubcheck, args.rename)
+        qcheck(args.directory, args.mod, args.rename)
     elif args.kindlegen:
         compression = '-c2' if args.huffdic else '-c1'
         for root, dirs, files in os.walk(args.directory):
@@ -68,13 +88,16 @@ def main():
                     print('')
                     print('Kindlegen: Converting file: ' +
                           _file.decode(sys.getfilesystemencoding()))
-                    proc = subprocess.Popen([
-                        'kindlegen',
-                        '-dont_append_source',
-                        compression,
-                        os.path.join(root, _file)
-                    ], stdout=subprocess.PIPE).communicate()[0]
-
+                    try:
+                        proc = subprocess.Popen([
+                            os.path.join(args.kgp, 'kindlegen'),
+                            '-dont_append_source',
+                            compression,
+                            os.path.join(root, _file)
+                        ], stdout=subprocess.PIPE).communicate()[0]
+                    except:
+                        sys.exit('kindlegen not found in directory: "' +
+                                 args.kgp + '" Giving up...')
                     cover_html_found = False
                     for ln in proc.splitlines():
                         if ln.find('Warning') != -1:
@@ -93,6 +116,53 @@ def main():
     elif args.epub:
         qfix(args.directory, args.force, args.replacefonts, args.resetmargins,
              args.findcover)
+    elif args.epubcheck:
+        try:
+            java = subprocess.Popen(
+                ['java', '-version'],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+        except:
+            sys.exit('Java is NOT installed. Giving up...')
+        try:
+            echpzipfile = zipfile.ZipFile(os.path.join(args.echp,
+                                          'epubcheck-3.0.1.zip'))
+        except:
+            sys.exit('epubcheck-3.0.1.zip not found in directory: "' +
+                     args.echp + '" Giving up...') 
+        echp_temp = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
+        echpzipfile.extractall(echp_temp)
+        if args.mod:
+            fe = '_moh.epub'
+            nfe = '_org.epub'
+        else:
+            fe = '.epub'
+            nfe = '_moh.epub'
+        for root, dirs, files in os.walk(args.directory):
+            for f in files:
+                if f.endswith(fe) and not f.endswith(nfe):
+                    epubchecker_path = os.path.join(
+                        echp_temp,
+                        'epubcheck-3.0.1', 'epubcheck-3.0.1.jar'
+                    )
+                    jp = subprocess.Popen([
+                        'java', '-jar', '%s' % epubchecker_path,
+                        '%s' % str(os.path.join(root, f))
+                    ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    jpout, jperr = jp.communicate()
+                    if jperr:
+                        print(f.decode(sys.getfilesystemencoding()) +
+                              ': PROBLEMS FOUND...')
+                        print('*** Details... ***')
+                        print(jperr)
+                    else:
+                        print(f.decode(sys.getfilesystemencoding()) +
+                              ': OK!')
+                        print('')
+        for p in os.listdir(os.path.join(echp_temp, os.pardir)):
+            if 'quiris-tmp-' in p:
+                if os.path.isdir(os.path.join(echp_temp, os.pardir, p)):
+                    shutil.rmtree(os.path.join(echp_temp, os.pardir, p))
     else:
         parser.print_help()
         print("* * *")
