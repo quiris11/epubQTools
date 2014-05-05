@@ -547,7 +547,7 @@ def set_correct_font_mime_types(_soup):
 
 
 def fix_various_opf_problems(soup, tempdir, xhtml_files,
-                             xhtml_file_paths):
+                             xhtml_file_paths, _findcover):
 
     soup = set_correct_font_mime_types(soup)
 
@@ -903,7 +903,7 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
 
                 opftree = fix_various_opf_problems(
                     opftree, opf_dir_abs,
-                    _xhtml_files, _xhtml_file_paths
+                    _xhtml_files, _xhtml_file_paths, _findcover
                 )
 
                 opftree = fix_ncx_dtd_uid(opftree, opf_dir_abs)
