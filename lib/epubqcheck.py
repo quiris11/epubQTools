@@ -373,7 +373,12 @@ def qcheck(_documents, _moded, _rename):
                             singlefile.lower().endswith('.ttf')
                     ) and not _rename):
                         temp_font_dir = tempfile.mkdtemp()
-                        epubfile.extract(singlefile, temp_font_dir)
+                        try:
+                            epubfile.extract(singlefile, temp_font_dir)
+                        except zipfile.BadZipfile:
+                            print(file_dec + ': Font file: ' + singlefile +
+                                  ' is DAMAGED!')
+                            continue
                         is_font, signature = check_font(
                             os.path.join(temp_font_dir, singlefile)
                         )
