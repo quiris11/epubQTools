@@ -595,10 +595,13 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
     elif len(metacovers) == 0 and len(refcovers) == 1:
         # set missing cover meta element
         cover_image = None
-        coversoup = etree.parse(
-            os.path.join(tempdir, refcovers[0].get('href')),
-            parser=etree.XMLParser(recover=True)
-        )
+        try:
+            coversoup = etree.parse(
+                os.path.join(tempdir, refcovers[0].get('href')),
+                parser=etree.XMLParser(recover=True)
+            )
+        except:
+            coversoup = None
         if etree.tostring(coversoup) is not None:
             imgs = etree.XPath('//xhtml:img',
                                namespaces=XHTMLNS)(coversoup)
