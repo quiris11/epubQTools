@@ -377,7 +377,7 @@ def qcheck(_documents, _moded, _rename):
                             epubfile.extract(singlefile, temp_font_dir)
                         except zipfile.BadZipfile:
                             print(file_dec + ': Font file: ' + singlefile +
-                                  ' is DAMAGED!')
+                                  ' is corrupted!')
                             continue
                         is_font, signature = check_font(
                             os.path.join(temp_font_dir, singlefile)

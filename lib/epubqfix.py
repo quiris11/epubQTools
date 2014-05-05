@@ -879,10 +879,15 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                 print('')
                 print('Working on: ' +
                       _file.decode(sys.getfilesystemencoding()))
-                _epubzipfile, _tempdir = unpack_epub(
-                    os.path.join(root, _file)
-                )
-
+                try:
+                    _epubzipfile, _tempdir = unpack_epub(
+                        os.path.join(root, _file)
+                    )
+                except zipfile.BadZipfile, e:
+                    print(_file.decode(sys.getfilesystemencoding()) +
+                          ': EPUB file is corrupted! Giving up...')
+                    print str(e)
+                    continue
                 opf_dir, opf_file_path = find_roots(_tempdir)
                 opf_dir_abs = os.path.join(_tempdir, opf_dir)
                 opf_file_path_abs = os.path.join(_tempdir, opf_file_path)
