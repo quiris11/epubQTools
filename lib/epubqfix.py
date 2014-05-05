@@ -407,6 +407,8 @@ def fix_mismatched_covers(opftree, tempdir):
         return 1
     xhtmltree = etree.parse(cover_xhtml_file,
                             parser=etree.XMLParser(recover=True))
+    if not etree.tostring(xhtmltree):
+        return 0
     allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
     if not allimgs:
         allsvgimgs = etree.XPath('//svg:image', namespaces=SVGNS)(xhtmltree)
@@ -941,8 +943,12 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
 
                 hyph_info_printed = res_css_info_printed = False
                 for _single_xhtml in _xhtml_files:
-                    with open(_single_xhtml, 'r') as content_file:
-                        c = content_file.read()
+                    try:
+                        with open(_single_xhtml, 'r') as content_file:
+                            c = content_file.read()
+                    except IOError, e:
+                        print('Problem with processing file: ' + str(e))
+                        continue
                     for key in entities.iterkeys():
                         c = c.replace(key, entities[key])
                     _xhtmltree = etree.fromstring(

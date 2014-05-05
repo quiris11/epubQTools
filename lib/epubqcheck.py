@@ -226,9 +226,13 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
     for _htmlfiletag in _htmlfiletags:
         _htmlfilepath = _htmlfiletag.get('href')
         parser = etree.XMLParser(recover=True)
-        _xhtmlsoup = etree.fromstring(
-            _epubfile.read(_folder + _htmlfilepath), parser
-        )
+        try:
+            _xhtmlsoup = etree.fromstring(
+                _epubfile.read(_folder + _htmlfilepath), parser
+            )
+        except KeyError, e:
+            print(_file_dec + ': Problem with a file: ' + str(e))
+            continue
         if _wmfound is False:
             _watermarks = etree.XPath('//*[starts-with(text(),"==")]',
                                       namespaces=XHTMLNS)(_xhtmlsoup)
