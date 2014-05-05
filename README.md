@@ -1,8 +1,9 @@
 epubQTools
 ==========
 
-Tools for checking, correcting and hyphenating epub files
+Tools for checking, correcting and hyphenating epub files.
 
+```
 usage: epubQTools.zip [-h] [--echp [ECHP]] [--kgp [KGP]] [-n] [-q]
                                  [-p] [-m] [-e] [-r] [-c] [-t] [-k] [-d] [-f]
                                  directory
@@ -28,4 +29,4 @@ optional arguments:
                       conversion)
   -f, --force         overwrite previously generated _moh.epub or .mobi files
                       (only with -k or -e)
-
+```
