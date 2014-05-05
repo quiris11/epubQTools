@@ -424,10 +424,13 @@ def fix_mismatched_covers(opftree, tempdir):
         html_cover_img_file = allsvgimgs[0].get(
             '{http://www.w3.org/1999/xlink}href'
         ).split('/')[-1]
-    meta_cover_id = opftree.xpath(
-        '//opf:meta[@name="cover"]',
-        namespaces=OPFNS
-    )[0].get('content')
+    try:
+        meta_cover_id = opftree.xpath(
+            '//opf:meta[@name="cover"]',
+            namespaces=OPFNS
+        )[0].get('content')
+    except IndexError:
+        meta_cover_id = None
     if meta_cover_id is None:
         print('Meta cover image not properly defined. Giving up...')
         return 1
@@ -682,10 +685,15 @@ def fix_ncx_dtd_uid(opftree, tempdir):
             if dcid.get('id') is not None:
                 uniqid = dcid.get('id')
                 break
-        opftree.xpath('//opf:package',
-                      namespaces=OPFNS)[0].set('unique-identifier', uniqid)
-    dc_identifier = etree.XPath('//dc:identifier[@id="' + uniqid + '"]/text()',
-                                namespaces=DCNS)(opftree)[0]
+        if uniqid is not None:
+            opftree.xpath('//opf:package',
+                          namespaces=OPFNS)[0].set('unique-identifier', uniqid)
+    try:
+        dc_identifier = etree.XPath(
+            '//dc:identifier[@id="' + str(uniqid) + '"]/text()',
+            namespaces=DCNS)(opftree)[0]
+    except IndexError:
+        return opftree
     try:
         metadtd = etree.XPath('//ncx:meta[@name="dtb:uid"]',
                               namespaces=NCXNS)(ncxtree)[0]
@@ -969,9 +977,13 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                                   _single_xhtml.split('/')[-1] +
                                   ' not well formed: "' + str(e) + '"')
                             continue
-                    if opftree.xpath(
+                    try:
+                        book_lang = opftree.xpath(
                             "//dc:language", namespaces=DCNS
-                    )[0].text == 'pl':
+                        )[0].text
+                    except IndexError:
+                        book_lang = ''
+                    if book_lang == 'pl':
                         if not hyph_info_printed:
                             print('Hyphenating book with Polish '
                                   'dictionary...')
