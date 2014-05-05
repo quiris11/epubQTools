@@ -965,7 +965,9 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                                 parser=etree.XMLParser(recover=False)
                             )
                         else:
-                            print('XML file not well formed: ' + str(e))
+                            print('XML file: ' +
+                                  _single_xhtml.split('/')[-1] +
+                                  ' not well formed: "' + str(e) + '"')
                             continue
                     if opftree.xpath(
                             "//dc:language", namespaces=DCNS
