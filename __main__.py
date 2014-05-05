@@ -31,10 +31,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument("directory", help="Directory with EPUB files stored")
 parser.add_argument("--echp", nargs='?',
                     default=q_cwd,
-                    help="path too epubcheck-3.0.1 dir")
+                    help="path to epubcheck-3.0.1.zip file")
 parser.add_argument("--kgp", nargs='?',
                     default=q_cwd,
-                    help="path too kindlegen file")
+                    help="path to kindlegen executable file")
 parser.add_argument("-n", "--rename", help="rename .epub files to "
                     "'author - title.epub'",
                     action="store_true")
