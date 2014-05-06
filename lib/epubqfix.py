@@ -957,6 +957,8 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                     except IOError, e:
                         print('Problem with processing file: ' + str(e))
                         continue
+                    c = re.sub(r'<span class="reset (black|black2|dark-gray|'
+                               'dark-gray2)">(.+?)</span>', r'\2', c)
                     for key in entities.iterkeys():
                         c = c.replace(key, entities[key])
                     try:
