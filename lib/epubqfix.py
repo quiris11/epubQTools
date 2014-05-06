@@ -399,16 +399,16 @@ def fix_mismatched_covers(opftree, tempdir):
     refcvs = opftree.xpath('//opf:reference[@type="cover"]', namespaces=OPFNS)
     if len(refcvs) > 1:
         print('Too many cover references in OPF. Giving up...')
-        return 1
+        return opftree
     try:
         cover_xhtml_file = os.path.join(tempdir, refcvs[0].get('href'))
     except:
         print('HTML cover reference not found. Giving up...')
-        return 1
+        return opftree
     xhtmltree = etree.parse(cover_xhtml_file,
                             parser=etree.XMLParser(recover=True))
     if not etree.tostring(xhtmltree):
-        return 0
+        return opftree
     allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
     if not allimgs:
         allsvgimgs = etree.XPath('//svg:image', namespaces=SVGNS)(xhtmltree)
@@ -417,7 +417,7 @@ def fix_mismatched_covers(opftree, tempdir):
         len_svg_images = 0
     if len(allimgs) != 1 and len_svg_images != 1:
         print('HTML cover should have only one image. Giving up...')
-        return 1
+        return opftree
     if allimgs:
         html_cover_img_file = allimgs[0].get('src').split('/')[-1]
     elif allsvgimgs:
@@ -433,7 +433,7 @@ def fix_mismatched_covers(opftree, tempdir):
         meta_cover_id = None
     if meta_cover_id is None:
         print('Meta cover image not properly defined. Giving up...')
-        return 1
+        return opftree
     try:
         meta_cover_image_file = opftree.xpath(
             '//opf:item[@id="' + meta_cover_id + '"]',
