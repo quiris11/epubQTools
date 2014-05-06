@@ -974,6 +974,18 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                                 c[c.find('<?xml'):],
                                 parser=etree.XMLParser(recover=False)
                             )
+                        elif re.search('Opening and ending tag mismatch: body '
+                                       'line \d+ and html', str(e)):
+                            try:
+                                _xhtmltree = etree.fromstring(
+                                    c.replace('</html>', '</body></html>'),
+                                    parser=etree.XMLParser(recover=False)
+                                )
+                            except:
+                                print('XML file: ' +
+                                      _single_xhtml.split('/')[-1] +
+                                      ' not well formed: "' + str(e) + '"')
+                                continue
                         else:
                             print('XML file: ' +
                                   _single_xhtml.split('/')[-1] +
