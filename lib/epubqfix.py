@@ -440,6 +440,12 @@ def fix_mismatched_covers(opftree, tempdir):
             namespaces=OPFNS
         )[0].get('href').split('/')[-1]
     except IndexError:
+        if html_cover_img_file is not None:
+            for i in opftree.xpath('//opf:item', namespaces=OPFNS):
+                if html_cover_img_file in i.get('href'):
+                    opftree.xpath(
+                        '//opf:meta[@name="cover"]', namespaces=OPFNS
+                    )[0].set('content', i.get('id'))
         meta_cover_image_file = html_cover_img_file
     if html_cover_img_file != meta_cover_image_file:
         print('Mismatched meta and HTML covers. Fixing...')
@@ -459,6 +465,7 @@ def fix_mismatched_covers(opftree, tempdir):
             )
     else:
         print('Meta and HTML covers are identical...')
+    return opftree
 
 
 def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
@@ -933,7 +940,7 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                 # experimental - disabled
                 # replace_svg_html_cover(opftree, opf_dir_abs)
 
-                fix_mismatched_covers(opftree, opf_dir_abs)
+                opftree = fix_mismatched_covers(opftree, opf_dir_abs)
 
                 convert_dl_to_ul(opftree, opf_dir_abs)
                 remove_text_from_html_cover(opftree, opf_dir_abs)
