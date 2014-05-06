@@ -4,17 +4,16 @@ epubQTools
 Tools for checking, correcting and hyphenating epub files.
 
 ```
-usage: python epubQTools.zip [-h] [--echp [ECHP]] [--kgp [KGP]] [-n] [-q]
-                                 [-p] [-m] [-e] [-r] [-c] [-t] [-k] [-d] [-f]
-                                 directory
+usage: python epubQTools.zip [-h] [--echp [ECHP]] [--kgp [KGP]] [-n] [-q] [-p] 
+                             [-m] [-e] [-r] [-c] [-t] [-k] [-d] [-f] directory
 
 positional arguments:
   directory           Directory with EPUB files stored
 
 optional arguments:
   -h, --help          show this help message and exit
-  --echp [ECHP]       path too epubcheck-3.0.1 dir
-  --kgp [KGP]         path too kindlegen file
+  --echp [ECHP]       path to epubcheck-3.0.1.zip file
+  --kgp [KGP]         path to kindlegen executable file
   -n, --rename        rename .epub files to 'author - title.epub'
   -q, --qcheck        validate files with qcheck internal tool
   -p, --epubcheck     validate epub files with EpubCheck 3.0.1 tool
