@@ -99,9 +99,14 @@ def check_meta_html_covers(tree, dir, epub, file_dec):
         print(file_dec + ': Meta cover does not properly defined.')
         return 0
     parser = etree.XMLParser(recover=True)
-    html_cover_tree = etree.fromstring(
-        epub.read(dir + html_cover_path), parser
-    )
+    try:
+        html_cover_tree = etree.fromstring(
+            epub.read(dir + html_cover_path), parser
+        )
+    except KeyError, e:
+        print(file_dec + ': ' + str(e))
+        html_cover_tree = None
+        pass
     try:
         cover_texts = etree.XPath(
             '//xhtml:body//text()',
@@ -113,7 +118,8 @@ def check_meta_html_covers(tree, dir, epub, file_dec):
     except:
         pass
     if html_cover_tree is None:
-        print('Error loading HTML cover... Probably not a html file...')
+        print(file_dec + ': Error loading HTML cover... '
+              'Probably not a html file...')
         return 0
     allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(html_cover_tree)
     if len(allimgs) > 1:
