@@ -175,6 +175,10 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
         _folder = _singlefile.split('/')[0] + '/'
     opftree = etree.fromstring(_epubfile.read(_singlefile))
     opftree = unquote_urls(opftree)
+
+    if not opftree.xpath('//opf:metadata', namespaces=OPFNS):
+        print(_file_dec + ': CRITICAL! No metadata defined in OPF file...')
+
     language_tags = etree.XPath('//dc:language/text()',
                                 namespaces=DCNS)(opftree)
     if len(language_tags) == 0:
