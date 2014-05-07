@@ -6,6 +6,7 @@
 #
 
 import argparse
+import codecs
 import sys
 import subprocess
 import os
@@ -74,9 +75,9 @@ args = parser.parse_args()
 
 
 class Logger(object):
-    def __init__(self, filename="eQT-default.log"):
+    def __init__(self, filename='eQT-default.log'):
         self.terminal = sys.stdout
-        self.log = open(filename, "a")
+        self.log = codecs.open(filename, 'w', 'utf-8')
 
     def write(self, message):
         self.terminal.write(message)
