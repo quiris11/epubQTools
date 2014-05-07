@@ -14,6 +14,7 @@ import zipfile
 import shutil
 import tempfile
 
+from datetime import datetime
 from lib.epubqcheck import qcheck
 from lib.epubqfix import qfix
 
@@ -29,12 +30,15 @@ else:
 
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", help="Directory with EPUB files stored")
-parser.add_argument("--echp", nargs='?',
+parser.add_argument("--echp", nargs='?', metavar="DIR",
                     default=q_cwd,
                     help="path to epubcheck-3.0.1.zip file")
 parser.add_argument("--kgp", nargs='?',
-                    default=q_cwd,
+                    default=q_cwd, metavar="DIR",
                     help="path to kindlegen executable file")
+parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
+                    help='path to directory to write log file. If DIR is '
+                    ' omitted write log to directory with epub files')
 parser.add_argument("-n", "--rename", help="rename .epub files to "
                     "'author - title.epub'",
                     action="store_true")
@@ -69,7 +73,25 @@ parser.add_argument("-f", "--force",
 args = parser.parse_args()
 
 
+class Logger(object):
+    def __init__(self, filename="eQT-default.log"):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+
 def main():
+    if args.log == '1':
+        st = datetime.now().strftime('%Y%m%d%H%M%S')
+        sys.stdout = Logger(os.path.join(args.directory, 'eQT-' + st +
+                                         '.log'))
+    elif args.log != '1' and args.log is not None:
+        st = datetime.now().strftime('%Y%m%d%H%M%S')
+        sys.stdout = Logger(os.path.join(args.log, 'eQT-' + st +
+                                         '.log'))
     if args.qcheck or args.rename:
         qcheck(args.directory, args.mod, args.rename)
     elif args.kindlegen:
