@@ -241,7 +241,7 @@ def pack_epub(output_filename, source_dir):
                 if os.path.isfile(filename):
                     arcname = os.path.join(os.path.relpath(root, relroot),
                                            file)
-                    zip.write(filename, arcname)
+                    zip.write(filename, arcname.decode('utf-8'))
 
 
 def clean_temp(sourcedir):
