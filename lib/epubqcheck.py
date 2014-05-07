@@ -168,7 +168,38 @@ def find_cover_image(_opftree, _file_dec):
         print(_file_dec + ': No images in an entire book found...')
 
 
-def qcheck_single_file(_singlefile, _epubfile, _file_dec):
+def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
+    def check_hyperlinks(epub, opftree, root, _file_dec):
+        for i in opftree.xpath('//*[@href]'):
+            found = False
+            for n in epub.namelist():
+                if n == (root + i.get('href')):
+                    found = True
+            if not found:
+                print(_file_dec + ': INCORRECTLY defined file in OPF: ' +
+                      root + i.get('href') + '. Not found in EPUB file...')
+
+    def check_orphan_files(epub, opftree, root, _file_dec):
+        def is_exluded(name):
+            excludes = ['mimetype', 'META-INF/container.xml',
+                        'META-INF/com.apple.ibooks.display-options.xml',
+                        'content.opf',
+                        '/']
+            for e in excludes:
+                if name.endswith(e):
+                    return True
+            return False
+
+        for n in epub.namelist():
+            if not is_exluded(n):
+                found = False
+                for i in opftree.xpath('//*[@href]'):
+                    if n == (root + i.get('href')):
+                        found = True
+                if not found:
+                    print(_file_dec + ': ORPHAN file not defined in OPF: ' +
+                          root + n)
+
     if _singlefile.find('/') == -1:
         _folder = ''
     else:
@@ -176,6 +207,8 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
     opftree = etree.fromstring(_epubfile.read(_singlefile))
     opftree = unquote_urls(opftree)
 
+    check_hyperlinks(_epubfile, opftree, _folder, _file_dec)
+    check_orphan_files(_epubfile, opftree, _folder, _file_dec)
     if not opftree.xpath('//opf:metadata', namespaces=OPFNS):
         print(_file_dec + ': CRITICAL! No metadata defined in OPF file...')
 
@@ -243,6 +276,7 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
         except KeyError, e:
             print(_file_dec + ': Problem with a file: ' + str(e))
             continue
+
         if _wmfound is False:
             _watermarks = etree.XPath('//*[starts-with(text(),"==")]',
                                       namespaces=XHTMLNS)(_xhtmlsoup)
@@ -434,4 +468,4 @@ def qcheck(_documents, _moded, _rename):
                             rename_files(singlefile, root, epubfile, _file,
                                          file_dec)
                         else:
-                            qcheck_single_file(singlefile, epubfile, file_dec)
+                            qcheck_opf_file(singlefile, epubfile, file_dec)
