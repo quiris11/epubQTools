@@ -330,6 +330,8 @@ def qcheck_single_file(_singlefile, _epubfile, _file_dec):
 
 
 def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
+    if _filename.endswith('_moh.epub'):
+        return 0
     opftree = etree.fromstring(_epubfile.read(_singlefile))
     try:
         dc_title = etree.XPath('//dc:title/text()',
@@ -343,15 +345,40 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
     except:
         print(_file_dec + ': dc:creator not found. Skipping renaming file...')
         return 0
-    _newfilename = dc_creator + ' - ' + dc_title + '.epub'
-    _newfilename = _newfilename.encode(sys.getfilesystemencoding())
-    if not os.path.exists(os.path.join(_root, _newfilename)):
-        _epubfile.close()
-        os.rename(os.path.join(_root, _filename),
-                  os.path.join(_root, _newfilename))
-    else:
-        print('File exists: ' + _filename.decode(sys.getfilesystemencoding()) +
-              '. Skipping...')
+    dc_creator = "".join(x for x in dc_creator if x.isalnum() or x.isspace())
+    dc_title = "".join(x for x in dc_title if x.isalnum() or x.isspace())
+    nfname = dc_creator + ' - ' + dc_title
+    nfname = nfname.encode(sys.getfilesystemencoding())
+    is_not_renamed = False
+    counter = 1
+    while True:
+        if _filename == (nfname + '.epub'):
+            is_not_renamed = True
+            break
+        elif _filename == (nfname + ' (' + str(counter) + ').epub'):
+            is_not_renamed = True
+            break
+        elif not os.path.exists(os.path.join(_root, nfname + '.epub')):
+            _epubfile.close()
+            os.rename(os.path.join(_root, _filename),
+                      os.path.join(_root, nfname + '.epub'))
+            print(_file_dec + ' renamed to: ' + nfname + '.epub')
+            is_not_renamed = True
+            break
+        elif not os.path.exists(os.path.join(_root, nfname + ' (' +
+                                str(counter) + ').epub')):
+            _epubfile.close()
+            os.rename(os.path.join(_root, _filename),
+                      os.path.join(_root, nfname + ' (' + str(counter) +
+                                   ').epub'))
+            print(_file_dec + ' renamed to: ' + nfname + ' (' + str(counter) +
+                  ').epub')
+            is_not_renamed = True
+            break
+        else:
+            counter += 1
+    if is_not_renamed:
+        print(_file_dec + ': renaming is not needed...')
 
 
 def qcheck(_documents, _moded, _rename):
