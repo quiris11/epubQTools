@@ -404,11 +404,11 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
         print(_file_dec + ': dc:creator not found. Skipping renaming file...')
         return 0
     nfname = strip_accents(unicode(cr + ' - ' + tit))
-    nfname = nfname.replace('.', '_').replace(u'\u2013', '-')\
-                   .replace('/', '_').replace(':', '_')\
-                   .replace(u'\u0142', 'l').replace(u'\u0141', 'L')
+    nfname = nfname.replace(u'\u2013', '-').replace('/', '_')\
+                   .replace(':', '_').replace(u'\u0142', 'l')\
+                   .replace(u'\u0141', 'L')
     nfname = "".join(x for x in nfname if (
-        x.isalnum() or x.isspace() or x in ('_', '-')
+        x.isalnum() or x.isspace() or x in ('_', '-', '.')
     ))
     nfname = nfname.encode(SFENC)
     is_renamed = False
