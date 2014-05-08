@@ -393,21 +393,21 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
     dc_title = "".join(x for x in dc_title if x.isalnum() or x.isspace())
     nfname = dc_creator + ' - ' + dc_title
     nfname = nfname.encode(SFENC)
-    is_not_renamed = False
+    is_renamed = False
     counter = 1
     while True:
         if _filename == (nfname + '.epub'):
-            is_not_renamed = True
+            is_renamed = False
             break
         elif _filename == (nfname + ' (' + str(counter) + ').epub'):
-            is_not_renamed = True
+            is_renamed = False
             break
         elif not os.path.exists(os.path.join(_root, nfname + '.epub')):
             _epubfile.close()
             os.rename(os.path.join(_root, _filename),
                       os.path.join(_root, nfname + '.epub'))
             print(_file_dec + ' renamed to: ' + nfname.decode(SFENC) + '.epub')
-            is_not_renamed = True
+            is_renamed = True
             break
         elif not os.path.exists(os.path.join(_root, nfname + ' (' +
                                 str(counter) + ').epub')):
@@ -417,11 +417,11 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
                                    ').epub'))
             print(_file_dec + ' renamed to: ' + nfname + ' (' + str(counter) +
                   ').epub')
-            is_not_renamed = True
+            is_renamed = True
             break
         else:
             counter += 1
-    if is_not_renamed:
+    if not is_renamed:
         print(_file_dec + ': renaming is not needed...')
 
 
