@@ -934,44 +934,29 @@ def process_epub(_epubzipfile, _tempdir, _replacefonts, _resetmargins,
 
     # remove obsolete calibre_bookmarks.txt
     try:
-        os.remove(os.path.join(
-            _tempdir, 'META-INF', 'calibre_bookmarks.txt'
-        ))
+        os.remove(os.path.join(_tempdir, 'META-INF', 'calibre_bookmarks.txt'))
     except OSError:
         pass
 
-    (
-        opftree, _xhtml_files, _xhtml_file_paths
-    ) = find_xhtml_files(
+    opftree, _xhtml_files, _xhtml_file_paths = find_xhtml_files(
         _epubzipfile, _tempdir, opf_dir_abs, opf_file_path_abs
     )
-
-    opftree = fix_various_opf_problems(
-        opftree, opf_dir_abs,
-        _xhtml_files, _xhtml_file_paths, _findcover
-    )
-
+    opftree = fix_various_opf_problems(opftree, opf_dir_abs, _xhtml_files,
+                                       _xhtml_file_paths, _findcover)
     opftree = fix_ncx_dtd_uid(opftree, opf_dir_abs)
-
-    opftree = fix_html_toc(
-        opftree, opf_dir_abs,
-        _xhtml_files, _xhtml_file_paths
-    )
-
+    opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
+                           _xhtml_file_paths)
     opftree = fix_meta_cover_order(opftree)
 
     # experimental - disabled
     # replace_svg_html_cover(opftree, opf_dir_abs)
 
     opftree = fix_mismatched_covers(opftree, opf_dir_abs)
-
     convert_dl_to_ul(opftree, opf_dir_abs)
     remove_text_from_html_cover(opftree, opf_dir_abs)
 
     # parse encryption.xml file
-    enc_file = os.path.join(
-        _tempdir, 'META-INF', 'encryption.xml'
-    )
+    enc_file = os.path.join(_tempdir, 'META-INF', 'encryption.xml')
     if os.path.exists(enc_file):
         process_encryption(enc_file, opftree)
         os.remove(enc_file)
@@ -997,10 +982,8 @@ def process_epub(_epubzipfile, _tempdir, _replacefonts, _resetmargins,
                 c, parser=etree.XMLParser(recover=False)
             )
         except etree.XMLSyntaxError, e:
-            if (
-                    'XML declaration allowed only at the '
-                    'start of the document' in str(e)
-            ):
+            if ('XML declaration allowed only at the start of the '
+                    'document' in str(e)):
                 _xhtmltree = etree.fromstring(
                     c[c.find('<?xml'):],
                     parser=etree.XMLParser(recover=False)
@@ -1013,74 +996,49 @@ def process_epub(_epubzipfile, _tempdir, _replacefonts, _resetmargins,
                         parser=etree.XMLParser(recover=False)
                     )
                 except:
-                    print('XML file: ' +
-                          _single_xhtml.split('/')[-1] +
+                    print('XML file: ' + _single_xhtml.split('/')[-1] +
                           ' not well formed: "' + str(e) + '"')
                     qfixerr = True
                     continue
             else:
-                print('XML file: ' +
-                      _single_xhtml.split('/')[-1] +
+                print('XML file: ' + _single_xhtml.split('/')[-1] +
                       ' not well formed: "' + str(e) + '"')
                 qfixerr = True
                 continue
         try:
-            book_lang = opftree.xpath(
-                "//dc:language", namespaces=DCNS
-            )[0].text
+            book_lang = opftree.xpath("//dc:language", namespaces=DCNS)[0].text
         except IndexError:
             book_lang = ''
         if book_lang == 'pl':
             if not hyph_info_printed:
-                print('Hyphenating book with Polish '
-                      'dictionary...')
+                print('Hyphenating book with Polish dictionary...')
                 hyph_info_printed = True
-            _xhtmltree = hyphenate_and_fix_conjunctions(
-                _xhtmltree, HYPHEN_MARK, hyph
-            )
-
+            _xhtmltree = hyphenate_and_fix_conjunctions(_xhtmltree,
+                                                        HYPHEN_MARK, hyph)
         _xhtmltree = fix_styles(_xhtmltree)
-
         if _resetmargins:
             if not res_css_info_printed:
-                print('Resetting CSS body margin and padding'
-                      '...')
+                print('Resetting CSS body margin and padding...')
             res_css_info_printed = True
             _xhtmltree = append_reset_css(_xhtmltree)
-
         _xhtmltree = modify_problematic_styles(_xhtmltree)
-
-        # remove watermarks
-        _wmarks = etree.XPath(
-            '//xhtml:span[starts-with(text(), "==")]',
-            namespaces=XHTMLNS
-        )(_xhtmltree)
+        _wmarks = _xhtmltree.xpath('//xhtml:span[starts-with(text(), "==")]',
+                                   namespaces=XHTMLNS)
         for wm in _wmarks:
             remove_node(wm)
 
         # remove meta charsets
-        _metacharsets = etree.XPath(
-            '//xhtml:meta[@charset="utf-8"]',
-            namespaces=XHTMLNS
-        )(_xhtmltree)
+        _metacharsets = _xhtmltree.xpath('//xhtml:meta[@charset="utf-8"]',
+                                         namespaces=XHTMLNS)
         for mch in _metacharsets:
             mch.getparent().remove(mch)
 
         with open(_single_xhtml, "w") as f:
-            f.write(etree.tostring(
-                _xhtmltree,
-                pretty_print=True,
-                xml_declaration=True,
-                encoding="utf-8",
-                doctype=DTD)
-            )
+            f.write(etree.tostring(_xhtmltree, pretty_print=True,
+                    xml_declaration=True, encoding="utf-8", doctype=DTD))
     opftree = remove_wm_info(opftree, opf_dir_abs)
 
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'w') as f:
-        f.write(etree.tostring(
-            opftree.getroot(),
-            pretty_print=True,
-            xml_declaration=True,
-            encoding='utf-8'
-        ))
+        f.write(etree.tostring(opftree.getroot(), pretty_print=True,
+                xml_declaration=True, encoding='utf-8'))
