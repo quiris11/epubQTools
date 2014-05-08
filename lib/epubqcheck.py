@@ -270,10 +270,10 @@ def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
     for _htmlfiletag in _htmlfiletags:
         _htmlfilepath = _htmlfiletag.get('href')
         parser = etree.XMLParser(recover=False)
-        html_str = _epubfile.read(_folder + _htmlfilepath)
-        for key in entities.iterkeys():
-            html_str = html_str.replace(key, entities[key])
         try:
+            html_str = _epubfile.read(_folder + _htmlfilepath)
+            for key in entities.iterkeys():
+                html_str = html_str.replace(key, entities[key])
             _xhtmlsoup = etree.fromstring(html_str, parser)
         except KeyError, e:
             print(_file_dec + ': Problem with a file: ' + str(e))
@@ -282,7 +282,16 @@ def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
             print(_file_dec + ': XML file: ' + _htmlfilepath +
                   ' not well formed: "' + str(e) + '"')
             continue
-
+        for u in _xhtmlsoup.xpath('//*[@href or @src]'):
+            if u.get('src'):
+                url = u.get('src')
+            elif u.get('href'):
+                url = u.get('href')
+            if 'http://' in url or 'mailto:' in url:
+                continue
+            if '%' in url:
+                print('%s : Encoded URLs: %s found '
+                      'in html file: %s' % (_file_dec, url, _htmlfilepath))
         if _wmfound is False:
             _watermarks = etree.XPath('//*[starts-with(text(),"==")]',
                                       namespaces=XHTMLNS)(_xhtmlsoup)
