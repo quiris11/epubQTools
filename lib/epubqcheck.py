@@ -374,24 +374,33 @@ def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
 
 
 def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
+    import unicodedata
+
+    def strip_accents(text):
+        return ''.join(c for c in unicodedata.normalize(
+            'NFKD', text
+        ) if unicodedata.category(c) != 'Mn')
+
     if _filename.endswith('_moh.epub'):
         return 0
     opftree = etree.fromstring(_epubfile.read(_singlefile))
     try:
-        dc_title = etree.XPath('//dc:title/text()',
-                               namespaces=DCNS)(opftree)[0]
+        tit = etree.XPath('//dc:title/text()', namespaces=DCNS)(opftree)[0]
     except:
         print(_file_dec + ': dc:title not found. Skipping renaming file...')
         return 0
     try:
-        dc_creator = etree.XPath('//dc:creator/text()',
-                                 namespaces=DCNS)(opftree)[0]
+        cr = etree.XPath('//dc:creator/text()', namespaces=DCNS)(opftree)[0]
     except:
         print(_file_dec + ': dc:creator not found. Skipping renaming file...')
         return 0
-    dc_creator = "".join(x for x in dc_creator if x.isalnum() or x.isspace())
-    dc_title = "".join(x for x in dc_title if x.isalnum() or x.isspace())
-    nfname = dc_creator + ' - ' + dc_title
+    nfname = strip_accents(unicode(cr + ' - ' + tit))
+    nfname = nfname.replace('.', '_').replace(u'\u2013', '-')\
+                   .replace('/', '_').replace(':', '_')\
+                   .replace(u'\u0142', 'l').replace(u'\u0141', 'L')
+    nfname = "".join(x for x in nfname if (
+        x.isalnum() or x.isspace() or x in ('_', '-')
+    ))
     nfname = nfname.encode(SFENC)
     is_renamed = False
     counter = 1
@@ -399,7 +408,7 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
         if _filename == (nfname + '.epub'):
             is_renamed = False
             break
-        elif _filename == (nfname + ' (' + str(counter) + ').epub'):
+        elif _filename == (nfname + ' (' + str(counter-1) + ').epub'):
             is_renamed = False
             break
         elif not os.path.exists(os.path.join(_root, nfname + '.epub')):
@@ -415,8 +424,8 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
             os.rename(os.path.join(_root, _filename),
                       os.path.join(_root, nfname + ' (' + str(counter) +
                                    ').epub'))
-            print(_file_dec + ' renamed to: ' + nfname + ' (' + str(counter) +
-                  ').epub')
+            print(_file_dec + ' renamed to: ' + nfname.decode(SFENC) +
+                  ' (' + str(counter) + ').epub')
             is_renamed = True
             break
         else:
