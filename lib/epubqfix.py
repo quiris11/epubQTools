@@ -888,40 +888,71 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
     os.remove(os.path.join(rootepubdir, file_rel_to_opf))
 
 
-def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
+def process_xhtml_file(xhfile, opftree, _resetmargins):
     global qfixerr
-    qfixerr = False
-    for root, dirs, files in os.walk(_documents):
-        for f in files:
-            if (f.endswith('.epub') and
-                    not f.endswith('_moh.epub') and
-                    not f.endswith('_org.epub')):
-                newfile = os.path.splitext(f)[0] + '_moh.epub'
-                if not _forced:
-                    if os.path.isfile(os.path.join(root, newfile)):
-                        print('Skipping previously generated _moh file: ' +
-                              newfile.decode(SFENC))
-                        continue
-                print('')
-                print(f.decode(SFENC) + ': Convert proces started...')
-                try:
-                    _epubzipfile, _tempdir = unpack_epub(os.path.join(root, f))
-                except zipfile.BadZipfile, e:
-                    print(f.decode(SFENC) + ': EPUB file is corrupted! Giving'
-                          ' up...')
-                    print str(e)
-                    print(f.decode(SFENC) + ': Convert process finished '
-                          'WITH PROBLEMS!')
-                    continue
-                process_epub(_epubzipfile, _tempdir, _replacefonts,
-                             _resetmargins, _findcover)
-                pack_epub(os.path.join(root, newfile), _tempdir)
-                clean_temp(_tempdir)
-                if qfixerr:
-                    print(f.decode(SFENC) + ': Convert process finished '
-                          'WITH PROBLEMS!')
-                else:
-                    print(f.decode(SFENC) + ': Convert process finished...')
+    try:
+        with open(xhfile, 'r') as content_file:
+            c = content_file.read()
+    except IOError, e:
+        print('File skipped: %s. Problem with processing: '
+              '%s' % (xhfile.split('/')[-1], e))
+        qfixerr = True
+        return 1
+    c = re.sub(r'<span class="reset (black|black2|dark-gray|'
+               'dark-gray2)">(.+?)</span>', r'\2', c)
+    for key in entities.iterkeys():
+        c = c.replace(key, entities[key])
+    try:
+        xhtree = etree.fromstring(c, parser=etree.XMLParser(recover=False))
+    except etree.XMLSyntaxError, e:
+        if ('XML declaration allowed only at the start of the '
+                'document' in str(e)):
+            xhtree = etree.fromstring(c[c.find('<?xml'):],
+                                      parser=etree.XMLParser(recover=False))
+        elif re.search('Opening and ending tag mismatch: body line \d+ and '
+                       'html', str(e)):
+            try:
+                xhtree = etree.fromstring(
+                    c.replace('</html>', '</body></html>'),
+                    parser=etree.XMLParser(recover=False)
+                )
+            except:
+                print('File skipped: ' + xhfile.split('/')[-1] +
+                      '. NOT well formed: "' + str(e) + '"')
+                qfixerr = True
+                return 1
+        else:
+            print('File skipped: ' + xhfile.split('/')[-1] +
+                  '. NOT well formed: "' + str(e) + '"')
+            qfixerr = True
+            return 1
+    try:
+        book_lang = opftree.xpath("//dc:language", namespaces=DCNS)[0].text
+    except IndexError:
+        book_lang = ''
+    if book_lang == 'pl':
+        xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph)
+    else:
+        print('File %s not hyphenated...' % xhfile)
+    xhtree = fix_styles(xhtree)
+    if _resetmargins:
+        res_css_info_printed = True
+        xhtree = append_reset_css(xhtree)
+    xhtree = modify_problematic_styles(xhtree)
+    _wmarks = xhtree.xpath('//xhtml:span[starts-with(text(), "==")]',
+                           namespaces=XHTMLNS)
+    for wm in _wmarks:
+        remove_node(wm)
+
+    # remove meta charsets
+    _metacharsets = xhtree.xpath('//xhtml:meta[@charset="utf-8"]',
+                                 namespaces=XHTMLNS)
+    for mch in _metacharsets:
+        mch.getparent().remove(mch)
+
+    with open(xhfile, "w") as f:
+        f.write(etree.tostring(xhtree, pretty_print=True, xml_declaration=True,
+                encoding="utf-8", doctype=DTD))
 
 
 def process_epub(_epubzipfile, _tempdir, _replacefonts, _resetmargins,
@@ -963,82 +994,49 @@ def process_epub(_epubzipfile, _tempdir, _replacefonts, _resetmargins,
 
     if _replacefonts:
         find_and_replace_fonts(opftree, opf_dir_abs)
-
-    hyph_info_printed = res_css_info_printed = False
-    for _single_xhtml in _xhtml_files:
-        try:
-            with open(_single_xhtml, 'r') as content_file:
-                c = content_file.read()
-        except IOError, e:
-            print('Problem with processing file: ' + str(e))
-            qfixerr = True
-            continue
-        c = re.sub(r'<span class="reset (black|black2|dark-gray|'
-                   'dark-gray2)">(.+?)</span>', r'\2', c)
-        for key in entities.iterkeys():
-            c = c.replace(key, entities[key])
-        try:
-            _xhtmltree = etree.fromstring(
-                c, parser=etree.XMLParser(recover=False)
-            )
-        except etree.XMLSyntaxError, e:
-            if ('XML declaration allowed only at the start of the '
-                    'document' in str(e)):
-                _xhtmltree = etree.fromstring(
-                    c[c.find('<?xml'):],
-                    parser=etree.XMLParser(recover=False)
-                )
-            elif re.search('Opening and ending tag mismatch: body '
-                           'line \d+ and html', str(e)):
-                try:
-                    _xhtmltree = etree.fromstring(
-                        c.replace('</html>', '</body></html>'),
-                        parser=etree.XMLParser(recover=False)
-                    )
-                except:
-                    print('XML file: ' + _single_xhtml.split('/')[-1] +
-                          ' not well formed: "' + str(e) + '"')
-                    qfixerr = True
-                    continue
-            else:
-                print('XML file: ' + _single_xhtml.split('/')[-1] +
-                      ' not well formed: "' + str(e) + '"')
-                qfixerr = True
-                continue
-        try:
-            book_lang = opftree.xpath("//dc:language", namespaces=DCNS)[0].text
-        except IndexError:
-            book_lang = ''
-        if book_lang == 'pl':
-            if not hyph_info_printed:
-                print('Hyphenating book with Polish dictionary...')
-                hyph_info_printed = True
-            _xhtmltree = hyphenate_and_fix_conjunctions(_xhtmltree,
-                                                        HYPHEN_MARK, hyph)
-        _xhtmltree = fix_styles(_xhtmltree)
-        if _resetmargins:
-            if not res_css_info_printed:
-                print('Resetting CSS body margin and padding...')
-            res_css_info_printed = True
-            _xhtmltree = append_reset_css(_xhtmltree)
-        _xhtmltree = modify_problematic_styles(_xhtmltree)
-        _wmarks = _xhtmltree.xpath('//xhtml:span[starts-with(text(), "==")]',
-                                   namespaces=XHTMLNS)
-        for wm in _wmarks:
-            remove_node(wm)
-
-        # remove meta charsets
-        _metacharsets = _xhtmltree.xpath('//xhtml:meta[@charset="utf-8"]',
-                                         namespaces=XHTMLNS)
-        for mch in _metacharsets:
-            mch.getparent().remove(mch)
-
-        with open(_single_xhtml, "w") as f:
-            f.write(etree.tostring(_xhtmltree, pretty_print=True,
-                    xml_declaration=True, encoding="utf-8", doctype=DTD))
+    if _resetmargins:
+        print('Resetting CSS body margin and padding will be perfomed...')
+    for s in _xhtml_files:
+        process_xhtml_file(s, opftree, _resetmargins)
     opftree = remove_wm_info(opftree, opf_dir_abs)
 
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'w') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
                 xml_declaration=True, encoding='utf-8'))
+
+
+def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
+    global qfixerr
+    qfixerr = False
+    for root, dirs, files in os.walk(_documents):
+        for f in files:
+            if (f.endswith('.epub') and
+                    not f.endswith('_moh.epub') and
+                    not f.endswith('_org.epub')):
+                newfile = os.path.splitext(f)[0] + '_moh.epub'
+                if not _forced:
+                    if os.path.isfile(os.path.join(root, newfile)):
+                        print('Skipping previously generated _moh file: ' +
+                              newfile.decode(SFENC))
+                        continue
+                print('')
+                print(f.decode(SFENC) + ': Convert proces started...')
+                try:
+                    _epubzipfile, _tempdir = unpack_epub(os.path.join(root, f))
+                except zipfile.BadZipfile, e:
+                    print(f.decode(SFENC) + ': EPUB file is corrupted! Giving'
+                          ' up...')
+                    print str(e)
+                    print(f.decode(SFENC) + ': Convert process finished '
+                          'WITH PROBLEMS!')
+                    continue
+                process_epub(_epubzipfile, _tempdir, _replacefonts,
+                             _resetmargins, _findcover)
+                pack_epub(os.path.join(root, newfile), _tempdir)
+                clean_temp(_tempdir)
+                if qfixerr:
+                    print(f.decode(SFENC) + ': Convert process finished '
+                          'WITH PROBLEMS!')
+                else:
+                    print(f.decode(SFENC) + ': Convert process finished...')
