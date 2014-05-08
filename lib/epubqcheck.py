@@ -212,7 +212,20 @@ def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
     check_orphan_files(_epubfile, opftree, _folder, _file_dec)
     if not opftree.xpath('//opf:metadata', namespaces=OPFNS):
         print(_file_dec + ': CRITICAL! No metadata defined in OPF file...')
-
+    if not opftree.xpath('//dc:creator', namespaces=DCNS):
+        print(_file_dec + ': CRITICAL! dc:creator (book author) element not '
+              'defined in OPF file...')
+    elif opftree.xpath('//dc:creator', namespaces=DCNS)[0].text.isupper():
+        print(_file_dec + ': dc:creator (book author) UPPERCASED: "%s". '
+              'Consider changing...' % opftree.xpath('//dc:creator',
+                                                     namespaces=DCNS)[0].text)
+    if not opftree.xpath('//dc:title', namespaces=DCNS):
+        print(_file_dec + ': CRITICAL! dc:title (book title) element not '
+              'defined in OPF file...')
+    elif opftree.xpath('//dc:title', namespaces=DCNS)[0].text.isupper():
+        print(_file_dec + ': dc:title (book title) UPPERCASED: "%s". '
+              'Consider changing...' % opftree.xpath('//dc:title',
+                                                     namespaces=DCNS)[0].text)
     language_tags = etree.XPath('//dc:language/text()',
                                 namespaces=DCNS)(opftree)
     if len(language_tags) == 0:
@@ -396,12 +409,14 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
     try:
         tit = etree.XPath('//dc:title/text()', namespaces=DCNS)(opftree)[0]
     except:
-        print(_file_dec + ': dc:title not found. Skipping renaming file...')
+        print(_file_dec + ': CRITICAL! dc:title (book title) not found. '
+              'Renaming failed!')
         return 0
     try:
         cr = etree.XPath('//dc:creator/text()', namespaces=DCNS)(opftree)[0]
     except:
-        print(_file_dec + ': dc:creator not found. Skipping renaming file...')
+        print(_file_dec + ': CRITICAL! dc:creator (book author) not found. '
+              'Renaming failed!')
         return 0
     nfname = strip_accents(unicode(cr + ' - ' + tit))
     nfname = nfname.replace(u'\u2013', '-').replace('/', '_')\
