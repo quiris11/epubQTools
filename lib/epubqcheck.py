@@ -418,6 +418,10 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
         print(_file_dec + ': CRITICAL! dc:creator (book author) not found. '
               'Renaming failed!')
         return 0
+    if tit.isupper():
+        tit = tit.title()
+    if cr.isupper():
+        cr = cr.title()    
     nfname = strip_accents(unicode(cr + ' - ' + tit))
     nfname = nfname.replace(u'\u2013', '-').replace('/', '_')\
                    .replace(':', '_').replace(u'\u0142', 'l')\
@@ -425,8 +429,6 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
     nfname = "".join(x for x in nfname if (
         x.isalnum() or x.isspace() or x in ('_', '-', '.')
     ))
-    if nfname.isupper():
-        nfname = nfname.title()
     nfname = nfname.encode(SFENC)
     is_renamed = False
     counter = 1
