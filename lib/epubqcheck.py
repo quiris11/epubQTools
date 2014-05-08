@@ -20,6 +20,7 @@ XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
 DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
+CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
 SFENC = sys.getfilesystemencoding()
 encryption_file_found = False
 
@@ -169,7 +170,7 @@ def find_cover_image(_opftree, _file_dec):
         print(_file_dec + ': No images in an entire book found...')
 
 
-def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
+def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
     def check_hyperlinks(epub, opftree, root, _file_dec):
         for i in opftree.xpath('//*[@href]'):
             found = False
@@ -182,8 +183,10 @@ def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
 
     def check_orphan_files(epub, opftree, root, _file_dec):
         def is_exluded(name):
-            excludes = ['mimetype', 'META-INF/container.xml',
+            excludes = ['mimetype',
+                        'META-INF/container.xml',
                         'META-INF/com.apple.ibooks.display-options.xml',
+                        'META-INF/encryption.xml',
                         'content.opf',
                         '/']
             for e in excludes:
@@ -201,11 +204,11 @@ def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
                     print(_file_dec + ': ORPHAN file NOT defined in OPF: ' +
                           root + repr(n))
 
-    if _singlefile.find('/') == -1:
+    if opf_root == '':
         _folder = ''
     else:
-        _folder = _singlefile.split('/')[0] + '/'
-    opftree = etree.fromstring(_epubfile.read(_singlefile))
+        _folder = opf_root + '/'
+    opftree = etree.fromstring(_epubfile.read(opf_path))
     opftree = unquote_urls(opftree)
 
     check_hyperlinks(_epubfile, opftree, _folder, _file_dec)
@@ -395,7 +398,7 @@ def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
     #         print(_file_dec + ': UUID: ' + uid)
 
 
-def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
+def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
     import unicodedata
 
     def strip_accents(text):
@@ -405,7 +408,7 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
 
     if _filename.endswith('_moh.epub'):
         return 0
-    opftree = etree.fromstring(_epubfile.read(_singlefile))
+    opftree = etree.fromstring(_epubfile.read(opf_path))
     try:
         tit = etree.XPath('//dc:title/text()', namespaces=DCNS)(opftree)[0]
     except:
@@ -421,7 +424,7 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
     if tit.isupper():
         tit = tit.title()
     if cr.isupper():
-        cr = cr.title()    
+        cr = cr.title()
     nfname = strip_accents(unicode(cr + ' - ' + tit))
     nfname = nfname.replace(u'\u2013', '-').replace('/', '_')\
                    .replace(':', '_').replace(u'\u0142', 'l')\
@@ -462,6 +465,17 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
         print(_file_dec + ': renaming is not needed...')
 
 
+def find_opf(epub):
+    try:
+        cr_tree = etree.fromstring(epub.read('META-INF/container.xml'))
+        opf_path = cr_tree.xpath('//cr:rootfile',
+                                 namespaces=CRNS)[0].get('full-path')
+    except:
+        print('Parsing container.xml failed. Not an EPUB file?')
+        return 0, 0
+    return os.path.dirname(opf_path), opf_path
+
+
 def qcheck(_documents, _moded, _rename):
     if _moded:
         fe = '_moh.epub'
@@ -469,46 +483,42 @@ def qcheck(_documents, _moded, _rename):
     else:
         fe = '.epub'
         nfe = '_moh.epub'
-
     for root, dirs, files in os.walk(_documents):
         for _file in files:
             file_dec = _file.decode(SFENC)
             if _file.endswith(fe) and not _file.endswith(nfe):
                 encryption_file_found = False
                 epubfile = zipfile.ZipFile(os.path.join(root, _file))
-                for singlefile in epubfile.namelist():
-                    if singlefile.find('encryption.xml') > 0 and not _rename:
-                        encryption_file_found = True
-                        print(file_dec + ': encryption.xml file found... '
-                              'Embedded fonts probably are encrypted...')
-                    if not _rename:
-                        check_wm_info(singlefile, epubfile, file_dec)
-                        check_display_none(singlefile, epubfile, file_dec)
-
-                    # check font files for encryption
-                    if ((
-                            singlefile.lower().endswith('.otf') or
-                            singlefile.lower().endswith('.ttf')
-                    ) and not _rename):
-                        temp_font_dir = tempfile.mkdtemp()
-                        try:
-                            epubfile.extract(singlefile, temp_font_dir)
-                        except zipfile.BadZipfile:
-                            print(file_dec + ': Font file: ' + singlefile +
-                                  ' is corrupted!')
-                            continue
-                        is_font, signature = check_font(
-                            os.path.join(temp_font_dir, singlefile)
-                        )
-                        if not is_font:
-                            print('%s: Font probably encrypted. Incorrect'
-                                  ' signature %r in file: %s'
-                                  % (file_dec, signature, singlefile))
-                        if os.path.isdir(temp_font_dir):
-                            shutil.rmtree(temp_font_dir)
-                    if singlefile.find('.opf') > 0:
-                        if _rename:
-                            rename_files(singlefile, root, epubfile, _file,
-                                         file_dec)
+                opf_root, opf_path = find_opf(epubfile)
+                if _rename:
+                    rename_files(opf_path, root, epubfile, _file, file_dec)
+                else:
+                    qcheck_opf_file(opf_root, opf_path, epubfile, file_dec)
+                    for singlefile in epubfile.namelist():
+                        if singlefile.find('encryption.xml') > 0:
+                            encryption_file_found = True
+                            print(file_dec + ': encryption.xml file found... '
+                                  'Embedded fonts probably are encrypted...')
+                        elif (
+                                singlefile.lower().endswith('.otf') or
+                                singlefile.lower().endswith('.ttf')
+                        ):
+                            temp_font_dir = tempfile.mkdtemp()
+                            try:
+                                epubfile.extract(singlefile, temp_font_dir)
+                            except zipfile.BadZipfile:
+                                print(file_dec + ': Font file: ' + singlefile +
+                                      ' is corrupted!')
+                                continue
+                            is_font, signature = check_font(
+                                os.path.join(temp_font_dir, singlefile)
+                            )
+                            if not is_font:
+                                print('%s: Font probably encrypted. Incorrect'
+                                      ' signature %r in file: %s'
+                                      % (file_dec, signature, singlefile))
+                            if os.path.isdir(temp_font_dir):
+                                shutil.rmtree(temp_font_dir)
                         else:
-                            qcheck_opf_file(singlefile, epubfile, file_dec)
+                            check_wm_info(singlefile, epubfile, file_dec)
+                            check_display_none(singlefile, epubfile, file_dec)
