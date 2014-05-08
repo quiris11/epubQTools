@@ -198,7 +198,7 @@ def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
                     if n == (root + i.get('href')):
                         found = True
                 if not found:
-                    print(_file_dec + ': ORPHAN file not defined in OPF: ' +
+                    print(_file_dec + ': ORPHAN file NOT defined in OPF: ' +
                           root + n)
 
     if _singlefile.find('/') == -1:
@@ -279,8 +279,7 @@ def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
             print(_file_dec + ': Problem with a file: ' + str(e))
             continue
         except etree.XMLSyntaxError, e:
-            print('XML file: ' +
-                  _htmlfilepath +
+            print(_file_dec + ': XML file: ' + _htmlfilepath +
                   ' not well formed: "' + str(e) + '"')
             continue
 
