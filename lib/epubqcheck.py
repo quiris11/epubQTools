@@ -186,9 +186,8 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             excludes = ['mimetype',
                         'META-INF/container.xml',
                         'META-INF/com.apple.ibooks.display-options.xml',
-                        'META-INF/encryption.xml',
-                        'content.opf',
-                        '/']
+                        'META-INF/encryption.xml', '/',
+                        opf_path]
             for e in excludes:
                 if name.endswith(e):
                     return True
@@ -495,9 +494,9 @@ def qcheck(_documents, _moded, _rename):
                 else:
                     qcheck_opf_file(opf_root, opf_path, epubfile, file_dec)
                     for singlefile in epubfile.namelist():
-                        if singlefile.find('encryption.xml') > 0:
+                        if 'META-INF/encryption.xml' in singlefile:
                             encryption_file_found = True
-                            print(file_dec + ': encryption.xml file found... '
+                            print(file_dec + ': Encryption.xml file found. '
                                   'Embedded fonts probably are encrypted...')
                         elif (
                                 singlefile.lower().endswith('.otf') or
