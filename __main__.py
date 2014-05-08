@@ -113,9 +113,13 @@ def main():
                     print('')
                     print('Kindlegen: Converting file: ' +
                           _file.decode(sys.getfilesystemencoding()))
+                    if sys.platform == 'win32':
+                        kgapp = 'kindlegen.exe'
+                    else:
+                        kgapp = 'kindlegen'
                     try:
                         proc = subprocess.Popen([
-                            os.path.join(args.kgp, 'kindlegen'),
+                            os.path.join(args.kgp, kgapp),
                             '-dont_append_source',
                             compression,
                             os.path.join(root, _file)
