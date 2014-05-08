@@ -933,7 +933,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins):
     if book_lang == 'pl':
         xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph)
     else:
-        print('File %s not hyphenated...' % xhfile)
+        print('File %s not hyphenated...' % xhfile.split('/')[-1])
     xhtree = fix_styles(xhtree)
     if _resetmargins:
         res_css_info_printed = True
