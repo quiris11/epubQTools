@@ -410,6 +410,8 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
     nfname = "".join(x for x in nfname if (
         x.isalnum() or x.isspace() or x in ('_', '-', '.')
     ))
+    if nfname.isupper():
+        nfname = nfname.title()
     nfname = nfname.encode(SFENC)
     is_renamed = False
     counter = 1
