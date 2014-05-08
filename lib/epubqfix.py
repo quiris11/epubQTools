@@ -52,6 +52,7 @@ SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 ADOBE_OBFUSCATION = 'http://ns.adobe.com/pdf/enc#RC'
 IDPF_OBFUSCATION = 'http://www.idpf.org/2008/embedding'
 CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
+SFENC = sys.getfilesystemencoding()
 
 
 def check_font(path):
@@ -889,19 +890,19 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                     if os.path.isfile(os.path.join(root, _newfile)):
                         print(
                             'Skipping previously generated _moh file: ' +
-                            _newfile.decode(sys.getfilesystemencoding())
+                            _newfile.decode(SFENC)
                         )
                         continue
 
                 print('')
                 print('Working on: ' +
-                      _file.decode(sys.getfilesystemencoding()))
+                      _file.decode(SFENC))
                 try:
                     _epubzipfile, _tempdir = unpack_epub(
                         os.path.join(root, _file)
                     )
                 except zipfile.BadZipfile, e:
-                    print(_file.decode(sys.getfilesystemencoding()) +
+                    print(_file.decode(SFENC) +
                           ': EPUB file is corrupted! Giving up...')
                     print str(e)
                     continue

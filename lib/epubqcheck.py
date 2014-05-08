@@ -19,7 +19,7 @@ XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
 DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
-
+SFENC = sys.getfilesystemencoding()
 encryption_file_found = False
 
 
@@ -386,7 +386,7 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
     dc_creator = "".join(x for x in dc_creator if x.isalnum() or x.isspace())
     dc_title = "".join(x for x in dc_title if x.isalnum() or x.isspace())
     nfname = dc_creator + ' - ' + dc_title
-    nfname = nfname.encode(sys.getfilesystemencoding())
+    nfname = nfname.encode(SFENC)
     is_not_renamed = False
     counter = 1
     while True:
@@ -400,7 +400,7 @@ def rename_files(_singlefile, _root, _epubfile, _filename, _file_dec):
             _epubfile.close()
             os.rename(os.path.join(_root, _filename),
                       os.path.join(_root, nfname + '.epub'))
-            print(_file_dec + ' renamed to: ' + nfname + '.epub')
+            print(_file_dec + ' renamed to: ' + nfname.decode(SFENC) + '.epub')
             is_not_renamed = True
             break
         elif not os.path.exists(os.path.join(_root, nfname + ' (' +
@@ -429,7 +429,7 @@ def qcheck(_documents, _moded, _rename):
 
     for root, dirs, files in os.walk(_documents):
         for _file in files:
-            file_dec = _file.decode(sys.getfilesystemencoding())
+            file_dec = _file.decode(SFENC)
             if _file.endswith(fe) and not _file.endswith(nfe):
                 encryption_file_found = False
                 epubfile = zipfile.ZipFile(os.path.join(root, _file))
