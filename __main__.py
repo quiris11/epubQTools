@@ -81,6 +81,8 @@ class Logger(object):
 
     def write(self, message):
         self.terminal.write(message)
+        if sys.platform == 'win32':
+            message = message.replace('\n', '\r\n')
         self.log.write(message)
 
 
