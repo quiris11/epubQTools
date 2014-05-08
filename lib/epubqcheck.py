@@ -199,7 +199,7 @@ def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
                         found = True
                 if not found:
                     print(_file_dec + ': ORPHAN file NOT defined in OPF: ' +
-                          root + n)
+                          root + repr(n))
 
     if _singlefile.find('/') == -1:
         _folder = ''
