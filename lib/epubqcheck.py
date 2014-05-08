@@ -12,6 +12,7 @@ import tempfile
 import shutil
 from urllib import unquote
 from lxml import etree
+from lib.htmlconstants import entities
 
 
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
@@ -268,28 +269,34 @@ def qcheck_opf_file(_singlefile, _epubfile, _file_dec):
     _linkfound = _unbfound = _ufound = _wmfound = metcharfound = False
     for _htmlfiletag in _htmlfiletags:
         _htmlfilepath = _htmlfiletag.get('href')
-        parser = etree.XMLParser(recover=True)
+        parser = etree.XMLParser(recover=False)
+        html_str = _epubfile.read(_folder + _htmlfilepath)
+        for key in entities.iterkeys():
+            html_str = html_str.replace(key, entities[key])
         try:
-            _xhtmlsoup = etree.fromstring(
-                _epubfile.read(_folder + _htmlfilepath), parser
-            )
+            _xhtmlsoup = etree.fromstring(html_str, parser)
         except KeyError, e:
             print(_file_dec + ': Problem with a file: ' + str(e))
+            continue
+        except etree.XMLSyntaxError, e:
+            print('XML file: ' +
+                  _htmlfilepath +
+                  ' not well formed: "' + str(e) + '"')
             continue
 
         if _wmfound is False:
             _watermarks = etree.XPath('//*[starts-with(text(),"==")]',
                                       namespaces=XHTMLNS)(_xhtmlsoup)
             if len(_watermarks) > 0:
-                print(_file_dec + ': Potential problematic WM found')
+                print(_file_dec + ': Potential problematic WM found...')
                 _wmfound = True
 
         if metcharfound is False:
             _metacharsets = etree.XPath('//xhtml:meta[@charset="utf-8"]',
                                         namespaces=XHTMLNS)(_xhtmlsoup)
             if len(_metacharsets) > 0:
-                print(_file_dec + ': Problematic <meta '
-                      'charset="utf-8" /> found.')
+                print(_file_dec + ': At least one xhtml file hase problematic'
+                      ' <meta charset="utf-8" /> defined...')
                 metcharfound = True
 
         _alltexts = etree.XPath('//xhtml:body//text()',
