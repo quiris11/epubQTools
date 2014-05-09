@@ -191,7 +191,7 @@ def find_encryption_key(opftree, method):
     if method == ADOBE_OBFUSCATION:
         # find first UUID URN-based unique identifier
         for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
-            if dcid.text.startswith('urn:uuid:'):
+            if 'urn:uuid:' in str(dcid.text):
                 uid = dcid.text
                 break
         if uid is None:
