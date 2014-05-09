@@ -96,13 +96,17 @@ def main():
         sys.stdout = Logger(os.path.join(args.log, 'eQT-' + st +
                                          '.log'))
     if args.qcheck or args.rename:
+        print('')
+        print('******************************************')
+        print('*** Checking with internal qcheck tool ***')
+        print('******************************************')
         qcheck(args.directory, args.mod, args.rename)
 
-    if args.epub:
-        qfix(args.directory, args.force, args.replacefonts, args.resetmargins,
-             args.findcover)
-
     if args.epubcheck:
+        print('')
+        print('******************************************')
+        print('*** Checking with ePubCheck 3.0.1 tool ***')
+        print('******************************************')
         try:
             java = subprocess.Popen(
                 ['java', '-version'],
@@ -150,7 +154,19 @@ def main():
                 if os.path.isdir(os.path.join(echp_temp, os.pardir, p)):
                     shutil.rmtree(os.path.join(echp_temp, os.pardir, p))
 
+    if args.epub:
+        print('')
+        print('******************************************')
+        print('*** Coverting with internal qfix tool  ***')
+        print('******************************************')
+        qfix(args.directory, args.force, args.replacefonts, args.resetmargins,
+             args.findcover)
+
     if args.kindlegen:
+        print('')
+        print('******************************************')
+        print('*** Converting with kindlegen tool...  ***')
+        print('******************************************')
         compression = '-c2' if args.huffdic else '-c1'
         for root, dirs, files in os.walk(args.directory):
             for _file in files:
