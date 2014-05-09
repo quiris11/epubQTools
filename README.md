@@ -17,7 +17,7 @@ optional arguments:
   -n, --rename        rename .epub files to 'author - title.epub'
   -q, --qcheck        validate files with qcheck internal tool
   -p, --epubcheck     validate epub files with EpubCheck 3.0.1 tool
-  -m, --mod           validate only _moh.epub files (only with -q or -v)
+  -m, --mod           validate only _moh.epub files (only with -q)
   -e, --epub          fix and hyphenate original epub files to _moh.epub files
   -r, --resetmargins  reset CSS margins for body, html and @page in _moh.epub
                       files (only with -e)
