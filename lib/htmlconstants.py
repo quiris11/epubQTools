@@ -5,26 +5,6 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-uni_replace = {
-    u'z\u0307': u'\u017c',
-    u'o\u0301': u'\xf3',
-    u'c\u0301': u'\u0107',
-    u'e\u0328': u'\u0119',
-    u's\u0301': u'\u015b',
-    u'a\u0328': u'\u0105',
-    u'z\u0301': u'\u017a',
-    u'n\u0301': u'\u0144',
-    u'Z\u0307': u'\u017b',
-    u'O\u0301': u'\xd3',
-    u'C\u0301': u'\u0106',
-    u'E\u0328': u'\u0118',
-    u'S\u0301': u'\u015a',
-    u'A\u0328': u'\u0104',
-    u'Z\u0301': u'\u0179',
-    u'N\u0301': u'\u0143',
-}
-
-
 entities = {
     "&AElig;": '&#198;',
     "&Aacute;": '&#193;',
