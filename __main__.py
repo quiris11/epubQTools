@@ -17,7 +17,11 @@ import tempfile
 
 from datetime import datetime
 from lib.epubqcheck import qcheck
+from lib.epubqcheck import find_opf
 from lib.epubqfix import qfix
+from lib.epubqfix import rename_files
+
+SFENC = sys.getfilesystemencoding()
 
 if not hasattr(sys, 'frozen'):
     q_cwd = os.path.join(os.getcwd(), os.path.dirname(__file__))
@@ -95,12 +99,25 @@ def main():
         st = datetime.now().strftime('%Y%m%d%H%M%S')
         sys.stdout = Logger(os.path.join(args.log, 'eQT-' + st +
                                          '.log'))
-    if args.qcheck or args.rename:
+    if args.rename:
+        print('')
+        print('******************************************')
+        print('*** Renaming EPUBs to "author - title" ***')
+        print('******************************************')
+        for root, dirs, files in os.walk(args.directory):
+            for f in files:
+                fdec = f.decode(SFENC)
+                if f.endswith('.epub') and not f.endswith('_moh.epub'):
+                    epbzf = zipfile.ZipFile(os.path.join(root, f))
+                    opf_root, opf_path = find_opf(epbzf)
+                    rename_files(opf_path, root, epbzf, f, fdec)
+
+    if args.qcheck:
         print('')
         print('******************************************')
         print('*** Checking with internal qcheck tool ***')
         print('******************************************')
-        qcheck(args.directory, args.mod, args.rename)
+        qcheck(args.directory, args.mod)
 
     if args.epubcheck:
         print('')

@@ -56,6 +56,74 @@ CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
 SFENC = sys.getfilesystemencoding()
 
 
+def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
+    import unicodedata
+
+    def strip_accents(text):
+        return ''.join(c for c in unicodedata.normalize(
+            'NFKD', text
+        ) if unicodedata.category(c) != 'Mn')
+
+    if _filename.endswith('_moh.epub'):
+        return 0
+    opftree = etree.fromstring(_epubfile.read(opf_path))
+    try:
+        tit = etree.XPath('//dc:title/text()', namespaces=DCNS)(opftree)[0]
+    except:
+        print(_file_dec + ': CRITICAL! dc:title (book title) not found. '
+              'Renaming failed!')
+        return 0
+    try:
+        cr = etree.XPath('//dc:creator/text()', namespaces=DCNS)(opftree)[0]
+    except:
+        print(_file_dec + ': CRITICAL! dc:creator (book author) not found. '
+              'Renaming failed!')
+        return 0
+    if tit.isupper():
+        tit = tit.title()
+    if cr.isupper():
+        cr = cr.title()
+    nfname = strip_accents(unicode(cr + ' - ' + tit))
+    nfname = nfname.replace(u'\u2013', '-').replace('/', '_')\
+                   .replace(':', '_').replace(u'\u0142', 'l')\
+                   .replace(u'\u0141', 'L')
+    nfname = "".join(x for x in nfname if (
+        x.isalnum() or x.isspace() or x in ('_', '-', '.')
+    ))
+    nfname = nfname.encode(SFENC)
+    is_renamed = False
+    counter = 1
+    while True:
+        if _filename == (nfname + '.epub'):
+            is_renamed = False
+            break
+        elif _filename == (nfname + ' (' + str(counter-1) + ').epub'):
+            is_renamed = False
+            break
+        elif not os.path.exists(os.path.join(_root, nfname + '.epub')):
+            _epubfile.close()
+            os.rename(os.path.join(_root, _filename),
+                      os.path.join(_root, nfname + '.epub'))
+            print('* %s renamed to: %s.epub' % (_file_dec,
+                                                nfname.decode(SFENC)))
+            is_renamed = True
+            break
+        elif not os.path.exists(os.path.join(_root, nfname + ' (' +
+                                str(counter) + ').epub')):
+            _epubfile.close()
+            os.rename(os.path.join(_root, _filename),
+                      os.path.join(_root, nfname + ' (' + str(counter) +
+                                   ').epub'))
+            print(_file_dec + ' renamed to: ' + nfname.decode(SFENC) +
+                  ' (' + str(counter) + ').epub')
+            is_renamed = True
+            break
+        else:
+            counter += 1
+    if not is_renamed:
+        print(_file_dec + ': renaming is not needed...')
+
+
 def check_font(path):
     with open(path, 'rb') as f:
         raw = f.read()
