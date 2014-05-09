@@ -195,7 +195,10 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
 
         for n in epub.namelist():
             if 'calibre_bookmarks.txt' in n:
-                print(_file_dec + ': calibre bookmarks file found: ' + repr(n))
+                print('%s: calibre bookmarks file found: %r' % (_file_dec, n))
+            elif 'itunesmetadata.plist' in n.lower():
+                print('%s: iTunesMetadata.plist file found: %r.' % (_file_dec,
+                                                                    n))
             elif not is_exluded(n):
                 found = False
                 for i in opftree.xpath('//*[@href]'):
