@@ -1097,13 +1097,13 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
             if (f.endswith('.epub') and
                     not f.endswith('_moh.epub') and
                     not f.endswith('_org.epub')):
+                print('')
                 newfile = os.path.splitext(f)[0] + '_moh.epub'
                 if not _forced:
                     if os.path.isfile(os.path.join(root, newfile)):
                         print('Skipping previously generated _moh file: ' +
                               newfile.decode(SFENC))
                         continue
-                print('')
                 print('START qfix for: ' + f.decode(SFENC))
                 try:
                     _epubzipfile, _tempdir = unpack_epub(os.path.join(root, f))
@@ -1111,8 +1111,7 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                     print(f.decode(SFENC) + ': EPUB file is corrupted! Giving'
                           ' up...')
                     print str(e)
-                    print(f.decode(SFENC) + ': Convert process finished '
-                          'WITH PROBLEMS!')
+                    print('STOP (WITH PROBLEMS) qfix for: ' + f.decode(SFENC))
                     continue
                 process_epub(_epubzipfile, _tempdir, _replacefonts,
                              _resetmargins, _findcover)
