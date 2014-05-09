@@ -1104,7 +1104,7 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                               newfile.decode(SFENC))
                         continue
                 print('')
-                print(f.decode(SFENC) + ': Convert proces started...')
+                print('START qfix for: ' + f.decode(SFENC))
                 try:
                     _epubzipfile, _tempdir = unpack_epub(os.path.join(root, f))
                 except zipfile.BadZipfile, e:
@@ -1119,7 +1119,6 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                 pack_epub(os.path.join(root, newfile), _tempdir)
                 clean_temp(_tempdir)
                 if qfixerr:
-                    print(f.decode(SFENC) + ': Convert process finished '
-                          'WITH PROBLEMS!')
+                    print('STOP (WITH PROBLEMS) qfix for: ' + f.decode(SFENC))
                 else:
-                    print(f.decode(SFENC) + ': Convert process finished...')
+                    print('STOP qfix for: ' + f.decode(SFENC))

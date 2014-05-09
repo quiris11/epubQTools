@@ -428,6 +428,8 @@ def qcheck(_documents, _moded):
         for _file in files:
             file_dec = _file.decode(SFENC)
             if _file.endswith(fe) and not _file.endswith(nfe):
+                print('')
+                print('START qcheck for: ' + file_dec)
                 encryption_file_found = False
                 epubfile = zipfile.ZipFile(os.path.join(root, _file))
                 opf_root, opf_path = find_opf(epubfile)
@@ -460,3 +462,4 @@ def qcheck(_documents, _moded):
                     else:
                         check_wm_info(singlefile, epubfile, file_dec)
                         check_display_none(singlefile, epubfile, file_dec)
+                print('STOP qcheck for: ' + file_dec)
