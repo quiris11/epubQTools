@@ -13,6 +13,7 @@ import shutil
 from urllib import unquote
 from lxml import etree
 from lib.htmlconstants import entities
+from lib.htmlconstants import uni_replace
 
 
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
@@ -194,15 +195,23 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             return False
 
         for n in epub.namelist():
+            n_uni_rep = n
+            for key in uni_replace.iterkeys():
+                n_uni_rep = n_uni_rep.replace(key, uni_replace[key])
             if 'calibre_bookmarks.txt' in n:
                 print('%s: calibre bookmarks file found: %s' % (_file_dec, n))
             elif 'itunesmetadata.plist' in n.lower():
                 print('%s: iTunesMetadata.plist file found: %s.' % (_file_dec,
                                                                     n))
             elif not is_exluded(n):
-                found = False
+                found = uni_repl_found = False
                 for i in opftree.xpath('//*[@href]'):
                     if n == (root + i.get('href')):
+                        found = True
+                    elif n_uni_rep == (root + i.get('href')):
+                        print('%s: Identical files found but differently'
+                              ' encoded filenames. Expected "%r" got "%r" '
+                              '' % (_file_dec, i.get('href'), n))
                         found = True
                 if not found:
                     try:
