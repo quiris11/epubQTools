@@ -249,7 +249,15 @@ def clean_temp(sourcedir):
     for p in os.listdir(os.path.join(sourcedir, os.pardir)):
             if 'quiris-tmp-' in p:
                 if os.path.isdir(os.path.join(sourcedir, os.pardir, p)):
-                    shutil.rmtree(os.path.join(sourcedir, os.pardir, p))
+                    try:
+                        shutil.rmtree(os.path.join(sourcedir, os.pardir, p))
+                    except:
+                        if sys.platform == 'win32':
+                            os.system('rmdir /S /Q \"{}\"'.format(
+                                os.path.join(sourcedir, os.pardir, p)
+                            ))
+                        else:
+                            raise
 
 
 def find_roots(tempdir):
