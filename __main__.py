@@ -187,6 +187,7 @@ def main():
         compression = '-c2' if args.huffdic else '-c1'
         for root, dirs, files in os.walk(args.directory):
             for _file in files:
+                cover_html_found = error_found = False
                 if _file.endswith('_moh.epub'):
                     newmobifile = os.path.splitext(_file)[0] + '.mobi'
                     if not args.force:
@@ -196,7 +197,6 @@ def main():
                                 newmobifile.decode(sys.getfilesystemencoding())
                             )
                             continue
-                    cover_html_found = False
                     print('')
                     print('Kindlegen: Converting file: ' +
                           _file.decode(sys.getfilesystemencoding()))
@@ -219,10 +219,10 @@ def main():
                             print(ln)
                         if 'Error' in ln:
                             print(ln)
-                        if ('I1052: Kindle support cover images but does '
-                            'not support cover HTML' in ln):
+                            error_found = True
+                        if ('I1052' in ln):
                             cover_html_found = True
-                    if not cover_html_found:
+                    if not cover_html_found and not error_found:
                         print('')
                         print(
                             'WARNING: Probably duplicated covers '
