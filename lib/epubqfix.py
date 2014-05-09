@@ -14,6 +14,7 @@ import subprocess
 import sys
 import zipfile
 import uuid
+import unicodedata
 
 from pkgutil import get_data
 from urllib import unquote
@@ -242,6 +243,10 @@ def pack_epub(output_filename, source_dir):
                 if os.path.isfile(filename):
                     arcname = os.path.join(os.path.relpath(root, relroot),
                                            file)
+                    if sys.platform == 'darwin':
+                        arcname = unicodedata.normalize(
+                            'NFC', unicode(arcname, 'utf-8')
+                        ).encode('utf-8')
                     zip.write(filename, arcname.decode(SFENC))
 
 
