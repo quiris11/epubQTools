@@ -54,7 +54,7 @@ parser.add_argument("-p", "--epubcheck", help="validate epub files with "
                     " EpubCheck 3.0.1 tool",
                     action="store_true")
 parser.add_argument("-m", "--mod", help="validate only _moh.epub files "
-                    "(only with -q or -v)",
+                    "(works only with -q or -p)",
                     action="store_true")
 parser.add_argument("-e", "--epub", help="fix and hyphenate original epub "
                     "files to _moh.epub files", action="store_true")

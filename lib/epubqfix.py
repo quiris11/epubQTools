@@ -104,8 +104,9 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
             _epubfile.close()
             os.rename(os.path.join(_root, _filename),
                       os.path.join(_root, nfname + '.epub'))
-            print('* %s renamed to: %s.epub' % (_file_dec,
-                                                nfname.decode(SFENC)))
+            print('* Renamed file "%s" to "%s.epub"' % (
+                _file_dec, nfname.decode(SFENC))
+            )
             is_renamed = True
             break
         elif not os.path.exists(os.path.join(_root, nfname + ' (' +
@@ -114,14 +115,15 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
             os.rename(os.path.join(_root, _filename),
                       os.path.join(_root, nfname + ' (' + str(counter) +
                                    ').epub'))
-            print(_file_dec + ' renamed to: ' + nfname.decode(SFENC) +
-                  ' (' + str(counter) + ').epub')
+            print('* Renamed file "%s" to "%s (%s).epub"' % (
+                _file_dec, nfname.decode(SFENC)), str(counter)
+            )
             is_renamed = True
             break
         else:
             counter += 1
     if not is_renamed:
-        print(_file_dec + ': renaming is not needed...')
+        print('Renaming is not needed for: ' + _file_dec)
 
 
 def check_font(path):
