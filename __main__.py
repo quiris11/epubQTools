@@ -196,6 +196,7 @@ def main():
                                 newmobifile.decode(sys.getfilesystemencoding())
                             )
                             continue
+                    cover_html_found = False
                     print('')
                     print('Kindlegen: Converting file: ' +
                           _file.decode(sys.getfilesystemencoding()))
@@ -213,13 +214,13 @@ def main():
                     except:
                         sys.exit('kindlegen not found in directory: "' +
                                  args.kgp + '" Giving up...')
-                    cover_html_found = False
                     for ln in proc.splitlines():
-                        if ln.find('Warning') != -1:
+                        if 'Warning' in ln:
                             print(ln)
-                        if ln.find('Error') != -1:
+                        if 'Error' in ln:
                             print(ln)
-                        if ln.find('I1052') != -1:
+                        if ('I1052: Kindle support cover images but does '
+                            'not support cover HTML' in ln):
                             cover_html_found = True
                     if not cover_html_found:
                         print('')
