@@ -195,9 +195,9 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
 
         for n in epub.namelist():
             if 'calibre_bookmarks.txt' in n:
-                print('%s: calibre bookmarks file found: %r' % (_file_dec, n))
+                print('%s: calibre bookmarks file found: %s' % (_file_dec, n))
             elif 'itunesmetadata.plist' in n.lower():
-                print('%s: iTunesMetadata.plist file found: %r.' % (_file_dec,
+                print('%s: iTunesMetadata.plist file found: %s.' % (_file_dec,
                                                                     n))
             elif not is_exluded(n):
                 found = False
@@ -205,8 +205,12 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                     if n == (root + i.get('href')):
                         found = True
                 if not found:
-                    print(_file_dec + ': ORPHAN file NOT defined in OPF: ' +
-                          root + repr(n))
+                    try:
+                        print('%s: ORPHAN file NOT defined in '
+                              'OPF: %s' % (_file_dec, root + n))
+                    except UnicodeEncodeError:
+                        print('%s: ORPHAN file NOT defined in '
+                              'OPF: %s' % (_file_dec, root + repr(n)))
 
     if opf_root == '':
         _folder = ''
