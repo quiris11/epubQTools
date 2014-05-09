@@ -97,55 +97,12 @@ def main():
                                          '.log'))
     if args.qcheck or args.rename:
         qcheck(args.directory, args.mod, args.rename)
-    elif args.kindlegen:
-        compression = '-c2' if args.huffdic else '-c1'
-        for root, dirs, files in os.walk(args.directory):
-            for _file in files:
-                if _file.endswith('_moh.epub'):
-                    newmobifile = os.path.splitext(_file)[0] + '.mobi'
-                    if not args.force:
-                        if os.path.isfile(os.path.join(root, newmobifile)):
-                            print(
-                                'Skipping previously generated _moh file: ' +
-                                newmobifile.decode(sys.getfilesystemencoding())
-                            )
-                            continue
-                    print('')
-                    print('Kindlegen: Converting file: ' +
-                          _file.decode(sys.getfilesystemencoding()))
-                    if sys.platform == 'win32':
-                        kgapp = 'kindlegen.exe'
-                    else:
-                        kgapp = 'kindlegen'
-                    try:
-                        proc = subprocess.Popen([
-                            os.path.join(args.kgp, kgapp),
-                            '-dont_append_source',
-                            compression,
-                            os.path.join(root, _file)
-                        ], stdout=subprocess.PIPE).communicate()[0]
-                    except:
-                        sys.exit('kindlegen not found in directory: "' +
-                                 args.kgp + '" Giving up...')
-                    cover_html_found = False
-                    for ln in proc.splitlines():
-                        if ln.find('Warning') != -1:
-                            print(ln)
-                        if ln.find('Error') != -1:
-                            print(ln)
-                        if ln.find('I1052') != -1:
-                            cover_html_found = True
-                    if not cover_html_found:
-                        print('')
-                        print(
-                            'WARNING: Probably duplicated covers '
-                            'generated in file: ' +
-                            newmobifile.decode(sys.getfilesystemencoding())
-                        )
-    elif args.epub:
+
+    if args.epub:
         qfix(args.directory, args.force, args.replacefonts, args.resetmargins,
              args.findcover)
-    elif args.epubcheck:
+
+    if args.epubcheck:
         try:
             java = subprocess.Popen(
                 ['java', '-version'],
@@ -192,7 +149,54 @@ def main():
             if 'quiris-tmp-' in p:
                 if os.path.isdir(os.path.join(echp_temp, os.pardir, p)):
                     shutil.rmtree(os.path.join(echp_temp, os.pardir, p))
-    else:
+
+    if args.kindlegen:
+        compression = '-c2' if args.huffdic else '-c1'
+        for root, dirs, files in os.walk(args.directory):
+            for _file in files:
+                if _file.endswith('_moh.epub'):
+                    newmobifile = os.path.splitext(_file)[0] + '.mobi'
+                    if not args.force:
+                        if os.path.isfile(os.path.join(root, newmobifile)):
+                            print(
+                                'Skipping previously generated _moh file: ' +
+                                newmobifile.decode(sys.getfilesystemencoding())
+                            )
+                            continue
+                    print('')
+                    print('Kindlegen: Converting file: ' +
+                          _file.decode(sys.getfilesystemencoding()))
+                    if sys.platform == 'win32':
+                        kgapp = 'kindlegen.exe'
+                    else:
+                        kgapp = 'kindlegen'
+                    try:
+                        proc = subprocess.Popen([
+                            os.path.join(args.kgp, kgapp),
+                            '-dont_append_source',
+                            compression,
+                            os.path.join(root, _file)
+                        ], stdout=subprocess.PIPE).communicate()[0]
+                    except:
+                        sys.exit('kindlegen not found in directory: "' +
+                                 args.kgp + '" Giving up...')
+                    cover_html_found = False
+                    for ln in proc.splitlines():
+                        if ln.find('Warning') != -1:
+                            print(ln)
+                        if ln.find('Error') != -1:
+                            print(ln)
+                        if ln.find('I1052') != -1:
+                            cover_html_found = True
+                    if not cover_html_found:
+                        print('')
+                        print(
+                            'WARNING: Probably duplicated covers '
+                            'generated in file: ' +
+                            newmobifile.decode(sys.getfilesystemencoding())
+                        )
+
+    if len(sys.argv) == 2:
         parser.print_help()
         print("* * *")
         print("* At least one of above optional arguments is required.")
