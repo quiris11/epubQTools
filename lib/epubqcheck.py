@@ -209,9 +209,11 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                     if n == (root + i.get('href')):
                         found = True
                     elif n_uni_rep == (root + i.get('href')):
-                        print('%s: Identical files found but differently'
-                              ' encoded filenames. Expected "%r" got "%r" '
-                              '' % (_file_dec, i.get('href'), n))
+                        print('%s: CRITICAL! Filenames differ! '
+                              'The file: %r will be deleted during'
+                              ' conversion on Windows. Expected '
+                              ' "%r" got "%r" '
+                              '' % (_file_dec, n, i.get('href'), n))
                         found = True
                 if not found:
                     try:
