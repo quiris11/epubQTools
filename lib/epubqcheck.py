@@ -306,16 +306,16 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             print(_file_dec + ': XML file: ' + _htmlfilepath +
                   ' not well formed: "' + str(e) + '"')
             continue
-        for u in _xhtmlsoup.xpath('//*[@href or @src]'):
-            if u.get('src'):
-                url = u.get('src')
-            elif u.get('href'):
-                url = u.get('href')
-            if 'http://' in url or 'mailto:' in url:
-                continue
-            if '%' in url:
-                print('%s : Encoded URLs: %s found '
-                      'in html file: %s' % (_file_dec, url, _htmlfilepath))
+#         for u in _xhtmlsoup.xpath('//*[@href or @src]'):
+#             if u.get('src'):
+#                 url = u.get('src')
+#             elif u.get('href'):
+#                 url = u.get('href')
+#             if 'http://' in url or 'mailto:' in url:
+#                 continue
+#             if '%' in url:
+#                 print('%s : Encoded URLs: %s found '
+#                       'in html file: %s' % (_file_dec, url, _htmlfilepath))
         if _wmfound is False:
             _watermarks = etree.XPath('//*[starts-with(text(),"==")]',
                                       namespaces=XHTMLNS)(_xhtmlsoup)
