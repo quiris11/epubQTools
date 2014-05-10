@@ -44,6 +44,8 @@ parser.add_argument("--kgp", nargs='?',
 parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
                     help='path to directory to write log file. If DIR is '
                     ' omitted write log to directory with epub files')
+parser.add_argument("-a", "--alter", help="alternative output display",
+                    action="store_true")
 parser.add_argument("-n", "--rename", help="rename .epub files to "
                     "'author - title.epub'",
                     action="store_true")
@@ -117,7 +119,7 @@ def main():
         print('******************************************')
         print('*** Checking with internal qcheck tool ***')
         print('******************************************')
-        qcheck(args.directory, args.mod)
+        qcheck(args.directory, args.mod, args.alter)
 
     if args.epubcheck:
         print('')
