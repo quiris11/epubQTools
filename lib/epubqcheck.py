@@ -197,8 +197,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             if 'calibre_bookmarks.txt' in n:
                 print('%scalibre bookmarks file found: %s' % (_file_dec, n))
             elif 'itunesmetadata.plist' in n.lower():
-                print('%siTunesMetadata.plist file found: %s.' % (_file_dec,
-                                                                    n))
+                print('%siTunesMetadata.plist file found: %s' % (_file_dec, n))
             elif not is_exluded(n):
                 found = False
                 for i in opftree.xpath('//*[@href]'):
@@ -211,6 +210,24 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                     except:
                         print('%sORPHAN file NOT defined in '
                               'OPF: %s' % (_file_dec, root + repr(n)))
+
+    def check_font_mime_types(tree):
+        items = tree.xpath('//opf:item[@href]', namespaces=OPFNS)
+        for i in items:
+            if (
+                    i.get('href').lower().endswith('.otf') and
+                    i.get('media-type') != 'application/vnd.ms-opentype'
+            ):
+                print('%sIncorrect media-type "%s" for font "%s"' % (
+                    _file_dec, i.get('media-type'), i.get('href')
+                ))
+            elif (
+                    i.get('href').lower().endswith('.ttf') and
+                    i.get('media-type') != 'application/x-font-truetype'
+            ):
+                print('%sIncorrect media-type "%s" for font "%s"' % (
+                    _file_dec, i.get('media-type'), i.get('href')
+                ))
 
     if opf_root == '':
         _folder = ''
@@ -389,6 +406,9 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
     ):
         print(_file_dec + 'other calibre staff found')
         break
+
+    check_font_mime_types(opftree)
+
     if encryption_file_found:
         uid = None
         for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
