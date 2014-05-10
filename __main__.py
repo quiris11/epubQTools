@@ -174,7 +174,7 @@ def main():
     if args.epub:
         print('')
         print('******************************************')
-        print('*** Coverting with internal qfix tool  ***')
+        print('*** Fixing with internal qfix tool...  ***')
         print('******************************************')
         qfix(args.directory, args.force, args.replacefonts, args.resetmargins,
              args.findcover)
