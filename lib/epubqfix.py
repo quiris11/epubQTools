@@ -105,8 +105,8 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
             os.rename(os.path.join(_root, _filename),
                       os.path.join(_root, nfname + '.epub'))
             print('* Renamed file "%s" to "%s.epub"' % (
-                _file_dec, nfname.decode(SFENC))
-            )
+                _file_dec, nfname.decode(SFENC)
+            ))
             is_renamed = True
             break
         elif not os.path.exists(os.path.join(_root, nfname + ' (' +
@@ -116,8 +116,8 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
                       os.path.join(_root, nfname + ' (' + str(counter) +
                                    ').epub'))
             print('* Renamed file "%s" to "%s (%s).epub"' % (
-                _file_dec, nfname.decode(SFENC)), str(counter)
-            )
+                _file_dec, nfname.decode(SFENC), str(counter)
+            ))
             is_renamed = True
             break
         else:
