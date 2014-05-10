@@ -106,6 +106,7 @@ def main():
         print('******************************************')
         print('*** Renaming EPUBs to "author - title" ***')
         print('******************************************')
+        print('')
         for root, dirs, files in os.walk(args.directory):
             for f in files:
                 fdec = f.decode(SFENC)
