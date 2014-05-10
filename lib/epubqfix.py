@@ -778,22 +778,46 @@ def fix_ncx_dtd_uid(opftree, tempdir):
         namespaces=OPFNS
     )(opftree)[0].get('href')
     ncxtree = etree.parse(os.path.join(tempdir, ncxfile))
-    uniqid = etree.XPath('//opf:package',
-                         namespaces=OPFNS)(opftree)[0].get('unique-identifier')
+
+    # remove empty dc:identifiers
+    for id in opftree.xpath('//dc:identifier', namespaces=DCNS):
+        if id.text is None:
+            id.getparent().remove(id)
+    uniqid = opftree.xpath('//opf:package',
+                           namespaces=OPFNS)[0].get('unique-identifier')
+    try:
+        dc_identifier = opftree.xpath(
+            '//dc:identifier[@id="' + str(uniqid) + '"]/text()',
+            namespaces=DCNS
+        )[0]
+    except IndexError:
+        uniqid = None
+        id_found = False
     if uniqid is None:
-        dcidentifiers = etree.XPath('//dc:identifier',
-                                    namespaces=DCNS)(opftree)
+        dcidentifiers = opftree.xpath('//dc:identifier', namespaces=DCNS)
         for dcid in dcidentifiers:
             if dcid.get('id') is not None:
+                opftree.xpath('//opf:package', namespaces=OPFNS)[0].set(
+                    'unique-identifier', dcid.get('id')
+                )
                 uniqid = dcid.get('id')
+                id_found = True
                 break
-        if uniqid is not None:
-            opftree.xpath('//opf:package',
-                          namespaces=OPFNS)[0].set('unique-identifier', uniqid)
+        if not id_found:
+            # find first UUID URN-based unique identifier
+            for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
+                if 'urn:uuid:' in str(dcid.text):
+                    dcid.set('id', 'BookId')
+                    opftree.xpath('//opf:package', namespaces=OPFNS)[0].set(
+                        'unique-identifier', 'BookId'
+                    )
+                    uniqid = 'BookId'
+                    break
     try:
-        dc_identifier = etree.XPath(
+        dc_identifier = opftree.xpath(
             '//dc:identifier[@id="' + str(uniqid) + '"]/text()',
-            namespaces=DCNS)(opftree)[0]
+            namespaces=DCNS
+        )[0]
     except IndexError:
         return opftree
     try:
