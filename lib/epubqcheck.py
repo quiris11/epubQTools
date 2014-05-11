@@ -454,7 +454,7 @@ def check_urls(singf, epub, _file_dec):
             if n == relp:
                 found_proper_url = True
         if not found_proper_url:
-            print('# %sLinked resource "%s" in "%s" does NOT exist'
+            print('%sLinked resource "%s" in "%s" does NOT exist'
                   % (_file_dec, url, singf))
 
 
