@@ -1117,26 +1117,27 @@ def process_epub(_epubzipfile, _tempdir, _replacefonts, _resetmargins,
 def process_corrupted_zip(e, root, f, zipbinf):
     print('EPUB file "%s" is corrupted! Trying to fix it...'
           % f.decode(SFENC), end=' ')
+    if sys.platform == 'win32':
+        try:
+            zipbin = zipfile.ZipFile(os.path.join(zipbinf, 'zip-3.0-bin.zip'))
+        except:
+            print('NOT FIXED')
+            print('zip-3.0-bin.zip not found in directory: "' +
+                  zipbinf + '" Giving up...')
+            print('STOP (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+            return 1
+        zipbin_temp = tempfile.mkdtemp(
+            suffix='',
+            prefix='quiris-tmp-'
+        )
+        zipbin.extractall(zipbin_temp)
+        zipbinpath = os.path.join(
+            zipbin_temp,
+            'bin', 'zip.exe'
+        )
+    else:
+        zipbinpath = 'zip'
     if 'differ' in str(e):
-        if sys.platform == 'win32':
-            try:
-                zipbin = zipfile.ZipFile(os.path.join(zipbinf,
-                                                      'zip-3.0-bin.zip'))
-            except:
-                print('zip-3.0-bin.zip not found in directory: "' +
-                      zipbinf + '" Giving up...')
-                return 1
-            zipbin_temp = tempfile.mkdtemp(
-                suffix='',
-                prefix='quiris-tmp-'
-            )
-            zipbin.extractall(zipbin_temp)
-            zipbinpath = os.path.join(
-                zipbin_temp,
-                'bin', 'zip.exe'
-            )
-        else:
-            zipbinpath = 'zip'
         zipp = subprocess.Popen([
             zipbinpath, '-FF', '%s' % str(os.path.join(root, f)), '--out',
             '%s' % str(os.path.join(root, 'fixed_' + f))
@@ -1144,10 +1145,21 @@ def process_corrupted_zip(e, root, f, zipbinf):
         zippout, zipperr = zipp.communicate()
         print('FIXED')
         return os.path.join(root, 'fixed_' + f)
+    elif 'Bad CRC-32 for file' in str(e):
+        zipp = subprocess.Popen([
+            zipbinpath, '-d', '%s' % str(os.path.join(root, f)),
+            str(e).split("'")[1],
+            '--out', '%s' % str(os.path.join(root, 'fixed_' + f))
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        zippout, zipperr = zipp.communicate()
+        print('FIXED (with WARNING!)')
+        print ('WARNING! Corrupted file "%s" was removed from EPUB file' %
+               str(e).split("'")[1])
+        return os.path.join(root, 'fixed_' + f)
     else:
         print('NOT FIXED')
         print(str(e))
-        print('STOP (WITH PROBLEMS) qfix for: ' + f.decode(SFENC))
+        print('STOP (with PROBLEMS) qfix for: ' + f.decode(SFENC))
         return 1
 
 
@@ -1181,6 +1193,6 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf):
                 pack_epub(os.path.join(root, newfile), _tempdir)
                 clean_temp(_tempdir)
                 if qfixerr:
-                    print('STOP (WITH PROBLEMS) qfix for: ' + f.decode(SFENC))
+                    print('STOP (with PROBLEMS) qfix for: ' + f.decode(SFENC))
                 else:
                     print('STOP qfix for: ' + f.decode(SFENC))
