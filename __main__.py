@@ -35,12 +35,10 @@ else:
 
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", help="Directory with EPUB files stored")
-parser.add_argument("--echp", nargs='?', metavar="DIR",
-                    default=q_cwd,
-                    help="path to epubcheck-3.0.1.zip file")
-parser.add_argument("--kgp", nargs='?',
+parser.add_argument("--tools", nargs='?',
                     default=q_cwd, metavar="DIR",
-                    help="path to kindlegen executable file")
+                    help="path to additional tools: kindlegen, "
+                    "epubcheck-3.0.1.zip, zip-3.0-bin.zip")
 parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
                     help='path to directory to write log file. If DIR is '
                     ' omitted write log to directory with epub files')
@@ -135,11 +133,11 @@ def main():
         except:
             sys.exit('Java is NOT installed. Giving up...')
         try:
-            echpzipfile = zipfile.ZipFile(os.path.join(args.echp,
+            echpzipfile = zipfile.ZipFile(os.path.join(args.tools,
                                           'epubcheck-3.0.1.zip'))
         except:
             sys.exit('epubcheck-3.0.1.zip not found in directory: "' +
-                     args.echp + '" Giving up...')
+                     args.tools + '" Giving up...')
         echp_temp = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
         echpzipfile.extractall(echp_temp)
         if args.mod:
@@ -180,7 +178,7 @@ def main():
         print('*** Fixing with internal qfix tool...  ***')
         print('******************************************')
         qfix(args.directory, args.force, args.replacefonts, args.resetmargins,
-             args.findcover)
+             args.findcover, args.tools)
 
     if args.kindlegen:
         print('')
@@ -209,14 +207,14 @@ def main():
                         kgapp = 'kindlegen'
                     try:
                         proc = subprocess.Popen([
-                            os.path.join(args.kgp, kgapp),
+                            os.path.join(args.tools, kgapp),
                             '-dont_append_source',
                             compression,
                             os.path.join(root, _file)
                         ], stdout=subprocess.PIPE).communicate()[0]
                     except:
                         sys.exit('kindlegen not found in directory: "' +
-                                 args.kgp + '" Giving up...')
+                                 args.tools + '" Giving up...')
                     for ln in proc.splitlines():
                         if 'Warning' in ln:
                             print(ln)

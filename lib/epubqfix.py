@@ -4,7 +4,7 @@
 # This file is part of epubQTools, licensed under GNU Affero GPLv3 or later.
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
-
+from __future__ import print_function
 import hashlib
 import os
 import re
@@ -23,6 +23,7 @@ from lxml import etree
 from lib.htmlconstants import entities
 from lib.hyphenator import Hyphenator
 from os.path import expanduser
+
 
 if not hasattr(sys, 'frozen'):
     dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
@@ -1113,7 +1114,44 @@ def process_epub(_epubzipfile, _tempdir, _replacefonts, _resetmargins,
                 xml_declaration=True, encoding='utf-8'))
 
 
-def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
+def process_corrupted_zip(e, root, f, zipbinf):
+    print('EPUB file "%s" is corrupted! Trying to fix it...'
+          % f.decode(SFENC), end=' ')
+    if 'differ' in str(e):
+        if sys.platform == 'win32':
+            try:
+                zipbin = zipfile.ZipFile(os.path.join(zipbinf,
+                                                      'zip-3.0-bin.zip'))
+            except:
+                print('zip-3.0-bin.zip not found in directory: "' +
+                      zipbinf + '" Giving up...')
+                return 1
+            zipbin_temp = tempfile.mkdtemp(
+                suffix='',
+                prefix='quiris-tmp-'
+            )
+            zipbin.extractall(zipbin_temp)
+            zipbinpath = os.path.join(
+                zipbin_temp,
+                'bin', 'zip.exe'
+            )
+        else:
+            zipbinpath = 'zip'
+        zipp = subprocess.Popen([
+            zipbinpath, '-FF', '%s' % str(os.path.join(root, f)), '--out',
+            '%s' % str(os.path.join(root, 'fixed_' + f))
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        zippout, zipperr = zipp.communicate()
+        print('FIXED')
+        return os.path.join(root, 'fixed_' + f)
+    else:
+        print('NOT FIXED')
+        print(str(e))
+        print('STOP (WITH PROBLEMS) qfix for: ' + f.decode(SFENC))
+        return 1
+
+
+def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf):
     global qfixerr
     qfixerr = False
     for root, dirs, files in os.walk(_documents):
@@ -1132,11 +1170,12 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover):
                 try:
                     _epubzipfile, _tempdir = unpack_epub(os.path.join(root, f))
                 except zipfile.BadZipfile, e:
-                    print(f.decode(SFENC) + ': EPUB file is corrupted! Giving'
-                          ' up...')
-                    print str(e)
-                    print('STOP (WITH PROBLEMS) qfix for: ' + f.decode(SFENC))
-                    continue
+                    fixed_pth = process_corrupted_zip(e, root, f, zbf)
+                    if str(fixed_pth) == '1':
+                        continue
+                    else:
+                        _epubzipfile, _tempdir = unpack_epub(fixed_pth)
+                        os.unlink(fixed_pth)
                 process_epub(_epubzipfile, _tempdir, _replacefonts,
                              _resetmargins, _findcover)
                 pack_epub(os.path.join(root, newfile), _tempdir)
