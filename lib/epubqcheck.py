@@ -171,15 +171,6 @@ def find_cover_image(_opftree, _file_dec):
 
 
 def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
-    def check_hyperlinks(epub, opftree, root, _file_dec):
-        for i in opftree.xpath('//*[@href]'):
-            found = False
-            for n in epub.namelist():
-                if n == (root + i.get('href')):
-                    found = True
-            if not found:
-                print(_file_dec + 'INCORRECTLY defined file in OPF: ' +
-                      root + i.get('href') + '. Not found in EPUB file...')
 
     def check_orphan_files(epub, opftree, root, _file_dec):
         def is_exluded(name):
@@ -235,8 +226,6 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
         _folder = opf_root + '/'
     opftree = etree.fromstring(_epubfile.read(opf_path))
     opftree = unquote_urls(opftree)
-
-    check_hyperlinks(_epubfile, opftree, _folder, _file_dec)
     check_orphan_files(_epubfile, opftree, _folder, _file_dec)
     if not opftree.xpath('//opf:metadata', namespaces=OPFNS):
         print(_file_dec + 'CRITICAL! No metadata defined in OPF file...')
@@ -437,6 +426,38 @@ def find_opf(epub):
     return os.path.dirname(opf_path), opf_path
 
 
+# TODO: check urls in CSS styles
+def check_urls(singf, epub, _file_dec):
+    try:
+        tree = etree.fromstring(epub.read(singf))
+    except:
+        return 0
+    exclude_urls = ('http://', 'https://', 'mailto:', 'tel:', '#')
+    for u in tree.xpath('//*[@href or @src]'):
+        if u.get('src'):
+            url = u.get('src')
+        elif u.get('href'):
+            url = u.get('href')
+        if url.startswith(exclude_urls):
+            continue
+        url = unquote(url)
+        if '#' in url:
+            url = url.split('#')[0]
+        relp = os.path.relpath(os.path.join("/".join(singf.split("/")[:-1]),
+                                            url))
+        if not isinstance(relp, unicode):
+            relp = relp.decode('utf-8')
+        found_proper_url = False
+        for n in epub.namelist():
+            if not isinstance(n, unicode):
+                n = n.decode('utf-8')
+            if n == relp:
+                found_proper_url = True
+        if not found_proper_url:
+            print('# %sLinked resource "%s" in "%s" does NOT exist'
+                  % (_file_dec, url, singf))
+
+
 def qcheck(_documents, _moded, alter):
     if _moded:
         fe = '_moh.epub'
@@ -485,6 +506,7 @@ def qcheck(_documents, _moded, alter):
                         if os.path.isdir(temp_font_dir):
                             shutil.rmtree(temp_font_dir)
                     else:
+                        check_urls(singlefile, epubfile, _file_dec)
                         check_wm_info(singlefile, epubfile, _file_dec)
                         check_display_none(singlefile, epubfile, _file_dec)
                 if not alter:
