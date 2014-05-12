@@ -6,6 +6,7 @@
 #
 
 import zipfile
+import re
 import os
 import sys
 import tempfile
@@ -426,36 +427,47 @@ def find_opf(epub):
     return os.path.dirname(opf_path), opf_path
 
 
-# TODO: check urls in CSS styles
 def check_urls(singf, epub, _file_dec):
-    try:
-        tree = etree.fromstring(epub.read(singf))
-    except:
-        return 0
-    exclude_urls = ('http://', 'https://', 'mailto:', 'tel:', '#')
-    for u in tree.xpath('//*[@href or @src]'):
-        if u.get('src'):
-            url = u.get('src')
-        elif u.get('href'):
-            url = u.get('href')
-        if url.startswith(exclude_urls):
-            continue
-        url = unquote(url)
-        if '#' in url:
-            url = url.split('#')[0]
-        relp = os.path.relpath(os.path.join("/".join(singf.split("/")[:-1]),
-                                            url))
-        if not isinstance(relp, unicode):
-            relp = relp.decode('utf-8')
-        found_proper_url = False
-        for n in epub.namelist():
-            if not isinstance(n, unicode):
-                n = n.decode('utf-8')
-            if n == relp:
-                found_proper_url = True
-        if not found_proper_url:
-            print('%sLinked resource "%s" in "%s" does NOT exist'
-                  % (_file_dec, url, singf))
+    if singf.endswith('.css'):
+        with epub.open(singf) as f:
+            for line in f:
+                m = re.match(r'.+?url\([ ]?(\"|\')?(.+?)(\"|\')?[ ]?\)', line)
+                if m is not None:
+                    check_url(unquote(m.group(2)), singf, epub, _file_dec)
+    else:
+        try:
+            tree = etree.fromstring(epub.read(singf))
+        except:
+            return 0
+        exclude_urls = ('http://', 'https://', 'mailto:', 'tel:', 'data:', '#')
+        for u in tree.xpath('//*[@href or @src]'):
+            if u.get('src'):
+                url = u.get('src')
+            elif u.get('href'):
+                url = u.get('href')
+            if url.startswith(exclude_urls):
+                continue
+            url = unquote(url)
+            if '#' in url:
+                url = url.split('#')[0]
+            check_url(url, singf, epub, _file_dec)
+
+
+def check_url(url, singf, epub, _file_dec):
+    if not isinstance(url, unicode):
+        url = url.decode('utf-8')
+    relp = os.path.relpath(os.path.join("/".join(
+        singf.split("/")[:-1]), url
+    ))
+    found_proper_url = False
+    for n in epub.namelist():
+        if not isinstance(n, unicode):
+            n = n.decode('utf-8')
+        if n == relp:
+            found_proper_url = True
+    if not found_proper_url:
+        print('%sLinked resource "%s" in "%s" does NOT exist'
+              % (_file_dec, url, singf))
 
 
 def qcheck(_documents, _moded, alter):
