@@ -1116,6 +1116,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
 
 def process_corrupted_zip(e, root, f, zipbinf):
     if sys.platform == 'win32':
+        print('* Corrupted EPUB file. Unable to fix it...')
+        print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
         return 1 # zip.exe for Windows does not work properly :(    
     print('EPUB file "%s" is corrupted! Trying to fix it...'
           % f.decode(SFENC), end=' ')
