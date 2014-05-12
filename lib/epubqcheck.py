@@ -186,6 +186,8 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             return False
 
         for n in epub.namelist():
+            if not isinstance(n, unicode):
+                n = n.decode('utf-8')
             if 'calibre_bookmarks.txt' in n:
                 print('%scalibre bookmarks file found: %s' % (_file_dec, n))
             elif 'itunesmetadata.plist' in n.lower():
@@ -196,12 +198,8 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                     if n == (root + i.get('href')):
                         found = True
                 if not found:
-                    try:
-                        print('%sORPHAN file NOT defined in '
-                              'OPF: %s' % (_file_dec, root + n))
-                    except:
-                        print('%sORPHAN file NOT defined in '
-                              'OPF: %s' % (_file_dec, root + repr(n)))
+                    print('%sORPHAN file "%s" does NOT defined in OPF file'
+                          % (_file_dec, root + n))
 
     def check_font_mime_types(tree):
         items = tree.xpath('//opf:item[@href]', namespaces=OPFNS)
