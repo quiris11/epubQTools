@@ -455,6 +455,7 @@ def check_url(url, singf, epub, _file_dec):
     relp = os.path.relpath(os.path.join("/".join(
         singf.split("/")[:-1]), url
     ))
+    relp = relp.replace('\\', '/')
     found_proper_url = False
     for n in epub.namelist():
         if not isinstance(n, unicode):
