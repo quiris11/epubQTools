@@ -71,14 +71,14 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
     try:
         tit = etree.XPath('//dc:title/text()', namespaces=DCNS)(opftree)[0]
     except:
-        print(_file_dec + ': CRITICAL! dc:title (book title) not found. '
-              'Renaming failed!')
+        print('! Renaming file "%s" failed! ERROR: dc:title (book title) '
+              'not found.' % _file_dec)
         return 0
     try:
         cr = etree.XPath('//dc:creator/text()', namespaces=DCNS)(opftree)[0]
     except:
-        print(_file_dec + ': CRITICAL! dc:creator (book author) not found. '
-              'Renaming failed!')
+        print('! Renaming file "%s" failed! ERROR: dc:creator (book author) '
+              'not found.' % _file_dec)
         return 0
     if tit.isupper():
         tit = tit.title()
@@ -105,7 +105,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
             _epubfile.close()
             os.rename(os.path.join(_root, _filename),
                       os.path.join(_root, nfname + '.epub'))
-            print('* Renamed file "%s" to "%s.epub"' % (
+            print('* Renamed file "%s" to "%s.epub".' % (
                 _file_dec, nfname.decode(SFENC)
             ))
             is_renamed = True
@@ -124,7 +124,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         else:
             counter += 1
     if not is_renamed:
-        print('Renaming is not needed for: ' + _file_dec)
+        print('= Renaming file "%" is not needed.' % _file_dec)
 
 
 def check_font(path):
