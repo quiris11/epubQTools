@@ -519,4 +519,4 @@ def qcheck(_documents, _moded, alter):
                         check_wm_info(singlefile, epubfile, _file_dec)
                         check_display_none(singlefile, epubfile, _file_dec)
                 if not alter:
-                    print('STOP qcheck for: ' + file_dec)
+                    print('FINISH qcheck for: ' + file_dec)
