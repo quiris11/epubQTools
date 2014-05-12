@@ -483,7 +483,6 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
 
 def fix_mismatched_covers(opftree, tempdir):
     global qfixerr
-    print('Checking for mismatched meta and HTML covers...')
     refcvs = opftree.xpath('//opf:reference[@type="cover"]', namespaces=OPFNS)
     if len(refcvs) > 1:
         print('Too many cover references in OPF. Giving up...')
@@ -557,8 +556,6 @@ def fix_mismatched_covers(opftree, tempdir):
                 encoding="utf-8",
                 doctype=DTD)
             )
-    else:
-        print('Meta and HTML covers are identical...')
     return opftree
 
 
@@ -642,12 +639,15 @@ def force_cover_find(_soup):
 
 
 def set_correct_font_mime_types(_soup):
-    print('Setting correct font mime types...')
     _items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(_soup)
     for _item in _items:
         if _item.get('href').lower().endswith('.otf'):
+            print('Setting correct mime type "application/vnd.ms-opentype" '
+                  'for font "%s"' % _item.get('href'))
             _item.set('media-type', 'application/vnd.ms-opentype')
         elif _item.get('href').lower().endswith('.ttf'):
+            print('Setting correct mime type "application/x-font-truetype" '
+                  'for font "%s"' % _item.get('href'))
             _item.set('media-type', 'application/x-font-truetype')
     return _soup
 
@@ -667,7 +667,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
 
     # set dc:language to my language
     for lang in soup.xpath("//dc:language", namespaces=DCNS):
-        if lang.text != MY_LANGUAGE:
+        if lang is not None and lang.text != MY_LANGUAGE:
             print('Correcting book language to: ' + MY_LANGUAGE)
             lang.text = MY_LANGUAGE
 
@@ -887,7 +887,6 @@ def modify_problematic_styles(source_file):
 
 
 def remove_text_from_html_cover(opftree, rootepubdir):
-    print('Removing text from HTML cover...')
     try:
         html_cover_path = os.path.join(rootepubdir, opftree.xpath(
             '//opf:reference[@type="cover"]',
@@ -901,6 +900,7 @@ def remove_text_from_html_cover(opftree, rootepubdir):
         trash = html_cover_tree.xpath('//xhtml:h1[@class="invisible"]',
                                       namespaces=XHTMLNS)[0]
         trash.text = ''
+        print('Removing text from HTML cover...')
     except:
         return 0
     with open(html_cover_path, "w") as f:
