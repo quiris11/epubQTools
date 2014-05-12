@@ -1118,11 +1118,12 @@ def process_corrupted_zip(e, root, f, zipbinf):
     if sys.platform == 'win32':
         print('* Corrupted EPUB file. Unable to fix it...')
         print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
-        return 1 # zip.exe for Windows does not work properly :(    
+        return 1
     print('EPUB file "%s" is corrupted! Trying to fix it...'
           % f.decode(SFENC), end=' ')
 #         try:
-#             zipbin = zipfile.ZipFile(os.path.join(zipbinf, 'zip-3.0-bin.zip'))
+#             zipbin = zipfile.ZipFile(os.path.join(zipbinf,
+#                                                   'zip-3.0-bin.zip'))
 #         except:
 #             print('NOT FIXED')
 #             print('zip-3.0-bin.zip not found in directory: "' +
@@ -1130,7 +1131,8 @@ def process_corrupted_zip(e, root, f, zipbinf):
 #             print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
 #             return 1
 #         try:
-#             zipdep = zipfile.ZipFile(os.path.join(zipbinf, 'zip-3.0-dep.zip'))
+#             zipdep = zipfile.ZipFile(os.path.join(zipbinf,
+#                                                   'zip-3.0-dep.zip'))
 #         except:
 #             print('NOT FIXED')
 #             print('zip-3.0-dep.zip not found in directory: "' +
