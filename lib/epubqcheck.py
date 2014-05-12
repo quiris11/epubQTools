@@ -412,8 +412,6 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                     break
         if uid is None:
             print(_file_dec + 'UUID identifier in content.opf missing')
-    #     else:
-    #         print(_file_dec + 'UUID: ' + uid)
 
 
 def find_opf(epub):
