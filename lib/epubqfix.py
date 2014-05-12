@@ -167,7 +167,7 @@ def remove_node(node):
 
 # based on calibri work
 def process_encryption(encfile, opftree):
-    print('Font decrypting started...')
+    print('* Font decrypting started...')
     root = etree.parse(encfile)
     for em in root.xpath(
             'descendant::*[contains(name(), "EncryptionMethod")]'
@@ -196,7 +196,7 @@ def find_encryption_key(opftree, method):
                 uid = dcid.text
                 break
         if uid is None:
-            print('UUID URN-based unique identifier in content.opf does '
+            print('* UUID URN-based unique identifier in content.opf does '
                   'not found')
             return uid
         uid = uid.replace('\x20', '').replace('\x09', '').\
@@ -215,7 +215,7 @@ def find_encryption_key(opftree, method):
                     uid = elem.text
                     break
         if uid is None:
-            print('Unique identifier in content.opf does not found')
+            print('* Unique identifier in content.opf does not found')
             return uid
         uid = uid.replace('\x20', '').replace('\x09', '').\
             replace('\x0D', '').replace('\x0A', '')
@@ -235,18 +235,19 @@ def decrypt_font(path, key, method):
     crypt = bytearray(raw[:crypt_len])
     key = cycle(iter(bytearray(key)))
     decrypt = bytes(bytearray(x ^ key.next() for x in crypt))
-    print('Starting decryption of font file...')
+    print('* Starting decryption of font file "%s"...'
+          % os.path.basename(path), end=' ')
     with open(path, 'wb') as f:
         f.write(decrypt)
         f.write(raw[crypt_len:])
     is_font, signature = check_font(path)
     if not is_font:
-        print('FAILED decrypting of font file "%s"!' % os.path.basename(path))
+        print('FAILED!')
     else:
-        print('OK! Font file "%s" is decrypted.' % os.path.basename(path))
+        print('OK! Decrypted.')
     if not is_font:
-        print('Starting replace procedure for encrypted file with '
-              'font from system directory...')
+        print('* Starting replace procedure for encrypted file "%s" with font'
+              ' from system directory...' % os.path.basename(path), end=' ')
         if sys.platform == 'win32':
             font_paths = [os.path.abspath(os.path.join('C:', 'Windows',
                                                        'Fonts'))]
@@ -263,15 +264,14 @@ def decrypt_font(path, key, method):
                 )
         is_font, signature = check_font(path)
         if is_font:
-            print('OK! Font file "%s" is replaced.' % os.path.basename(path))
+            print('OK! Replaced.')
         else:
             qfixerr = True
-            print('FAILED replace procedure for file "%s"! '
-                  'Candidate does NOT found.' % os.path.basename(path))
+            print('FAILED! Candidate does NOT found.')
 
 
 def find_and_replace_fonts(opftree, rootepubdir):
-    print('Replacing fonts procedure started...')
+    print('* Replacing fonts procedure started...')
     items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree)
     for item in items:
         if item.get('href').lower().endswith('.otf'):
@@ -295,7 +295,7 @@ def replace_font(actual_font_path):
         if os.path.exists(
                 os.path.join(font_path, os.path.basename(actual_font_path))
         ):
-            print('Replacing font: ' + os.path.basename(actual_font_path))
+            print('* Replacing font: ' + os.path.basename(actual_font_path))
             os.remove(actual_font_path)
             shutil.copyfile(
                 os.path.join(font_path, os.path.basename(actual_font_path)),
@@ -352,7 +352,7 @@ def find_roots(tempdir):
         opf_path = cr_tree.xpath('//cr:rootfile',
                                  namespaces=CRNS)[0].get('full-path')
     except:
-        print('Parsing container.xml failed. Not an EPUB file?')
+        print('* Parsing container.xml failed. Not an EPUB file?')
         qfixerr = True
         return 1
     return os.path.dirname(opf_path), opf_path
@@ -366,7 +366,7 @@ def find_xhtml_files(tempdir, rootepubdir, opftree):
             namespaces=OPFNS
         )(opftree)
     except:
-        print('XHTML files not found...')
+        print('* XHTML files not found...')
         qfixerr = True
     xhtml_files = []
     xhtml_file_paths = []
@@ -383,7 +383,7 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph):
             namespaces=XHTMLNS
         )(source_file)
     except:
-        print('No texts found...')
+        print('* No texts found...')
     for t in texts:
         parent = t.getparent()
         newt = ''
@@ -407,7 +407,7 @@ def fix_styles(source_file):
             namespaces=XHTMLNS
         )(source_file)
     except:
-        print('No links found...')
+        print('* No links found...')
     for link in links:
         if link.get('type') is None:
             link.set('type', 'text/css')
@@ -493,19 +493,19 @@ def fix_mismatched_covers(opftree, tempdir):
     global qfixerr
     refcvs = opftree.xpath('//opf:reference[@type="cover"]', namespaces=OPFNS)
     if len(refcvs) > 1:
-        print('Too many cover references in OPF. Giving up...')
+        print('* Too many cover references in OPF. Giving up...')
         qfixerr = True
         return opftree
     try:
         cover_xhtml_file = os.path.join(tempdir, refcvs[0].get('href'))
     except:
-        print('HTML cover reference not found. Giving up...')
+        print('* HTML cover reference not found. Giving up...')
         qfixerr = True
         return opftree
     xhtmltree = etree.parse(cover_xhtml_file,
                             parser=etree.XMLParser(recover=True))
     if not etree.tostring(xhtmltree):
-        print('HTML cover file is empty...')
+        print('* HTML cover file is empty...')
         qfixerr = True
         return opftree
     allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
@@ -515,7 +515,7 @@ def fix_mismatched_covers(opftree, tempdir):
     else:
         len_svg_images = 0
     if len(allimgs) != 1 and len_svg_images != 1:
-        print('HTML cover should have only one image. Giving up...')
+        print('* HTML cover should have only one image. Giving up...')
         qfixerr = True
         return opftree
     if allimgs:
@@ -532,7 +532,7 @@ def fix_mismatched_covers(opftree, tempdir):
     except IndexError:
         meta_cover_id = None
     if meta_cover_id is None:
-        print('Meta cover image not properly defined. Giving up...')
+        print('* Meta cover image not properly defined. Giving up...')
         qfixerr = True
         return opftree
     try:
@@ -549,7 +549,7 @@ def fix_mismatched_covers(opftree, tempdir):
                     )[0].set('content', i.get('id'))
         meta_cover_image_file = html_cover_img_file
     if html_cover_img_file != meta_cover_image_file:
-        print('Mismatched meta and HTML covers. Fixing...')
+        print('* Mismatched meta and HTML covers. Fixing...')
         allimgs[0].set(
             'src',
             allimgs[0].get('src').replace(
@@ -627,7 +627,7 @@ def set_cover_meta_elem(_metacovers, _soup, _content):
 
 
 def force_cover_find(_soup):
-    print('Force cover find...')
+    print('* Force cover find...')
     images = etree.XPath('//opf:item[@media-type="image/jpeg"]',
                          namespaces=OPFNS)(_soup)
     cover_found = 0
@@ -637,7 +637,7 @@ def force_cover_find(_soup):
             if (img_href_lower.find('cover') != -1 or
                     img_href_lower.find('okladka') != -1):
                 cover_found = 1
-                print('Candidate image for cover found:' +
+                print('* Candidate image for cover found:' +
                       ' href=' + imag.get('href') +
                       ' id=' + imag.get('id'))
                 return imag.get('href'), imag.get('id')
@@ -650,11 +650,11 @@ def set_correct_font_mime_types(_soup):
     _items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(_soup)
     for _item in _items:
         if _item.get('href').lower().endswith('.otf'):
-            print('Setting correct mime type "application/vnd.ms-opentype" '
+            print('* Setting correct mime type "application/vnd.ms-opentype" '
                   'for font "%s"' % _item.get('href'))
             _item.set('media-type', 'application/vnd.ms-opentype')
         elif _item.get('href').lower().endswith('.ttf'):
-            print('Setting correct mime type "application/x-font-truetype" '
+            print('* Setting correct mime type "application/x-font-truetype" '
                   'for font "%s"' % _item.get('href'))
             _item.set('media-type', 'application/x-font-truetype')
     return _soup
@@ -670,18 +670,18 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
     for lang in soup.xpath("//dc:language", namespaces=DCNS):
         lang_counter = lang_counter + 1
         if lang_counter > 1:
-            print('Removing multiple language definitions...')
+            print('* Removing multiple language definitions...')
             lang.getparent().remove(lang)
 
     # set dc:language to my language
     for lang in soup.xpath("//dc:language", namespaces=DCNS):
         if lang is not None and lang.text != MY_LANGUAGE:
-            print('Correcting book language to: ' + MY_LANGUAGE)
+            print('* Correcting book language to: ' + MY_LANGUAGE)
             lang.text = MY_LANGUAGE
 
     # add missing dc:language
     if len(soup.xpath("//dc:language", namespaces=DCNS)) == 0:
-        print('Setting missing book language to: ' + MY_LANGUAGE)
+        print('* Setting missing book language to: ' + MY_LANGUAGE)
         for metadata in soup.xpath("//opf:metadata", namespaces=OPFNS):
             newlang = etree.Element(
                 '{http://purl.org/dc/elements/1.1/}language'
@@ -700,7 +700,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             '//opf:item[@id="' + metacovers[0].get('content') + '"]',
             namespaces=OPFNS
         )(soup)
-        print('Defining cover guide element...')
+        print('* Defining cover guide element...')
         itemcoverhref = os.path.basename(itemcovers[0].get('href'))
         soup = set_cover_guide_ref(
             xhtml_files, itemcoverhref, xhtml_file_paths, soup
@@ -735,7 +735,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
                 )
                 soup = set_cover_meta_elem(metacovers, soup, imag_id)
             else:
-                print('No images found...')
+                print('* No images found...')
         if cover_image is not None:
             cover_image = re.sub('^\.\.\/', '', cover_image)
             itemhrefcovers = etree.XPath(
@@ -756,7 +756,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             )
             soup = set_cover_meta_elem(metacovers, soup, imag_id)
         else:
-            print('No images found...')
+            print('* No images found...')
 
     # remove calibre staff
     for meta in soup.xpath("//opf:meta[starts-with(@name, 'calibre')]",
@@ -853,7 +853,7 @@ def append_reset_css(source_file):
             namespaces=XHTMLNS
         )(source_file)
     except:
-        print('No head found...')
+        print('* No head found...')
     heads[0].append(etree.fromstring(
         '<style type="text/css">'
         '@page { margin: 5pt } '
@@ -868,7 +868,7 @@ def modify_problematic_styles(source_file):
                          namespaces=XHTMLNS)(source_file)
     for s in styles:
         if ('display: none' or 'display:none') in s.get('style'):
-            print('Replacing problematic style: none with visibility: hidden'
+            print('* Replacing problematic style: none with visibility: hidden'
                   '...')
             stylestr = s.get('style')
             stylestr = re.sub(r'display:(\s*)none', 'visibility: hidden',
@@ -885,7 +885,7 @@ def modify_problematic_styles(source_file):
             if sw == 'width':
                 w = True
         if (maxw and w):
-            print('Fixing problematic combo max-width and width: "' +
+            print('* Fixing problematic combo max-width and width: "' +
                   s.get('style') + '"')
             stylestr = s.get('style')
             stylestr = re.sub(r'[^-]width:(\s*)100%;*', '',
@@ -908,7 +908,7 @@ def remove_text_from_html_cover(opftree, rootepubdir):
         trash = html_cover_tree.xpath('//xhtml:h1[@class="invisible"]',
                                       namespaces=XHTMLNS)[0]
         trash.text = ''
-        print('Removing text from HTML cover...')
+        print('* Removing text from HTML cover...')
     except:
         return 0
     with open(html_cover_path, "w") as f:
@@ -922,7 +922,7 @@ def remove_text_from_html_cover(opftree, rootepubdir):
 
 
 def replace_svg_html_cover(opftree, rootepubdir):
-    print('Replacing svg cover procedure starting...')
+    print('* Replacing svg cover procedure starting...')
     html_cover_path = os.path.join(rootepubdir, opftree.xpath(
         '//opf:reference[@type="cover"]',
         namespaces=OPFNS
@@ -960,7 +960,7 @@ def convert_dl_to_ul(opftree, rootepubdir):
     with open(html_toc_path, 'r') as f:
         raw = f.read()
     if '<dl>' in raw:
-        print('Coverting HTML TOC from definition list to unsorted list...')
+        print('* Coverting HTML TOC from definition list to unsorted list...')
         raw = re.sub(r'<dd>(\s*)<dl>', '<li><ul>', raw)
         raw = re.sub(r'</dl>(\s*)</dd>', '</ul></li>', raw)
         raw = raw.replace('<dl>', '<ul>')
@@ -988,7 +988,7 @@ def remove_wm_info(opftree, rootepubdir):
                 alltext = alltext.replace(u'\u00AD', '').strip()
                 if alltext == 'Plik jest zabezpieczony znakiem wodnym':
                     remove_file_from_epub(i.get('href'), opftree, rootepubdir)
-                    print('Watermark info page removed: ' + i.get('href'))
+                    print('* Watermark info page removed: ' + i.get('href'))
     return opftree
 
 
@@ -1008,7 +1008,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins):
         with open(xhfile, 'r') as content_file:
             c = content_file.read()
     except IOError, e:
-        print('File skipped: %s. Problem with processing: '
+        print('* File skipped: %s. Problem with processing: '
               '%s' % (xhfile.split('/')[-1], e))
         qfixerr = True
         return 1
@@ -1031,12 +1031,12 @@ def process_xhtml_file(xhfile, opftree, _resetmargins):
                     parser=etree.XMLParser(recover=False)
                 )
             except:
-                print('File skipped: ' + xhfile.split('/')[-1] +
+                print('* File skipped: ' + xhfile.split('/')[-1] +
                       '. NOT well formed: "' + str(e) + '"')
                 qfixerr = True
                 return 1
         else:
-            print('File skipped: ' + xhfile.split('/')[-1] +
+            print('* File skipped: ' + xhfile.split('/')[-1] +
                   '. NOT well formed: "' + str(e) + '"')
             qfixerr = True
             return 1
@@ -1047,7 +1047,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins):
     if book_lang == 'pl':
         xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph)
     else:
-        print('File %s not hyphenated...' % xhfile.split('/')[-1])
+        print('* File %s not hyphenated...' % xhfile.split('/')[-1])
     xhtree = fix_styles(xhtree)
     if _resetmargins:
         res_css_info_printed = True
@@ -1112,7 +1112,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if _replacefonts:
         find_and_replace_fonts(opftree, opf_dir_abs)
     if _resetmargins:
-        print('Resetting CSS body margin and padding will be perfomed...')
+        print('* Resetting CSS body margin and padding will be perfomed...')
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins)
     opftree = remove_wm_info(opftree, opf_dir_abs)
@@ -1128,7 +1128,7 @@ def process_corrupted_zip(e, root, f, zipbinf):
         print('* Corrupted EPUB file. Unable to fix it...')
         print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
         return 1
-    print('EPUB file "%s" is corrupted! Trying to fix it...'
+    print('* EPUB file "%s" is corrupted! Trying to fix it...'
           % f.decode(SFENC), end=' ')
 #         try:
 #             zipbin = zipfile.ZipFile(os.path.join(zipbinf,
@@ -1178,7 +1178,7 @@ def process_corrupted_zip(e, root, f, zipbinf):
         return os.path.join(root, 'fixed_' + f)
     else:
         print('NOT FIXED')
-        print(str(e))
+        print('* ' + str(e))
         print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
         return 1
 
