@@ -208,15 +208,15 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                     i.get('href').lower().endswith('.otf') and
                     i.get('media-type') != 'application/vnd.ms-opentype'
             ):
-                print('%sIncorrect media-type "%s" for font "%s"' % (
-                    _file_dec, i.get('media-type'), i.get('href')
+                print('%sFont file "%s" has incorrect media-type "%s".' % (
+                    _file_dec, i.get('href'), i.get('media-type')
                 ))
             elif (
                     i.get('href').lower().endswith('.ttf') and
                     i.get('media-type') != 'application/x-font-truetype'
             ):
-                print('%sIncorrect media-type "%s" for font "%s"' % (
-                    _file_dec, i.get('media-type'), i.get('href')
+                print('%sFont file "%s" has incorrect media-type "%s".' % (
+                    _file_dec, i.get('href'), i.get('media-type')
                 ))
 
     if opf_root == '':
@@ -505,13 +505,21 @@ def qcheck(_documents, _moded, alter):
                             print(_file_dec + 'Font file: ' + singlefile +
                                   ' is corrupted!')
                             continue
-                        is_font, signature = check_font(
-                            os.path.join(temp_font_dir, singlefile)
-                        )
-                        if not is_font:
-                            print('%sFont probably encrypted. Incorrect'
-                                  ' signature %r in file: %s'
-                                  % (_file_dec, signature, singlefile))
+                        is_empty = False
+                        if os.path.getsize(
+                                os.path.join(temp_font_dir, singlefile)
+                        ) == 0:
+                            print('%sFont file "%s" is EMPTY!'
+                                  % (_file_dec, singlefile))
+                            is_empty = True
+                        if not is_empty:
+                            is_font, signature = check_font(
+                                os.path.join(temp_font_dir, singlefile)
+                            )
+                            if not is_font:
+                                print('%sFont file "%s" is probably encrypted.'
+                                      ' Incorrect signature %r.'
+                                      % (_file_dec, singlefile, signature))
                         if os.path.isdir(temp_font_dir):
                             shutil.rmtree(temp_font_dir)
                     else:
