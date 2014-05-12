@@ -225,6 +225,7 @@ def find_encryption_key(opftree, method):
 
 # based on calibri work
 def decrypt_font(path, key, method):
+    global qfixerr
     if method == ADOBE_OBFUSCATION:
         crypt_len = 1024
     elif method == IDPF_OBFUSCATION:
@@ -234,15 +235,18 @@ def decrypt_font(path, key, method):
     crypt = bytearray(raw[:crypt_len])
     key = cycle(iter(bytearray(key)))
     decrypt = bytes(bytearray(x ^ key.next() for x in crypt))
+    print('Starting decryption of font file...')
     with open(path, 'wb') as f:
         f.write(decrypt)
         f.write(raw[crypt_len:])
     is_font, signature = check_font(path)
     if not is_font:
-        print(os.path.basename(path) + ': Decrypting FAILED!')
+        print('FAILED decrypting of font file "%s"!' % os.path.basename(path))
     else:
-        print(os.path.basename(path) + ': OK! Decrypted...')
+        print('OK! Font file "%s" is decrypted.' % os.path.basename(path))
     if not is_font:
+        print('Starting replace procedure for encrypted file with '
+              'font from system directory...')
         if sys.platform == 'win32':
             font_paths = [os.path.abspath(os.path.join('C:', 'Windows',
                                                        'Fonts'))]
@@ -259,7 +263,11 @@ def decrypt_font(path, key, method):
                 )
         is_font, signature = check_font(path)
         if is_font:
-            print(os.path.basename(path) + ': OK! File replaced...')
+            print('OK! Font file "%s" is replaced.' % os.path.basename(path))
+        else:
+            qfixerr = True
+            print('FAILED replace procedure for file "%s"! '
+                  'Candidate does NOT found.' % os.path.basename(path))
 
 
 def find_and_replace_fonts(opftree, rootepubdir):
