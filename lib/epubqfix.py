@@ -300,7 +300,7 @@ def unpack_epub(source_epub):
     tempdir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
     epubzipfile.extractall(tempdir)
     os.remove(os.path.join(tempdir, 'mimetype'))
-    return epubzipfile, tempdir
+    return tempdir
 
 
 def pack_epub(output_filename, source_dir):
@@ -350,7 +350,7 @@ def find_roots(tempdir):
     return os.path.dirname(opf_path), opf_path
 
 
-def find_xhtml_files(epubzipfile, tempdir, rootepubdir, opf_file):
+def find_xhtml_files(tempdir, rootepubdir, opf_file):
     global qfixerr
     opftree = etree.parse(opf_file)
     opftree = unquote_urls(opftree)
@@ -1063,7 +1063,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins):
                 encoding="utf-8", doctype=DTD))
 
 
-def process_epub(_epubzipfile, _tempdir, _replacefonts, _resetmargins,
+def process_epub(_tempdir, _replacefonts, _resetmargins,
                  _findcover):
     global qfixerr
     qfixerr = False
@@ -1078,7 +1078,7 @@ def process_epub(_epubzipfile, _tempdir, _replacefonts, _resetmargins,
         pass
 
     opftree, _xhtml_files, _xhtml_file_paths = find_xhtml_files(
-        _epubzipfile, _tempdir, opf_dir_abs, opf_file_path_abs
+        _tempdir, opf_dir_abs, opf_file_path_abs
     )
     opftree = fix_various_opf_problems(opftree, opf_dir_abs, _xhtml_files,
                                        _xhtml_file_paths, _findcover)
@@ -1115,28 +1115,35 @@ def process_epub(_epubzipfile, _tempdir, _replacefonts, _resetmargins,
 
 
 def process_corrupted_zip(e, root, f, zipbinf):
+    if sys.platform == 'win32':
+        return 1 # zip.exe for Windows does not work properly :(    
     print('EPUB file "%s" is corrupted! Trying to fix it...'
           % f.decode(SFENC), end=' ')
-    if sys.platform == 'win32':
-        try:
-            zipbin = zipfile.ZipFile(os.path.join(zipbinf, 'zip-3.0-bin.zip'))
-        except:
-            print('NOT FIXED')
-            print('zip-3.0-bin.zip not found in directory: "' +
-                  zipbinf + '" Giving up...')
-            print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
-            return 1
-        zipbin_temp = tempfile.mkdtemp(
-            suffix='',
-            prefix='quiris-tmp-'
-        )
-        zipbin.extractall(zipbin_temp)
-        zipbinpath = os.path.join(
-            zipbin_temp,
-            'bin', 'zip.exe'
-        )
-    else:
-        zipbinpath = 'zip'
+#         try:
+#             zipbin = zipfile.ZipFile(os.path.join(zipbinf, 'zip-3.0-bin.zip'))
+#         except:
+#             print('NOT FIXED')
+#             print('zip-3.0-bin.zip not found in directory: "' +
+#                   zipbinf + '" Giving up...')
+#             print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+#             return 1
+#         try:
+#             zipdep = zipfile.ZipFile(os.path.join(zipbinf, 'zip-3.0-dep.zip'))
+#         except:
+#             print('NOT FIXED')
+#             print('zip-3.0-dep.zip not found in directory: "' +
+#                   zipbinf + '" Giving up...')
+#             print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+#             return 1
+#         zipbin_temp = tempfile.mkdtemp(
+#             suffix='',
+#             prefix='quiris-tmp-'
+#         )
+#         zipbin.extract('bin/zip32z64.dll', zipbin_temp)
+#         zipbin.extract('bin/zip.exe', zipbin_temp)
+#         zipdep.extract('bin/bzip2.dll', zipbin_temp)
+#         zipbinpath = os.path.join(zipbin_temp, 'bin', 'zip.exe')
+    zipbinpath = 'zip'
     if 'differ' in str(e):
         zipp = subprocess.Popen([
             zipbinpath, '-FF', '%s' % str(os.path.join(root, f)), '--out',
@@ -1180,15 +1187,15 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf):
                         continue
                 print('START qfix for: ' + f.decode(SFENC))
                 try:
-                    _epubzipfile, _tempdir = unpack_epub(os.path.join(root, f))
+                    _tempdir = unpack_epub(os.path.join(root, f))
                 except zipfile.BadZipfile, e:
                     fixed_pth = process_corrupted_zip(e, root, f, zbf)
                     if str(fixed_pth) == '1':
                         continue
                     else:
-                        _epubzipfile, _tempdir = unpack_epub(fixed_pth)
+                        _tempdir = unpack_epub(fixed_pth)
                         os.unlink(fixed_pth)
-                process_epub(_epubzipfile, _tempdir, _replacefonts,
+                process_epub(_tempdir, _replacefonts,
                              _resetmargins, _findcover)
                 pack_epub(os.path.join(root, newfile), _tempdir)
                 clean_temp(_tempdir)
