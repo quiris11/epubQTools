@@ -350,10 +350,8 @@ def find_roots(tempdir):
     return os.path.dirname(opf_path), opf_path
 
 
-def find_xhtml_files(tempdir, rootepubdir, opf_file):
+def find_xhtml_files(tempdir, rootepubdir, opftree):
     global qfixerr
-    opftree = etree.parse(opf_file)
-    opftree = unquote_urls(opftree)
     try:
         xhtml_items = etree.XPath(
             '//opf:item[@media-type="application/xhtml+xml"]',
@@ -367,7 +365,7 @@ def find_xhtml_files(tempdir, rootepubdir, opf_file):
     for xhtml_item in xhtml_items:
         xhtml_files.append(os.path.join(rootepubdir, xhtml_item.get('href')))
         xhtml_file_paths.append(xhtml_item.get('href'))
-    return opftree, xhtml_files, xhtml_file_paths
+    return xhtml_files, xhtml_file_paths
 
 
 def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph):
@@ -1076,10 +1074,13 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         os.remove(os.path.join(_tempdir, 'META-INF', 'calibre_bookmarks.txt'))
     except OSError:
         pass
+    parser = etree.XMLParser(remove_blank_text=True)
+    opftree = etree.parse(opf_file_path_abs, parser)
+    opftree = unquote_urls(opftree)
 
-    opftree, _xhtml_files, _xhtml_file_paths = find_xhtml_files(
-        _tempdir, opf_dir_abs, opf_file_path_abs
-    )
+    _xhtml_files, _xhtml_file_paths = find_xhtml_files(_tempdir, opf_dir_abs,
+                                                       opftree)
+
     opftree = fix_various_opf_problems(opftree, opf_dir_abs, _xhtml_files,
                                        _xhtml_file_paths, _findcover)
     opftree = fix_ncx_dtd_uid(opftree, opf_dir_abs)
