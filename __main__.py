@@ -38,7 +38,7 @@ parser.add_argument("directory", help="Directory with EPUB files stored")
 parser.add_argument("--tools", nargs='?',
                     default=q_cwd, metavar="DIR",
                     help="path to additional tools: kindlegen, "
-                    "epubcheck-3.0.1.zip, zip-3.0-bin.zip")
+                    "epubcheck-3.0.1.zip")
 parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
                     help='path to directory to write log file. If DIR is '
                     ' omitted write log to directory with epub files')
@@ -59,7 +59,8 @@ parser.add_argument("-m", "--mod", help="validate only _moh.epub files "
 parser.add_argument("-e", "--epub", help="fix and hyphenate original epub "
                     "files to _moh.epub files", action="store_true")
 parser.add_argument("-s", "--skiphyphenate",
-                    help="do not hyphenate book", action="store_true")
+                    help="do not hyphenate book  (only with -e)",
+                    action="store_true")
 parser.add_argument("-r", "--resetmargins", help="reset CSS margins for "
                     "body, html and @page in _moh.epub files (only with -e)",
                     action="store_true")

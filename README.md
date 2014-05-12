@@ -10,7 +10,7 @@ Tools for checking, correcting and hyphenating epub files.
 
 ```
 usage: python epubQTools.zip [-h] [--tools [DIR]] [-l [DIR]] [-a] [-n] [-q] 
-                             [-p] [-m] [-e] [-r] [-c] [-t] [-k] [-d] [-f]
+                             [-p] [-m] [-e] [-s] [-r] [-c] [-t] [-k] [-d] [-f]
                              directory
 
 positional arguments:
@@ -19,7 +19,7 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --tools [DIR]         path to additional tools: kindlegen,
-                        epubcheck-3.0.1.zip, zip-3.0-bin.zip
+                        epubcheck-3.0.1.zip
   -l [DIR], --log [DIR]
                         path to directory to write log file. If DIR is omitted
                         write log to directory with epub files
@@ -31,6 +31,7 @@ optional arguments:
                         -p)
   -e, --epub            fix and hyphenate original epub files to _moh.epub
                         files
+  -s, --skiphyphenate   do not hyphenate book (only with -e)
   -r, --resetmargins    reset CSS margins for body, html and @page in
                         _moh.epub files (only with -e)
   -c, --findcover       force find cover (risky) (only with -e)
