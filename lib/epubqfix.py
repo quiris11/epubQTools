@@ -124,7 +124,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         else:
             counter += 1
     if not is_renamed:
-        print('= Renaming file "%" is not needed.' % _file_dec)
+        print('= Renaming file "%s" is not needed.' % _file_dec)
 
 
 def check_font(path):
