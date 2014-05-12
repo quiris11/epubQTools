@@ -1124,7 +1124,7 @@ def process_corrupted_zip(e, root, f, zipbinf):
             print('NOT FIXED')
             print('zip-3.0-bin.zip not found in directory: "' +
                   zipbinf + '" Giving up...')
-            print('STOP (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+            print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
             return 1
         zipbin_temp = tempfile.mkdtemp(
             suffix='',
@@ -1159,7 +1159,7 @@ def process_corrupted_zip(e, root, f, zipbinf):
     else:
         print('NOT FIXED')
         print(str(e))
-        print('STOP (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+        print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
         return 1
 
 
@@ -1193,6 +1193,7 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf):
                 pack_epub(os.path.join(root, newfile), _tempdir)
                 clean_temp(_tempdir)
                 if qfixerr:
-                    print('STOP (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+                    print('FINISH (with PROBLEMS) qfix for: ' +
+                          f.decode(SFENC))
                 else:
-                    print('STOP qfix for: ' + f.decode(SFENC))
+                    print('FINISH qfix for: ' + f.decode(SFENC))
