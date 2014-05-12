@@ -1002,14 +1002,14 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
     os.remove(os.path.join(rootepubdir, file_rel_to_opf))
 
 
-def process_xhtml_file(xhfile, opftree, _resetmargins):
+def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph):
     global qfixerr
     try:
         with open(xhfile, 'r') as content_file:
             c = content_file.read()
     except IOError, e:
         print('* File skipped: %s. Problem with processing: '
-              '%s' % (xhfile.split('/')[-1], e))
+              '%s' % (os.path.basename(xhfile), e))
         qfixerr = True
         return 1
     c = re.sub(r'<span class="reset (black|black2|dark-gray|'
@@ -1031,12 +1031,12 @@ def process_xhtml_file(xhfile, opftree, _resetmargins):
                     parser=etree.XMLParser(recover=False)
                 )
             except:
-                print('* File skipped: ' + xhfile.split('/')[-1] +
+                print('* File skipped: ' + os.path.basename(xhfile) +
                       '. NOT well formed: "' + str(e) + '"')
                 qfixerr = True
                 return 1
         else:
-            print('* File skipped: ' + xhfile.split('/')[-1] +
+            print('* File skipped: ' + os.path.basename(xhfile) +
                   '. NOT well formed: "' + str(e) + '"')
             qfixerr = True
             return 1
@@ -1044,10 +1044,10 @@ def process_xhtml_file(xhfile, opftree, _resetmargins):
         book_lang = opftree.xpath("//dc:language", namespaces=DCNS)[0].text
     except IndexError:
         book_lang = ''
-    if book_lang == 'pl':
+    if not skip_hyph and book_lang == 'pl':
         xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph)
     else:
-        print('* File %s not hyphenated...' % xhfile.split('/')[-1])
+        print('* File "%s" is NOT hyphenated...' % os.path.basename(xhfile))
     xhtree = fix_styles(xhtree)
     if _resetmargins:
         res_css_info_printed = True
@@ -1070,7 +1070,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins):
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
-                 _findcover):
+                 _findcover, skip_hyph):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path = find_roots(_tempdir)
@@ -1114,7 +1114,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if _resetmargins:
         print('* Resetting CSS body margin and padding will be perfomed...')
     for s in _xhtml_files:
-        process_xhtml_file(s, opftree, _resetmargins)
+        process_xhtml_file(s, opftree, _resetmargins, skip_hyph)
     opftree = remove_wm_info(opftree, opf_dir_abs)
 
     # write all OPF changes back to file
@@ -1183,7 +1183,8 @@ def process_corrupted_zip(e, root, f, zipbinf):
         return 1
 
 
-def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf):
+def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf,
+         skip_hyph):
     global qfixerr
     qfixerr = False
     for root, dirs, files in os.walk(_documents):
@@ -1208,8 +1209,10 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf):
                     else:
                         _tempdir = unpack_epub(fixed_pth)
                         os.unlink(fixed_pth)
+                if skip_hyph:
+                    print('* Hyphenating is turned OFF...')
                 process_epub(_tempdir, _replacefonts,
-                             _resetmargins, _findcover)
+                             _resetmargins, _findcover, skip_hyph)
                 pack_epub(os.path.join(root, newfile), _tempdir)
                 clean_temp(_tempdir)
                 if qfixerr:

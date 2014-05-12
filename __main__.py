@@ -58,6 +58,8 @@ parser.add_argument("-m", "--mod", help="validate only _moh.epub files "
                     action="store_true")
 parser.add_argument("-e", "--epub", help="fix and hyphenate original epub "
                     "files to _moh.epub files", action="store_true")
+parser.add_argument("-s", "--skiphyphenate",
+                    help="do not hyphenate book", action="store_true")
 parser.add_argument("-r", "--resetmargins", help="reset CSS margins for "
                     "body, html and @page in _moh.epub files (only with -e)",
                     action="store_true")
@@ -178,7 +180,7 @@ def main():
         print('*** Fixing with internal qfix tool...  ***')
         print('******************************************')
         qfix(args.directory, args.force, args.replacefonts, args.resetmargins,
-             args.findcover, args.tools)
+             args.findcover, args.tools, args.skiphyphenate)
 
     if args.kindlegen:
         print('')
