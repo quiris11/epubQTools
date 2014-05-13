@@ -31,11 +31,12 @@ optional arguments:
                         -p)
   -e, --epub            fix and hyphenate original epub files to _moh.epub
                         files
-  -s, --skiphyphenate   do not hyphenate book (only with -e)
-  -r, --resetmargins    reset CSS margins for body, html and @page in
-                        _moh.epub files (only with -e)
-  -c, --findcover       force find cover (risky) (only with -e)
-  -t, --replacefonts    replace font (experimental) (only with -e)
+  -s, --skip-hyphenate  do not hyphenate book (only with -e)
+  -r, --reset-styles    set following styles to every xthml file: @page {
+                        margin: 5pt } body { margin: 5pt; padding: 0 } p
+                        {text-align: justify} (only with -e)
+  -c, --find-cover      force find cover (risky) (only with -e)
+  -t, --replace-fonts   replace font (experimental) (only with -e)
   -k, --kindlegen       convert _moh.epub files to .mobi with kindlegen
   -d, --huffdic         tell kindlegen to use huffdic compression (slow
                         conversion)
