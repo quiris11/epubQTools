@@ -1113,7 +1113,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if _replacefonts:
         find_and_replace_fonts(opftree, opf_dir_abs)
     if _resetmargins:
-        print('* Resetting CSS body margin and padding will be perfomed...')
+        print('* Setting custom CSS styles...')
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph)
     opftree = remove_wm_info(opftree, opf_dir_abs)
