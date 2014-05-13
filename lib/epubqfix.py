@@ -249,9 +249,8 @@ def decrypt_font(path, key, method):
         print('* Starting replace procedure for encrypted file "%s" with font'
               ' from system directory...' % os.path.basename(path), end=' ')
         if sys.platform == 'win32':
-            font_paths = [os.path.abspath(os.path.join(
-            os.environ['WINDIR'], 'Windows', 'Fonts'
-        ))]
+            font_paths = [os.path.abspath(os.path.join(os.environ['WINDIR'],
+                                                       'Fonts'))]
         else:
             font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
                           os.path.join(HOME, 'Library', 'Fonts')]
