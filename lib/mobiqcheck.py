@@ -20,12 +20,15 @@ def find_headers(content, mobi_file):
     count_items, = struct.unpack('>L', exth_header[8:12])
     pos = 12
     found_129 = book_autor_found = book_title_found = False
+    publisher = book_author = book_title = None
     for _ in range(count_items):
         id, size = struct.unpack('>LL', exth_header[pos:pos+8])
         exth_record = exth_header[pos + 8: pos + size]
         if id == 100:
             book_autor_found = True
             book_author = exth_record.decode('utf-8')
+        if id == 101:
+            publisher = exth_record.decode('utf-8')
         if id == 503:
             book_title_found = True
             book_title = exth_record.decode('utf-8')
@@ -42,12 +45,17 @@ def find_headers(content, mobi_file):
         if (id == 129 and exth_record == ''):
             print('Old AZW (Mobi6) format: ' + mobi_file)
         pos += size
+    if publisher is None:
+        publisher = '*UNKNOWN*'
+    if book_title is None:
+        book_title = '*UNKNOWN*'
     if not found_129:
         print('Old AZW (Mobi6) format: ' + mobi_file)
-    if book_autor_found and book_title_found:
-        pass  # print(mobi_file + ': ' + book_author + ' - ' + book_title)
+    if book_autor_found and not book_title_found:
+        print(mobi_file + ': ' + book_author + ' - ' + book_title +
+              ' (wyd. ' + publisher + ')')
     else:
-        print('Book title or author not properly defined.' + mobi_file)
+        print('Book title or author not properly defined:' + mobi_file)
 
 
 def mobi_check(_documents, _rename):
