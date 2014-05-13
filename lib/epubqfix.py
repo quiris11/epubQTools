@@ -858,6 +858,7 @@ def append_reset_css(source_file):
         '<style type="text/css">'
         '@page { margin: 5pt } '
         'body { margin: 5pt; padding: 0 }'
+        'p {text-align: justify}'
         '</style>'
     ))
     return source_file

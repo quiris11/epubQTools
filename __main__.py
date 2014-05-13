@@ -58,17 +58,20 @@ parser.add_argument("-m", "--mod", help="validate only _moh.epub files "
                     action="store_true")
 parser.add_argument("-e", "--epub", help="fix and hyphenate original epub "
                     "files to _moh.epub files", action="store_true")
-parser.add_argument("-s", "--skiphyphenate",
+parser.add_argument("-s", "--skip-hyphenate",
                     help="do not hyphenate book  (only with -e)",
                     action="store_true")
-parser.add_argument("-r", "--resetmargins", help="reset CSS margins for "
-                    "body, html and @page in _moh.epub files (only with -e)",
+parser.add_argument("-r", "--reset-styles",
+                    help='set following styles to every xthml file: '
+                    '@page { margin: 5pt } '
+                    'body { margin: 5pt; padding: 0 } '
+                    'p {text-align: justify} (only with -e)',
                     action="store_true")
-parser.add_argument("-c", "--findcover", help="force find cover (risky) "
+parser.add_argument("-c", "--find-cover", help="force find cover (risky) "
                     "(only with -e)",
                     action="store_true")
-parser.add_argument("-t", "--replacefonts", help="replace font (experimental) "
-                    "(only with -e)",
+parser.add_argument("-t", "--replace-fonts",
+                    help="replace font (experimental) (only with -e)",
                     action="store_true")
 parser.add_argument("-k", "--kindlegen", help="convert _moh.epub files to"
                     " .mobi with kindlegen", action="store_true")
@@ -180,8 +183,8 @@ def main():
         print('******************************************')
         print('*** Fixing with internal qfix tool...  ***')
         print('******************************************')
-        qfix(args.directory, args.force, args.replacefonts, args.resetmargins,
-             args.findcover, args.tools, args.skiphyphenate)
+        qfix(args.directory, args.force, args.replace_fonts, args.reset_styles,
+             args.find_cover, args.tools, args.skip_hyphenate)
 
     if args.kindlegen:
         print('')
