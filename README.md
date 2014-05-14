@@ -39,7 +39,7 @@ optional arguments:
   -t, --replace-fonts   replace font (experimental) (only with -e)
   -k, --kindlegen       convert _moh.epub files to .mobi with kindlegen
   -d, --huffdic         tell kindlegen to use huffdic compression (slow
-                        conversion)
+                        conversion) (only with -k)
   -f, --force           overwrite previously generated _moh.epub or .mobi
                         files (only with -k or -e)
 ```

@@ -76,7 +76,8 @@ parser.add_argument("-t", "--replace-fonts",
 parser.add_argument("-k", "--kindlegen", help="convert _moh.epub files to"
                     " .mobi with kindlegen", action="store_true")
 parser.add_argument("-d", "--huffdic", help="tell kindlegen to use huffdic "
-                    "compression (slow conversion)", action="store_true")
+                    "compression (slow conversion) (only with -k)",
+                    action="store_true")
 parser.add_argument("-f", "--force",
                     help="overwrite previously generated _moh.epub or "
                     " .mobi files (only with -k or -e)",
