@@ -5,57 +5,62 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
+from __future__ import print_function
 import os
 import sys
 import struct
 
 
-def find_headers(content, mobi_file):
-    if content[60:68] != 'BOOKMOBI':
-        print(mobi_file + ': invalid file format. Skipping...')
-        return 0
+class PalmDB:
+    unique_id_seed = 68
+    number_of_pdb_records = 76
+    first_pdb_record = 78
+
+    def __init__(self, palmdata):
+        self.data = palmdata
+        self.nsec, = struct.unpack_from('>H', self.data,
+                                        PalmDB.number_of_pdb_records)
+
+    def getsecaddr(self, secno):
+        secstart, = struct.unpack_from('>L', self.data,
+                                       PalmDB.first_pdb_record+secno*8)
+        if secno == self.nsec-1:
+            secend = len(self.data)
+        else:
+            secend, = struct.unpack_from('>L', self.data,
+                                         PalmDB.first_pdb_record+(secno+1)*8)
+        return secstart, secend
+
+    def readsection(self, secno):
+        if secno < self.nsec:
+            secstart, secend = self.getsecaddr(secno)
+            return self.data[secstart:secend]
+        return ''
+
+    def getnumsections(self):
+        return self.nsec
+
+
+def find_exth(search_id, content):
     exth_begin = content.find('EXTH')
-    exth_begin2 = content.find('EXTH', content.find('EXTH')+4)
     exth_header = content[exth_begin:]
     count_items, = struct.unpack('>L', exth_header[8:12])
     pos = 12
-    found_129 = book_autor_found = book_title_found = False
-    publisher = book_author = book_title = None
     for _ in range(count_items):
         id, size = struct.unpack('>LL', exth_header[pos:pos+8])
         exth_record = exth_header[pos + 8: pos + size]
-        if id == 100:
-            book_autor_found = True
-            book_author = exth_record.decode('utf-8')
-        if id == 101:
-            publisher = exth_record.decode('utf-8')
-        if id == 503:
-            book_title_found = True
-            book_title = exth_record.decode('utf-8')
-        if id == 524 and exth_record != 'pl':
-            print('Unexpected book language \'' +
-                  exth_record.decode('utf-8') + '\': ' + mobi_file)
-        if (id == 129 and exth_record != '' and
-                os.path.splitext(mobi_file)[1].lower() == '.azw'):
-            print('Incorrect file extension. Should be: azw3: ' + mobi_file)
-        if id == 501:
-            print(mobi_file + ': ' + exth_record.decode('utf-8'))
-        if id == 129:
-            found_129 = True
-        if (id == 129 and exth_record == ''):
-            print('Old AZW (Mobi6) format: ' + mobi_file)
+        if id == search_id:
+            return exth_record
         pos += size
-    if publisher is None:
-        publisher = '*UNKNOWN*'
-    if book_title is None:
-        book_title = '*UNKNOWN*'
-    if not found_129:
-        print('Old AZW (Mobi6) format: ' + mobi_file)
-    if book_autor_found and not book_title_found:
-        print(mobi_file + ': ' + book_author + ' - ' + book_title +
-              ' (wyd. ' + publisher + ')')
-    else:
-        print('Book title or author not properly defined:' + mobi_file)
+    return '* NONE *'
+
+
+def mobi_header_fields(mobi_content):
+    pp = PalmDB(mobi_content)
+    header = pp.readsection(0)
+    id = struct.unpack_from('4s', header, 0x10)[0]
+    version = struct.unpack_from('>L', header, 0x24)[0]
+    return id, version
 
 
 def mobi_check(_documents, _rename):
@@ -67,13 +72,23 @@ def mobi_check(_documents, _rename):
                 continue
             with open(os.path.join(root, file), 'rb') as f:
                 mobi_content = f.read()
-                find_headers(mobi_content, file_dec)
-
+            if mobi_content[60:68] != 'BOOKMOBI':
+                print(file_dec + ': invalid file format. Skipping...')
+                continue
+            id, ver = mobi_header_fields(mobi_content)
+            if ver == args.version:
+                print(
+                    id, ver, file_dec,
+                    find_exth(100, mobi_content).decode('utf8'),
+                    find_exth(503, mobi_content).decode('utf8'),
+                    find_exth(101, mobi_content).decode('utf8'),    
+                    sep='\t')
             # experimental feature
             if args.ebok:
                 mobi_content = mobi_content.replace('PDOC', 'EBOK')
                 with open(os.path.join(root, 'mod_' + file), 'wb') as f:
                     f.write(mobi_content)
+
 
 if __name__ == "__main__":
 
@@ -82,6 +97,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("directory",
                         help="Directory with EPUB files stored")
+    parser.add_argument("--version", nargs='?',
+                        default=None, type=int, metavar="VER",
+                        help="find books with Mobi header version (6 or 8)")
     parser.add_argument("-n", "--rename",
                         help="rename .epub files to 'author - title.epub'",
                         action="store_true")
