@@ -9,6 +9,20 @@ from __future__ import print_function
 import os
 import sys
 import struct
+import codecs
+from datetime import datetime
+
+
+class Logger(object):
+    def __init__(self, filename='eQT-default.log'):
+        self.terminal = sys.stdout
+        self.log = codecs.open(filename, 'w', 'utf-8')
+
+    def write(self, message):
+        self.terminal.write(message)
+        if sys.platform == 'win32':
+            message = message.replace('\n', '\r\n')
+        self.log.write(message)
 
 
 class PalmDB:
@@ -63,7 +77,7 @@ def mobi_header_fields(mobi_content):
     return id, version
 
 
-def mobi_check(_documents, _rename):
+def mobi_check(_documents):
     for root, dirs, files in os.walk(_documents):
         for file in files:
             file_extension = os.path.splitext(file)[1].lower()
@@ -81,7 +95,7 @@ def mobi_check(_documents, _rename):
                     id, ver, file_dec,
                     find_exth(100, mobi_content).decode('utf8'),
                     find_exth(503, mobi_content).decode('utf8'),
-                    find_exth(101, mobi_content).decode('utf8'),    
+                    find_exth(101, mobi_content).decode('utf8'),
                     sep='\t')
             # experimental feature
             if args.ebok:
@@ -106,6 +120,16 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--ebok",
                         help="replace PDOC to EBOK",
                         action="store_true")
+    parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
+                        help='path to directory to write log file. If DIR is '
+                        ' omitted write log to directory with epub files')
     args = parser.parse_args()
 
-    mobi_check(args.directory, args.rename)
+    if args.log == '1':
+        st = datetime.now().strftime('%Y%m%d%H%M%S')
+        sys.stdout = Logger(os.path.join(args.directory, 'eQM-' + st + '.log'))
+    elif args.log != '1' and args.log is not None:
+        st = datetime.now().strftime('%Y%m%d%H%M%S')
+        sys.stdout = Logger(os.path.join(args.log, 'eQM-' + st + '.log'))
+
+    mobi_check(args.directory)
