@@ -464,9 +464,9 @@ def check_urls(singf, epub, _file_dec):
 def check_url(url, singf, epub, _file_dec):
     if not isinstance(url, unicode):
         url = url.decode('utf-8')
-    relp = os.path.relpath(os.path.join("/".join(
-        singf.split("/")[:-1]), url
-    ))
+    relp = os.path.relpath(
+        os.path.join("/".join(singf.split("/")[:-1]), url)
+    )
     relp = relp.replace('\\', '/')
     found_proper_url = False
     for n in epub.namelist():
@@ -502,6 +502,9 @@ def qcheck(_documents, _moded, alter):
                 opf_root, opf_path = find_opf(epubfile)
                 qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec)
                 for singlefile in epubfile.namelist():
+                    if '../' in singlefile:
+                        print(_file_dec + 'CRITICAL! Problematic path found'
+                              ' in ePUB archive: ' + singlefile.decode(SFENC))
                     if 'META-INF/encryption.xml' in singlefile:
                         encryption_file_found = True
                         print(_file_dec + 'Encryption.xml file found. '
