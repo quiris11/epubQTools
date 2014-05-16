@@ -309,6 +309,13 @@ def unpack_epub(source_epub):
     tempdir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
     epubzipfile.extractall(tempdir)
     os.remove(os.path.join(tempdir, 'mimetype'))
+#     for f in epubzipfile.namelist():
+#         if '../' in f:
+#             orgf = os.path.join(tempdir, f.replace('../', ''))
+#             newf = os.path.join(tempdir, os.path.relpath(f))
+#             print('#1', orgf)
+#             print('#2', newf)
+#             shutil.move(orgf, newf)
     return tempdir
 
 

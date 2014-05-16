@@ -472,7 +472,7 @@ def check_url(url, singf, epub, _file_dec):
     for n in epub.namelist():
         if not isinstance(n, unicode):
             n = n.decode('utf-8')
-        if n == relp:
+        if os.path.relpath(n) == relp:
             found_proper_url = True
     if not found_proper_url:
         print('%sLinked resource "%s" in "%s" does NOT exist'
