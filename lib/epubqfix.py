@@ -41,6 +41,7 @@ else:
         'dictionaries', 'hyph_pl_PL.dic'
     ))
 MY_LANGUAGE = 'pl'
+MY_LANGUAGE2 = 'pl-PL'
 HYPHEN_MARK = u'\u00AD'
 
 HOME = expanduser("~")
@@ -386,6 +387,9 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph):
         print('* No texts found...')
     for t in texts:
         parent = t.getparent()
+        lang = parent.get('{http://www.w3.org/XML/1998/namespace}lang')
+        if lang is not None and lang != MY_LANGUAGE and lang != MY_LANGUAGE2:
+            continue
         newt = ''
         wlist = re.compile(r'\w+|[^\w]', re.UNICODE).findall(t)
         for w in wlist:
