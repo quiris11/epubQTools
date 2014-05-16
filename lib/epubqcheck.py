@@ -195,11 +195,13 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             elif not is_exluded(n):
                 found = False
                 for i in opftree.xpath('//*[@href]'):
-                    if n == (root + i.get('href')):
+                    if os.path.relpath(os.path.join(n)) == os.path.relpath(
+                        os.path.join(root, i.get('href'))
+                    ):
                         found = True
                 if not found:
                     print('%sORPHAN file "%s" does NOT defined in OPF file'
-                          % (_file_dec, root + n))
+                          % (_file_dec, os.path.relpath(os.path.join(n))))
 
     def check_font_mime_types(tree):
         items = tree.xpath('//opf:item[@href]', namespaces=OPFNS)
