@@ -912,8 +912,12 @@ def remove_text_from_html_cover(opftree, rootepubdir):
         )[0].get('href'))
     except:
         return 0
-    html_cover_tree = etree.parse(html_cover_path,
-                                  parser=etree.XMLParser(recover=True))
+    try:
+        html_cover_tree = etree.parse(html_cover_path,
+                                      parser=etree.XMLParser(recover=True))
+    except:
+        print('* Unable to parse HTML cover file. Giving up...')
+        return 0
     try:
         trash = html_cover_tree.xpath('//xhtml:h1[@class="invisible"]',
                                       namespaces=XHTMLNS)[0]
