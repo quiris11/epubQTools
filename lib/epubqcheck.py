@@ -75,8 +75,11 @@ def check_display_none(singlefile, epub, _file_dec):
 
 def check_dl_in_html_toc(tree, dir, epub, _file_dec):
     try:
-        html_toc_path = dir + tree.xpath('//opf:reference[@type="toc"]',
-                                         namespaces=OPFNS)[0].get('href')
+        html_toc_path = os.path.relpath(os.path.join(
+            dir,
+            tree.xpath('//opf:reference[@type="toc"]',
+                       namespaces=OPFNS)[0].get('href')
+        )).replace('\\', '/')
         raw = epub.read(html_toc_path)
         if '<dl>' in raw:
             print(_file_dec + 'Problematic DL tag in HTML TOC found...')
@@ -104,10 +107,13 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
     parser = etree.XMLParser(recover=True)
     try:
         html_cover_tree = etree.fromstring(
-            epub.read(dir + html_cover_path), parser
+            epub.read(os.path.relpath(os.path.join(
+                dir, html_cover_path
+            )).replace('\\', '/')),
+            parser
         )
     except KeyError, e:
-        print(_file_dec + str(e))
+        print(_file_dec + 'Problem with parsing HTML cover: ' + str(e))
         html_cover_tree = None
         pass
     try:
@@ -195,7 +201,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             elif not is_exluded(n):
                 found = False
                 for i in opftree.xpath('//*[@href]'):
-                    if os.path.relpath(os.path.join(n)) == os.path.relpath(
+                    if os.path.relpath(n) == os.path.relpath(
                         os.path.join(root, i.get('href'))
                     ):
                         found = True
@@ -302,7 +308,9 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
         _htmlfilepath = _htmlfiletag.get('href')
         parser = etree.XMLParser(recover=False)
         try:
-            html_str = _epubfile.read(_folder + _htmlfilepath)
+            html_str = _epubfile.read(os.path.relpath(os.path.join(
+                _folder, _htmlfilepath
+            )).replace('\\', '/'))
             for key in entities.iterkeys():
                 html_str = html_str.replace(key, entities[key])
             _xhtmlsoup = etree.fromstring(html_str, parser)
@@ -363,7 +371,9 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
     #Check dtb:uid - should be identical go dc:identifier
     ncxfile = etree.XPath('//opf:item[@media-type="application/x-dtbncx+xml"]',
                           namespaces=OPFNS)(opftree)[0].get('href')
-    ncxtree = etree.fromstring(_epubfile.read(_folder + ncxfile))
+    ncxtree = etree.fromstring(_epubfile.read(os.path.relpath(
+        os.path.join(_folder, ncxfile)
+    ).replace('\\', '/')))
     uniqid = etree.XPath('//opf:package',
                          namespaces=OPFNS)(opftree)[0].get('unique-identifier')
     if uniqid is not None:
