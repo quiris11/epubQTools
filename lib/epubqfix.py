@@ -502,8 +502,13 @@ def fix_mismatched_covers(opftree, tempdir):
         print('* HTML cover reference not found. Giving up...')
         qfixerr = True
         return opftree
-    xhtmltree = etree.parse(cover_xhtml_file,
-                            parser=etree.XMLParser(recover=True))
+    try:
+        xhtmltree = etree.parse(cover_xhtml_file,
+                                parser=etree.XMLParser(recover=True))
+    except:
+        print('* Unable to parse HTML cover file. Giving up...')
+        qfixerr = True
+        return opftree
     if not etree.tostring(xhtmltree):
         print('* HTML cover file is empty...')
         qfixerr = True
