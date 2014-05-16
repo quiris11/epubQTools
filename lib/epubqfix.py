@@ -673,7 +673,7 @@ def correct_mime_types(_soup):
                   'for font "%s"' % _item.get('href'))
             _item.set('media-type', 'application/x-font-truetype')
         elif _item.get('media-type').lower() == 'text/html':
-            _item.set('media-type', 'application/xhtml+xml')           
+            _item.set('media-type', 'application/xhtml+xml')
     return _soup
 
 
@@ -1138,6 +1138,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph)
     opftree = remove_wm_info(opftree, opf_dir_abs)
+    opftree = html_cover_first(opftree)
 
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'w') as f:
@@ -1203,6 +1204,20 @@ def process_corrupted_zip(e, root, f, zipbinf):
         print('* ' + str(e))
         print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
         return 1
+
+
+def html_cover_first(opftree):
+    refcvs = opftree.xpath('//opf:reference[@type="cover"]', namespaces=OPFNS)
+    if len(refcvs) != 1:
+        return opftree
+    id = opftree.xpath('//opf:item[@href="' + refcvs[0].get('href') + '"]',
+                       namespaces=OPFNS)[0].get('id')
+    coverir = opftree.xpath('//opf:itemref[@idref="' + id + '"]',
+                            namespaces=OPFNS)[0]
+    spine = coverir.getparent()
+    spine.remove(coverir)
+    spine.insert(0, coverir)
+    return opftree
 
 
 def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf,
