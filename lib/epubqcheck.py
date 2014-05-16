@@ -226,6 +226,10 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                 print('%sFont file "%s" has incorrect media-type "%s".' % (
                     _file_dec, i.get('href'), i.get('media-type')
                 ))
+            elif i.get('media-type') == 'text/html':
+                print('%sA file "%s" has incorrect media-type "%s".' % (
+                    _file_dec, i.get('href'), i.get('media-type')
+                ))
 
     if opf_root == '':
         _folder = ''

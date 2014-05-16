@@ -309,13 +309,11 @@ def unpack_epub(source_epub):
     tempdir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
     epubzipfile.extractall(tempdir)
     os.remove(os.path.join(tempdir, 'mimetype'))
-#     for f in epubzipfile.namelist():
-#         if '../' in f:
-#             orgf = os.path.join(tempdir, f.replace('../', ''))
-#             newf = os.path.join(tempdir, os.path.relpath(f))
-#             print('#1', orgf)
-#             print('#2', newf)
-#             shutil.move(orgf, newf)
+    for f in epubzipfile.namelist():
+        if '../' in f:
+            orgf = os.path.join(tempdir, f.replace('../', ''))
+            newf = os.path.join(tempdir, os.path.relpath(f))
+            shutil.move(orgf, newf)
     return tempdir
 
 
@@ -370,7 +368,8 @@ def find_xhtml_files(tempdir, rootepubdir, opftree):
     global qfixerr
     try:
         xhtml_items = etree.XPath(
-            '//opf:item[@media-type="application/xhtml+xml"]',
+            '//opf:item[@media-type="application/xhtml+xml" or '
+            '@media-type="text/html"]',
             namespaces=OPFNS
         )(opftree)
     except:
@@ -662,7 +661,7 @@ def force_cover_find(_soup):
         return None, None
 
 
-def set_correct_font_mime_types(_soup):
+def correct_mime_types(_soup):
     _items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(_soup)
     for _item in _items:
         if _item.get('href').lower().endswith('.otf'):
@@ -673,13 +672,15 @@ def set_correct_font_mime_types(_soup):
             print('* Setting correct mime type "application/x-font-truetype" '
                   'for font "%s"' % _item.get('href'))
             _item.set('media-type', 'application/x-font-truetype')
+        elif _item.get('media-type').lower() == 'text/html':
+            _item.set('media-type', 'application/xhtml+xml')           
     return _soup
 
 
 def fix_various_opf_problems(soup, tempdir, xhtml_files,
                              xhtml_file_paths, _findcover):
 
-    soup = set_correct_font_mime_types(soup)
+    soup = correct_mime_types(soup)
 
     # remove multiple dc:language
     lang_counter = 0
