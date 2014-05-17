@@ -272,7 +272,6 @@ def decrypt_font(path, key, method):
 
 
 def find_and_replace_fonts(opftree, rootepubdir):
-    print('* Replacing fonts procedure started...')
     items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree)
     for item in items:
         if item.get('href').lower().endswith('.otf'):
@@ -286,6 +285,7 @@ def find_and_replace_fonts(opftree, rootepubdir):
 
 
 def replace_font(actual_font_path):
+    global qfixerr
     if sys.platform == 'win32':
         font_paths = [os.path.abspath(os.path.join(os.environ['WINDIR'],
                                                    'Fonts'))]
@@ -296,12 +296,16 @@ def replace_font(actual_font_path):
         if os.path.exists(
                 os.path.join(font_path, os.path.basename(actual_font_path))
         ):
-            print('* Replacing font: ' + os.path.basename(actual_font_path))
             os.remove(actual_font_path)
             shutil.copyfile(
                 os.path.join(font_path, os.path.basename(actual_font_path)),
                 actual_font_path
             )
+            print('* Font replaced: ' + os.path.basename(actual_font_path))
+        else:
+            qfixerr = True
+            print('* Font "%s" not replaced. Candidate does NOT found.'
+                  % os.path.basename(actual_font_path))
 
 
 def unpack_epub(source_epub):
@@ -837,6 +841,14 @@ def fix_ncx_dtd_uid(opftree, tempdir):
                     )
                     uniqid = 'BookId'
                     break
+            # find other dc:identifier if UUID not found
+            for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
+                dcid.set('id', 'BookId')
+                opftree.xpath('//opf:package', namespaces=OPFNS)[0].set(
+                    'unique-identifier', 'BookId'
+                )
+                uniqid = 'BookId'
+                break
     try:
         dc_identifier = opftree.xpath(
             '//dc:identifier[@id="' + str(uniqid) + '"]/text()',
@@ -1210,12 +1222,17 @@ def html_cover_first(opftree):
     refcvs = opftree.xpath('//opf:reference[@type="cover"]', namespaces=OPFNS)
     if len(refcvs) != 1:
         return opftree
-    id = opftree.xpath('//opf:item[@href="' + refcvs[0].get('href') + '"]',
-                       namespaces=OPFNS)[0].get('id')
-    coverir = opftree.xpath('//opf:itemref[@idref="' + id + '"]',
-                            namespaces=OPFNS)[0]
-    spine = coverir.getparent()
-    spine.remove(coverir)
+    try:
+        if not refcvs[0].get('href').endswhith('html'):
+            return opftree
+        id = opftree.xpath('//opf:item[@href="' + refcvs[0].get('href') + '"]',
+                           namespaces=OPFNS)[0].get('id')
+        coverir = opftree.xpath('//opf:itemref[@idref="' + id + '"]',
+                                namespaces=OPFNS)[0]
+        spine = coverir.getparent()
+        spine.remove(coverir)
+    except:
+        return opftree
     spine.insert(0, coverir)
     return opftree
 
