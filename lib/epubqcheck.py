@@ -490,6 +490,7 @@ def qcheck(_documents, _moded, alter):
     else:
         fe = '.epub'
         nfe = '_moh.epub'
+    counter = 0
     for root, dirs, files in os.walk(_documents):
         for _file in files:
             file_dec = _file.decode(SFENC)
@@ -498,6 +499,7 @@ def qcheck(_documents, _moded, alter):
             else:
                 _file_dec = '* '
             if _file.endswith(fe) and not _file.endswith(nfe):
+                counter += 1
                 if not alter:
                     print('')
                     print('START qcheck for: ' + file_dec)
@@ -547,3 +549,6 @@ def qcheck(_documents, _moded, alter):
                         check_display_none(singlefile, epubfile, _file_dec)
                 if not alter:
                     print('FINISH qcheck for: ' + file_dec)
+    if counter == 0:
+        print('')
+        print('* NO epub files for checking found!')

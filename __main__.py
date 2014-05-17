@@ -112,13 +112,17 @@ def main():
         print('*** Renaming EPUBs to "author - title" ***')
         print('******************************************')
         print('')
+        counter = 0
         for root, dirs, files in os.walk(args.directory):
             for f in files:
                 fdec = f.decode(SFENC)
                 if f.endswith('.epub') and not f.endswith('_moh.epub'):
+                    counter += 1
                     epbzf = zipfile.ZipFile(os.path.join(root, f))
                     opf_root, opf_path = find_opf(epbzf)
                     rename_files(opf_path, root, epbzf, f, fdec)
+        if counter == 0:
+            print('* NO epub files for renaming found!')
 
     if args.qcheck:
         print('')
@@ -153,9 +157,11 @@ def main():
         else:
             fe = '.epub'
             nfe = '_moh.epub'
+        counter = 0
         for root, dirs, files in os.walk(args.directory):
             for f in files:
                 if f.endswith(fe) and not f.endswith(nfe):
+                    counter += 1
                     epubchecker_path = os.path.join(
                         echp_temp,
                         'epubcheck-3.0.1', 'epubcheck-3.0.1.jar'
@@ -178,6 +184,9 @@ def main():
             if 'quiris-tmp-' in p:
                 if os.path.isdir(os.path.join(echp_temp, os.pardir, p)):
                     shutil.rmtree(os.path.join(echp_temp, os.pardir, p))
+        if counter == 0:
+            print('')
+            print('* NO epub files for checking found!')
 
     if args.epub:
         print('')
@@ -193,10 +202,12 @@ def main():
         print('*** Converting with kindlegen tool...  ***')
         print('******************************************')
         compression = '-c2' if args.huffdic else '-c1'
+        counter = 0
         for root, dirs, files in os.walk(args.directory):
             for _file in files:
                 cover_html_found = error_found = False
                 if _file.endswith('_moh.epub'):
+                    counter += 1
                     newmobifile = os.path.splitext(_file)[0] + '.mobi'
                     if not args.force:
                         if os.path.isfile(os.path.join(root, newmobifile)):
@@ -237,7 +248,9 @@ def main():
                             'generated in file: ' +
                             newmobifile.decode(sys.getfilesystemencoding())
                         )
-
+        if counter == 0:
+            print('')
+            print('* NO *_moh.epub files for converting found!')
     if len(sys.argv) == 2:
         parser.print_help()
         print("* * *")

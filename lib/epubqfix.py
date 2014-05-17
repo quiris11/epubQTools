@@ -1245,11 +1245,13 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf,
          skip_hyph):
     global qfixerr
     qfixerr = False
+    counter = 0
     for root, dirs, files in os.walk(_documents):
         for f in files:
             if (f.endswith('.epub') and
                     not f.endswith('_moh.epub') and
                     not f.endswith('_org.epub')):
+                counter += 1
                 print('')
                 newfile = os.path.splitext(f)[0] + '_moh.epub'
                 if not _forced:
@@ -1278,3 +1280,6 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf,
                           f.decode(SFENC))
                 else:
                     print('FINISH qfix for: ' + f.decode(SFENC))
+    if counter == 0:
+        print('')
+        print('* NO epub files for fixing found!')
