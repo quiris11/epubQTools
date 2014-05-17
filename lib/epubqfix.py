@@ -1111,7 +1111,11 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opf_dir_abs = os.path.join(_tempdir, opf_dir)
     opf_file_path_abs = os.path.join(_tempdir, opf_file_path)
 
-    # remove obsolete calibre_bookmarks.txt
+    # remove obsolete files
+    for roott, dirst, filest in os.walk(_tempdir):
+        for f in filest:
+            if '.DS_Store' in f:
+                os.remove(os.path.join(roott, f))
     try:
         os.remove(os.path.join(_tempdir, 'META-INF', 'calibre_bookmarks.txt'))
     except OSError:
