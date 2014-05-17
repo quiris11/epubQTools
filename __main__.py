@@ -212,12 +212,12 @@ def main():
                     if not args.force:
                         if os.path.isfile(os.path.join(root, newmobifile)):
                             print(
-                                'Skipping previously generated _moh file: ' +
+                                '* Skipping previously generated _moh file: ' +
                                 newmobifile.decode(sys.getfilesystemencoding())
                             )
                             continue
                     print('')
-                    print('Kindlegen: Converting file: ' +
+                    print('* Kindlegen: Converting file: ' +
                           _file.decode(sys.getfilesystemencoding()))
                     if sys.platform == 'win32':
                         kgapp = 'kindlegen.exe'
@@ -231,10 +231,10 @@ def main():
                             os.path.join(root, _file)
                         ], stdout=subprocess.PIPE).communicate()[0]
                     except:
-                        sys.exit('kindlegen not found in directory: "' +
+                        sys.exit('ERROR! Kindlegen not found in directory: "' +
                                  args.tools + '" Giving up...')
                     for ln in proc.splitlines():
-                        if 'Warning' in ln:
+                        if 'Warning' in ln and not 'W14029' in ln:
                             print(ln)
                         if 'Error' in ln:
                             print(ln)
@@ -244,7 +244,7 @@ def main():
                     if not cover_html_found and not error_found:
                         print('')
                         print(
-                            'WARNING: Probably duplicated covers '
+                            '* WARNING: Probably duplicated covers '
                             'generated in file: ' +
                             newmobifile.decode(sys.getfilesystemencoding())
                         )
