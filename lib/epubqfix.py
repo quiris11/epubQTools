@@ -1257,13 +1257,13 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf,
                     not f.endswith('_moh.epub') and
                     not f.endswith('_org.epub')):
                 counter += 1
-                print('')
                 newfile = os.path.splitext(f)[0] + '_moh.epub'
                 if not _forced:
                     if os.path.isfile(os.path.join(root, newfile)):
-                        print('Skipping previously generated _moh file: ' +
+                        print('* Skipping previously generated _moh file: ' +
                               newfile.decode(SFENC))
                         continue
+                print('')
                 print('START qfix for: ' + f.decode(SFENC))
                 try:
                     _tempdir = unpack_epub(os.path.join(root, f))
