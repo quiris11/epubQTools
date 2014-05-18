@@ -98,6 +98,23 @@ class Logger(object):
 
 
 def main():
+    print('')
+    if args.alter and not args.qcheck:
+        print('* WARNING! -a was ignored because it works only with -q.')
+    if args.find_cover and not args.epub:
+        print('* WARNING! -c was ignored because it works only with -e.')
+    if args.huffdic and not args.kindlegen:
+        print('* WARNING! -d was ignored because it works only with -k.')
+    if args.force and not (args.epub or args.kindlegen):
+        print('* WARNING! -f was ignored because it works only with -e or -k.')
+    if args.mod and not (args.qcheck or args.epubcheck):
+        print('* WARNING! -m was ignored because it works only with -q or -p.')
+    if args.reset_styles and not args.epub:
+        print('* WARNING! -r was ignored because it works only with -e.')
+    if args.skip_hyphenate and not args.epub:
+        print('* WARNING! -s was ignored because it works only with -e.')
+    if args.replace_fonts and not args.epub:
+        print('* WARNING! -t was ignored because it works only with -e.')
     if args.log == '1':
         st = datetime.now().strftime('%Y%m%d%H%M%S')
         sys.stdout = Logger(os.path.join(args.directory, 'eQT-' + st +
