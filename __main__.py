@@ -235,9 +235,9 @@ def main():
                                  args.tools + '" Giving up...')
                     for ln in proc.splitlines():
                         if 'Warning' in ln and not 'W14029' in ln:
-                            print(ln)
+                            print(' ', ln)
                         if 'Error' in ln:
-                            print(ln)
+                            print(' ', ln)
                             error_found = True
                         if ('I1052' in ln):
                             cover_html_found = True

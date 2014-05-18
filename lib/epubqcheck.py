@@ -194,6 +194,9 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
         for n in epub.namelist():
             if not isinstance(n, unicode):
                 n = n.decode('utf-8')
+            if 'jacket.xhtml' in n:
+                print('%s"Jacket" file produced by calibre found: %s'
+                      % (_file_dec, n))
             if 'calibre_bookmarks.txt' in n:
                 print('%scalibre bookmarks file found: %s' % (_file_dec, n))
             elif 'itunesmetadata.plist' in n.lower():
