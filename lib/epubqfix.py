@@ -4,6 +4,7 @@
 # This file is part of epubQTools, licensed under GNU Affero GPLv3 or later.
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
+
 from __future__ import print_function
 import hashlib
 import os
