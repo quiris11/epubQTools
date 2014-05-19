@@ -9,9 +9,10 @@ Tools for checking, correcting and hyphenating epub files.
 
 
 ```
-usage: python epubQTools.zip [-h] [--tools [DIR]] [-l [DIR]] [-a] [-n] [-q] 
-                             [-p] [-m] [-e] [-s] [-r] [-c] [-t] [-k] [-d] [-f]
-                             directory
+usage: epubQTools [-h] [--tools [DIR]] [-l [DIR]] [-a] [-n] [-q] [-p] [-m]
+                  [-e] [-s] [-r] [--justify] [--left] [--find-cover]
+                  [--replace-fonts] [-k] [-d] [-f]
+                  directory
 
 positional arguments:
   directory             Directory with EPUB files stored
@@ -35,8 +36,12 @@ optional arguments:
   -r, --reset-styles    set following styles to every xthml file: @page {
                         margin: 5pt } body { margin: 5pt; padding: 0 } p
                         {text-align: justify} (only with -e)
-  -c, --find-cover      force find cover (risky) (only with -e)
-  -t, --replace-fonts   replace font (experimental) (only with -e)
+  --justify             replace "text-align: left" with "text-align: justify"
+                        in all CSS files (experimental) (only with -e)
+  --left                replace "text-align: justify" with "text-align: left"
+                        in all CSS files (experimental) (only with -e)
+  --find-cover          force find cover (experimental) (only with -e)
+  --replace-fonts       replace font (experimental) (only with -e)
   -k, --kindlegen       convert _moh.epub files to .mobi with kindlegen
   -d, --huffdic         tell kindlegen to use huffdic compression (slow
                         conversion) (only with -k)
