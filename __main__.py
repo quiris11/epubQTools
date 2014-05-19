@@ -68,18 +68,18 @@ parser.add_argument("-r", "--reset-styles",
                     'body { margin: 5pt; padding: 0 } '
                     'p {text-align: justify} (only with -e)',
                     action="store_true")
-parser.add_argument("-c", "--find-cover", help="force find cover (risky) "
-                    "(only with -e)",
-                    action="store_true")
 parser.add_argument("--justify", help='replace "text-align: left" '
-                    'with "text-align: justify" in all CSS files (risky) '
-                    '(only with -e)',
+                    'with "text-align: justify" in all CSS files '
+                    '(experimental) (only with -e)',
                     action="store_true")
 parser.add_argument("--left", help='replace "text-align: justify" '
-                    'with "text-align: left" in all CSS files (risky) '
+                    'with "text-align: left" in all CSS files (experimental) '
                     '(only with -e)',
                     action="store_true")
-parser.add_argument("-t", "--replace-fonts",
+parser.add_argument("--find-cover", help="force find cover (experimental) "
+                    "(only with -e)",
+                    action="store_true")
+parser.add_argument("--replace-fonts",
                     help="replace font (experimental) (only with -e)",
                     action="store_true")
 parser.add_argument("-k", "--kindlegen", help="convert _moh.epub files to"
