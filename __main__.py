@@ -71,6 +71,14 @@ parser.add_argument("-r", "--reset-styles",
 parser.add_argument("-c", "--find-cover", help="force find cover (risky) "
                     "(only with -e)",
                     action="store_true")
+parser.add_argument("--justify", help='replace "text-align: left" '
+                    'with "text-align: justify" in all CSS files (risky) '
+                    '(only with -e)',
+                    action="store_true")
+parser.add_argument("--left", help='replace "text-align: justify" '
+                    'with "text-align: left" in all CSS files (risky) '
+                    '(only with -e)',
+                    action="store_true")
 parser.add_argument("-t", "--replace-fonts",
                     help="replace font (experimental) (only with -e)",
                     action="store_true")
@@ -212,7 +220,8 @@ def main():
         print('*** Fixing with internal qfix tool...  ***')
         print('******************************************')
         qfix(args.directory, args.force, args.replace_fonts, args.reset_styles,
-             args.find_cover, args.tools, args.skip_hyphenate)
+             args.find_cover, args.tools, args.skip_hyphenate, args.justify,
+             args.left)
 
     if args.kindlegen:
         print('')

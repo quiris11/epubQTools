@@ -1105,7 +1105,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph):
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
-                 _findcover, skip_hyph):
+                 _findcover, skip_hyph, arg_justify, arg_left):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path = find_roots(_tempdir)
@@ -1160,7 +1160,15 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
 
-    # modify_css_align(opftree, opf_dir_abs, 'justify')
+    if arg_justify:
+        print('* Replacing "text-align: left" with "text-align: justify" in '
+              'all CSS files...')
+        modify_css_align(opftree, opf_dir_abs, 'justify')
+    elif arg_left:
+        print('* Replacing "text-align: justify" with "text-align: left" in '
+              'all CSS files...')
+        modify_css_align(opftree, opf_dir_abs, 'left')
+
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'w') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
@@ -1239,12 +1247,15 @@ def modify_css_align(opftree, opfdir, mode):
         try:
             with open(os.path.join(opfdir, c.get('href')), 'r+') as cf:
                 cc = cf.read()
-                cc = re.sub(r'text\-align:[ ]?'+searchmode,
-                            'text-align: ' + mode + ';', cc)
+                cc = cc.replace('text-align: %s' % searchmode,
+                                'text-align: %s;' % mode)
+                cc = cc.replace('text-align:%s' % searchmode,
+                                'text-align: %s;' % mode)
+                cc = cc.replace(';;', ';')
                 cf.seek(0)
                 cf.truncate()
                 cf.write(cc)
-        except IOError, e:
+        except IOError:
             pass
 
 
@@ -1268,7 +1279,7 @@ def html_cover_first(opftree):
 
 
 def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf,
-         skip_hyph):
+         skip_hyph, arg_justify, arg_left):
     global qfixerr
     qfixerr = False
     counter = 0
@@ -1298,7 +1309,8 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf,
                 if skip_hyph:
                     print('* Hyphenating is turned OFF...')
                 process_epub(_tempdir, _replacefonts,
-                             _resetmargins, _findcover, skip_hyph)
+                             _resetmargins, _findcover, skip_hyph,
+                             arg_justify, arg_left)
                 pack_epub(os.path.join(root, newfile), _tempdir)
                 clean_temp(_tempdir)
                 if qfixerr:
