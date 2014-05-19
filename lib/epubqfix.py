@@ -1160,7 +1160,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
 
-    #modify_css_align(opftree, opf_dir_abs, 'justify')
+    # modify_css_align(opftree, opf_dir_abs, 'justify')
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'w') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
@@ -1239,13 +1239,11 @@ def modify_css_align(opftree, opfdir, mode):
         try:
             with open(os.path.join(opfdir, c.get('href')), 'r+') as cf:
                 cc = cf.read()
-                print(cc)
                 cc = re.sub(r'text\-align:[ ]?'+searchmode,
                             'text-align: ' + mode + ';', cc)
-                print(cc)
                 cf.seek(0)
                 cf.truncate()
-                cf.write
+                cf.write(cc)
         except IOError, e:
             pass
 
