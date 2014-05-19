@@ -369,7 +369,7 @@ def find_roots(tempdir):
     return os.path.dirname(opf_path), opf_path
 
 
-def find_xhtml_files(tempdir, rootepubdir, opftree):
+def find_xhtml_files(rootepubdir, opftree):
     global qfixerr
     try:
         xhtml_items = etree.XPath(
@@ -1129,8 +1129,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = etree.parse(opf_file_path_abs, parser)
     opftree = unquote_urls(opftree)
 
-    _xhtml_files, _xhtml_file_paths = find_xhtml_files(_tempdir, opf_dir_abs,
-                                                       opftree)
+    _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
 
     opftree = fix_various_opf_problems(opftree, opf_dir_abs, _xhtml_files,
                                        _xhtml_file_paths, _findcover)
@@ -1161,6 +1160,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
 
+    #modify_css_align(opftree, opf_dir_abs, 'justify')
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'w') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
@@ -1225,6 +1225,29 @@ def process_corrupted_zip(e, root, f, zipbinf):
         print('* ' + str(e))
         print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
         return 1
+
+
+def modify_css_align(opftree, opfdir, mode):
+    global qfixerr
+    if mode == 'justify':
+        searchmode = 'left'
+    elif mode == 'left':
+        searchmode = 'justify'
+    cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
+                             namespaces=OPFNS)
+    for c in cssitems:
+        try:
+            with open(os.path.join(opfdir, c.get('href')), 'r+') as cf:
+                cc = cf.read()
+                print(cc)
+                cc = re.sub(r'text\-align:[ ]?'+searchmode,
+                            'text-align: ' + mode + ';', cc)
+                print(cc)
+                cf.seek(0)
+                cf.truncate()
+                cf.write
+        except IOError, e:
+            pass
 
 
 def html_cover_first(opftree):
