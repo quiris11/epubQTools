@@ -1249,6 +1249,8 @@ def modify_css_align(opftree, opfdir, mode):
                 cc = cf.read()
                 cc = cc.replace('text-align: %s' % searchmode,
                                 'text-align: %s;' % mode)
+                cc = cc.replace('text-align : %s' % searchmode,
+                                'text-align: %s;' % mode)
                 cc = cc.replace('text-align:%s' % searchmode,
                                 'text-align: %s;' % mode)
                 cc = cc.replace(';;', ';')
