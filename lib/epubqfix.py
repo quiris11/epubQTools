@@ -898,12 +898,11 @@ def modify_problematic_styles(source_file):
     styles = etree.XPath('//*[@style]',
                          namespaces=XHTMLNS)(source_file)
     for s in styles:
-        if ('display: none' or 'display:none') in s.get('style'):
+        if re.search(r'display\s*:\s*none', s.get('style')):
             print('* Replacing problematic style: none with visibility: hidden'
                   '...')
-            stylestr = s.get('style')
-            stylestr = re.sub(r'display:(\s*)none', 'visibility: hidden',
-                              stylestr)
+            stylestr = re.sub(r'display\s*:\s*none', 'visibility: hidden',
+                              s.get('style'))
             s.set('style', stylestr)
     img_styles = etree.XPath('//xhtml:img[@style]',
                              namespaces=XHTMLNS)(source_file)
@@ -1247,13 +1246,8 @@ def modify_css_align(opftree, opfdir, mode):
         try:
             with open(os.path.join(opfdir, c.get('href')), 'r+') as cf:
                 cc = cf.read()
-                cc = cc.replace('text-align: %s' % searchmode,
-                                'text-align: %s;' % mode)
-                cc = cc.replace('text-align : %s' % searchmode,
-                                'text-align: %s;' % mode)
-                cc = cc.replace('text-align:%s' % searchmode,
-                                'text-align: %s;' % mode)
-                cc = cc.replace(';;', ';')
+                cc = re.sub(r'text-align\s*:\s*' + searchmode,
+                            'text-align: ' + mode, cc)
                 cf.seek(0)
                 cf.truncate()
                 cf.write(cc)
