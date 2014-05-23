@@ -107,6 +107,13 @@ class Logger(object):
 
 
 def main():
+    try:
+        os.getcwd().decode('ascii')
+    except UnicodeDecodeError:
+        sys.exit('ERROR! Current working directory "%s" contains non-ascii '
+                 'marks. '
+                 'The application is not reliable in this case. Giving up...'
+                 % os.getcwd().decode(SFENC))
     print('')
     if args.alter and not args.qcheck:
         print('* WARNING! -a was ignored because it works only with -q.')
