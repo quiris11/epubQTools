@@ -293,6 +293,7 @@ def replace_font(actual_font_path):
     else:
         font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
                       os.path.join(HOME, 'Library', 'Fonts')]
+    font_replaced = False
     for font_path in font_paths:
         if os.path.exists(
                 os.path.join(font_path, os.path.basename(actual_font_path))
@@ -302,11 +303,13 @@ def replace_font(actual_font_path):
                 os.path.join(font_path, os.path.basename(actual_font_path)),
                 actual_font_path
             )
-            print('* Font replaced: ' + os.path.basename(actual_font_path))
-        else:
-            qfixerr = True
-            print('* Font "%s" not replaced. Candidate does NOT found.'
-                  % os.path.basename(actual_font_path))
+            font_replaced = True
+    if font_replaced:
+        print('* Font replaced: ' + os.path.basename(actual_font_path))
+    else:
+        qfixerr = True
+        print('* Font "%s" not replaced. Candidate does NOT found.'
+              % os.path.basename(actual_font_path))
 
 
 def unpack_epub(source_epub):
