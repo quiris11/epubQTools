@@ -63,15 +63,16 @@ parser.add_argument("-s", "--skip-hyphenate",
                     help="do not hyphenate book  (only with -e)",
                     action="store_true")
 parser.add_argument("-r", "--reset-styles",
-                    help='set following styles to every xthml file: '
+                    help='set following styles to every xthml file: "'
                     '@page { margin: 5pt } '
-                    'body { margin: 5pt; padding: 0 } '
-                    'p {text-align: justify} (only with -e)',
+                    'body { margin: 5pt; padding: 0 }"'
+                    ' (only with -e)',
                     action="store_true")
-parser.add_argument("--justify", help='replace "text-align: left" '
+parser.add_argument("--skip-justify", help='skip replacing '
+                    '"text-align: left" '
                     'with "text-align: justify" in all CSS files '
-                    '(experimental) (only with -e)',
-                    action="store_true")
+                    '(only with -e)',
+                    action="store_false")
 parser.add_argument("--left", help='replace "text-align: justify" '
                     'with "text-align: left" in all CSS files (experimental) '
                     '(only with -e)',
@@ -227,8 +228,8 @@ def main():
         print('*** Fixing with internal qfix tool...  ***')
         print('******************************************')
         qfix(args.directory, args.force, args.replace_fonts, args.reset_styles,
-             args.find_cover, args.tools, args.skip_hyphenate, args.justify,
-             args.left)
+             args.find_cover, args.tools, args.skip_hyphenate,
+             args.skip_justify, args.left)
 
     if args.kindlegen:
         print('')
