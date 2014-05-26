@@ -127,7 +127,7 @@ def main():
         print('* WARNING! -f was ignored because it works only with -e or -k.')
     if args.mod and not (args.qcheck or args.epubcheck):
         print('* WARNING! -m was ignored because it works only with -q or -p.')
-    if args.skip_reset_css and not args.epub:
+    if not args.skip_reset_css and not args.epub:
         print('* WARNING! -r was ignored because it works only with -e.')
     if args.skip_hyphenate and not args.epub:
         print('* WARNING! -s was ignored because it works only with -e.')
