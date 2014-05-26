@@ -921,7 +921,8 @@ def modify_problematic_styles(source_file):
         if re.search(r'display\s*:\s*none', s.get('style')):
             print('* Replacing problematic style: none with visibility: hidden'
                   '...')
-            stylestr = re.sub(r'display\s*:\s*none', 'visibility: hidden',
+            stylestr = re.sub(r'display\s*:\s*none',
+                              'visibility: hidden; height: 0',
                               s.get('style'))
             s.set('style', stylestr)
     img_styles = etree.XPath('//xhtml:img[@style]',
