@@ -59,15 +59,16 @@ parser.add_argument("-m", "--mod", help="validate only _moh.epub files "
                     action="store_true")
 parser.add_argument("-e", "--epub", help="fix and hyphenate original epub "
                     "files to _moh.epub files", action="store_true")
-parser.add_argument("-s", "--skip-hyphenate",
+parser.add_argument("--skip-hyphenate",
                     help="do not hyphenate book  (only with -e)",
                     action="store_true")
-parser.add_argument("-r", "--reset-styles",
-                    help='set following styles to every xthml file: "'
+parser.add_argument("--skip-reset-css",
+                    help='skip linking a CSS file to every xthml file with '
+                    'content: "'
                     '@page { margin: 5pt } '
-                    'body { margin: 5pt; padding: 0 }"'
+                    'body, body.calibre { margin: 5pt; padding: 0 }"'
                     ' (only with -e)',
-                    action="store_true")
+                    action="store_false")
 parser.add_argument("--skip-justify", help='skip replacing '
                     '"text-align: left" '
                     'with "text-align: justify" in all CSS files '
@@ -126,7 +127,7 @@ def main():
         print('* WARNING! -f was ignored because it works only with -e or -k.')
     if args.mod and not (args.qcheck or args.epubcheck):
         print('* WARNING! -m was ignored because it works only with -q or -p.')
-    if args.reset_styles and not args.epub:
+    if args.skip_reset_css and not args.epub:
         print('* WARNING! -r was ignored because it works only with -e.')
     if args.skip_hyphenate and not args.epub:
         print('* WARNING! -s was ignored because it works only with -e.')
@@ -227,7 +228,8 @@ def main():
         print('******************************************')
         print('*** Fixing with internal qfix tool...  ***')
         print('******************************************')
-        qfix(args.directory, args.force, args.replace_fonts, args.reset_styles,
+        qfix(args.directory, args.force, args.replace_fonts,
+             args.skip_reset_css,
              args.find_cover, args.tools, args.skip_hyphenate,
              args.skip_justify, args.left)
 

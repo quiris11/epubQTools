@@ -885,7 +885,7 @@ def fix_ncx_dtd_uid(opftree, tempdir):
     return opftree
 
 
-def append_reset_css(source_file):
+def append_reset_css(source_file, xhtml_file, opf_path):
     try:
         heads = etree.XPath(
             '//xhtml:head',
@@ -894,12 +894,24 @@ def append_reset_css(source_file):
     except:
         print('* No head found...')
     heads[0].append(etree.fromstring(
-        '<style type="text/css">'
-        '@page { margin: 5pt } '
-        'body { margin: 5pt; padding: 0 }'
-        '</style>'
+        '<link href="%s" rel="stylesheet" type="text/css" />'
+        % os.path.join(os.path.relpath(opf_path, os.path.dirname(xhtml_file)),
+                       'reset-quiris.css')
     ))
     return source_file
+
+
+def append_reset_css_file(opftree, tempdir):
+    with open(os.path.join(tempdir, 'reset-quiris.css'), 'w') as f:
+        f.write('@page { margin: 5pt } \r\n'
+                'body, body.calibre  { margin: 5pt; padding: 0 }')
+    newcssmanifest = etree.Element(
+        '{http://www.idpf.org/2007/opf}item',
+        attrib={'media-type': 'text/css',
+                'href': 'reset-quiris.css', 'id': 'reset-quiris'}
+    )
+    opftree.xpath('//opf:manifest',
+                  namespaces=OPFNS)[0].insert(0, newcssmanifest)
 
 
 def modify_problematic_styles(source_file):
@@ -1044,7 +1056,7 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
     os.remove(os.path.join(rootepubdir, file_rel_to_opf))
 
 
-def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph):
+def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path):
     global qfixerr
     try:
         with open(xhfile, 'r') as content_file:
@@ -1093,7 +1105,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph):
     xhtree = fix_styles(xhtree)
     if _resetmargins:
         res_css_info_printed = True
-        xhtree = append_reset_css(xhtree)
+        xhtree = append_reset_css(xhtree, xhfile, opf_path)
     xhtree = modify_problematic_styles(xhtree)
     _wmarks = xhtree.xpath('//xhtml:span[starts-with(text(), "==")]',
                            namespaces=XHTMLNS)
@@ -1163,7 +1175,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if _resetmargins:
         print('* Setting custom CSS styles...')
     for s in _xhtml_files:
-        process_xhtml_file(s, opftree, _resetmargins, skip_hyph)
+        process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs)
     opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
 
@@ -1175,7 +1187,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         print('* Replacing "text-align: justify" with "text-align: left" in '
               'all CSS files...')
         modify_css_align(opftree, opf_dir_abs, 'left')
-
+    if _resetmargins:
+        append_reset_css_file(opftree, opf_dir_abs)
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'w') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
