@@ -10,8 +10,8 @@ Tools for checking, correcting and hyphenating epub files.
 
 ```
 usage: epubQTools [-h] [--tools [DIR]] [-l [DIR]] [-a] [-n] [-q] [-p] [-m]
-                  [-e] [-s] [-r] [--justify] [--left] [--find-cover]
-                  [--replace-fonts] [-k] [-d] [-f]
+                  [-e] [--skip-hyphenate] [--skip-reset-css] [--skip-justify]
+                  [--left] [--find-cover] [--replace-fonts] [-k] [-d] [-f]
                   directory
 
 positional arguments:
@@ -32,12 +32,12 @@ optional arguments:
                         -p)
   -e, --epub            fix and hyphenate original epub files to _moh.epub
                         files
-  -s, --skip-hyphenate  do not hyphenate book (only with -e)
-  -r, --reset-styles    set following styles to every xthml file: @page {
-                        margin: 5pt } body { margin: 5pt; padding: 0 } p
-                        {text-align: justify} (only with -e)
-  --justify             replace "text-align: left" with "text-align: justify"
-                        in all CSS files (experimental) (only with -e)
+  --skip-hyphenate      do not hyphenate book (only with -e)
+  --skip-reset-css      skip linking a CSS file to every xthml file with
+                        content: "@page { margin: 5pt } body, body.calibre {
+                        margin: 5pt; padding: 0 }" (only with -e)
+  --skip-justify        skip replacing "text-align: left" with "text-align:
+                        justify" in all CSS files (only with -e)
   --left                replace "text-align: justify" with "text-align: left"
                         in all CSS files (experimental) (only with -e)
   --find-cover          force find cover (experimental) (only with -e)
