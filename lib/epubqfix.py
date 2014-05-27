@@ -896,7 +896,7 @@ def append_reset_css(source_file, xhtml_file, opf_path):
     heads[0].append(etree.fromstring(
         '<link href="%s" rel="stylesheet" type="text/css" />'
         % os.path.join(os.path.relpath(opf_path, os.path.dirname(xhtml_file)),
-                       'reset-quiris.css')
+                       'reset-quiris.css').replace('\\', '/')
     ))
     return source_file
 
