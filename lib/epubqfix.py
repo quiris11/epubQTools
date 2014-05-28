@@ -455,6 +455,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 type='toc', href=html_toc
             )
         else:
+            print('* Generating a new HTML TOC file...')
             parser = etree.XMLParser(remove_blank_text=True)
             if not hasattr(sys, 'frozen'):
                 transform = etree.XSLT(etree.fromstring(get_data('lib',
