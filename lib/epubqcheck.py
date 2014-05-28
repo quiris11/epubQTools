@@ -248,28 +248,34 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
     if creators is None:
         print(_file_dec + 'CRITICAL! dc:creator (book author) element is NOT '
               'defined in OPF file...')
-    elif len(creators) > 1:
-        print(_file_dec + 'CRITICAL! Multiple dc:creator (book author) '
-              'elements defined in OPF file...')
-    elif len(creators) == 1 and creators[0].text is None:
-        print(_file_dec + 'CRITICAL! dc:creator (book author) is empty...')
-    elif len(creators) == 1 and creators[0].text is not None:
-        if creators[0].text.isupper():
-            print(_file_dec + 'dc:creator (book author) UPPERCASED: "%s". '
-                  'Consider changing...' % creators[0].text)
+    else:
+        if len(creators) > 1:
+            print(_file_dec + 'Warning! Multiple dc:creator (book author) '
+                  'elements defined in OPF file may be problematic...')
+        for c in creators:
+            if c.text is None:
+                print(_file_dec + 'CRITICAL! dc:creator (book author) is '
+                      'empty...')
+            elif c.text is not None:
+                if c.text.isupper():
+                    print(_file_dec + 'dc:creator (book author) UPPERCASED: '
+                          '"%s". Consider changing...' % c.text)
     titles = opftree.xpath('//dc:title', namespaces=DCNS)
     if titles is None:
         print(_file_dec + 'CRITICAL! dc:title (book title) element is NOT '
               'defined in OPF file...')
-    elif len(titles) > 1:
-        print(_file_dec + 'CRITICAL! Multiple dc:title (book title) '
-              'elements defined in OPF file...')
-    elif len(titles) == 1 and titles[0].text is None:
-        print(_file_dec + 'CRITICAL! dc:title (book title) is empty...')
-    elif len(titles) == 1 and titles[0].text is not None:
-        if titles[0].text.isupper():
-            print(_file_dec + 'dc:title (book title) UPPERCASED: "%s". '
-                  'Consider changing...' % titles[0].text)
+    else:
+        if len(titles) > 1:
+            print(_file_dec + 'Warning! Multiple dc:title (book title) '
+                  'elements defined in OPF file may be problematic...')
+        for t in titles:
+            if t.text is None:
+                print(_file_dec + 'CRITICAL! dc:title (book title) is '
+                      'empty...')
+            elif t.text is not None:
+                if t.text.isupper():
+                    print(_file_dec + 'dc:title (book title) UPPERCASED: '
+                          '"%s". Consider changing...' % titles[0].text)
     language_tags = etree.XPath('//dc:language/text()',
                                 namespaces=DCNS)(opftree)
     if len(language_tags) == 0:
