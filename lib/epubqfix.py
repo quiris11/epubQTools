@@ -470,7 +470,20 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             )(soup)[0].get('href')
             ncxtree = etree.parse(os.path.join(tempdir, toc_ncx_file), parser)
             result = transform(ncxtree)
-            with open(os.path.join(tempdir, 'toc-quiris.xhtml'), "w") as f:
+            ncx_contents = ncxtree.xpath('//ncx:content', namespaces=NCXNS)
+            if all(
+                os.path.dirname(x.get('src'))==os.path.dirname(
+                    ncx_contents[0].get('src')
+                ) for x in ncx_contents
+            ):
+                textdir = os.path.dirname(ncx_contents[0].get('src'))
+                anchs = result.xpath('//xhtml:a', namespaces=XHTMLNS)
+                for a in anchs:
+                    a.set('href', os.path.basename(a.get('href')))
+                    print(a.get('href'))
+            else:
+                textdir = ''
+            with open(os.path.join(tempdir, textdir, 'toc-quiris.xhtml'), "w") as f:
                 f.write(etree.tostring(
                     result,
                     pretty_print=True,
@@ -481,7 +494,8 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             newtocmanifest = etree.Element(
                 '{http://www.idpf.org/2007/opf}item',
                 attrib={'media-type': 'application/xhtml+xml',
-                        'href': 'toc-quiris.xhtml', 'id': 'toc-quiris'}
+                        'href': os.path.join(textdir, 'toc-quiris.xhtml'),
+                        'id': 'toc-quiris'}
             )
             soup.xpath('//opf:manifest',
                        namespaces=OPFNS)[0].insert(0, newtocmanifest)
@@ -494,7 +508,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 '{http://www.idpf.org/2007/opf}reference',
                 title='TOC',
                 type='toc',
-                href='toc-quiris.xhtml'
+                href=os.path.join(textdir, 'toc-quiris.xhtml')
             )
         try:
             soup.xpath('//opf:guide',
