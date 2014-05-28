@@ -472,7 +472,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             result = transform(ncxtree)
             ncx_contents = ncxtree.xpath('//ncx:content', namespaces=NCXNS)
             if all(
-                os.path.dirname(x.get('src'))==os.path.dirname(
+                os.path.dirname(x.get('src')) == os.path.dirname(
                     ncx_contents[0].get('src')
                 ) for x in ncx_contents
             ):
@@ -480,10 +480,10 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 anchs = result.xpath('//xhtml:a', namespaces=XHTMLNS)
                 for a in anchs:
                     a.set('href', os.path.basename(a.get('href')))
-                    print(a.get('href'))
             else:
                 textdir = ''
-            with open(os.path.join(tempdir, textdir, 'toc-quiris.xhtml'), "w") as f:
+            with open(os.path.join(tempdir, textdir, 'toc-quiris.xhtml'),
+                      "w") as f:
                 f.write(etree.tostring(
                     result,
                     pretty_print=True,
