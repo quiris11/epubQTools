@@ -495,7 +495,9 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             newtocmanifest = etree.Element(
                 '{http://www.idpf.org/2007/opf}item',
                 attrib={'media-type': 'application/xhtml+xml',
-                        'href': os.path.join(textdir, 'toc-quiris.xhtml'),
+                        'href': os.path.join(
+                            textdir, 'toc-quiris.xhtml'
+                        ).replace('\\', '/'),
                         'id': 'toc-quiris'}
             )
             soup.xpath('//opf:manifest',
@@ -509,7 +511,8 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 '{http://www.idpf.org/2007/opf}reference',
                 title='TOC',
                 type='toc',
-                href=os.path.join(textdir, 'toc-quiris.xhtml')
+                href=os.path.join(textdir, 'toc-quiris.xhtml').replace('\\',
+                                                                       '/')
             )
         try:
             soup.xpath('//opf:guide',
@@ -938,7 +941,8 @@ def append_reset_css_file(opftree, tempdir):
     newcssmanifest = etree.Element(
         '{http://www.idpf.org/2007/opf}item',
         attrib={'media-type': 'text/css',
-                'href': os.path.join(cssdir, 'reset-quiris.css'),
+                'href': os.path.join(cssdir,
+                                     'reset-quiris.css').replace('\\', '/'),
                 'id': 'reset-quiris'}
     )
     opftree.xpath('//opf:manifest',
