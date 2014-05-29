@@ -464,6 +464,11 @@ def find_opf(epub):
 
 
 def check_urls(singf, epub, _file_dec):
+    prepnl = []
+    for n in epub.namelist():
+        if not isinstance(n, unicode):
+            n = n.decode('utf-8')
+        prepnl.append(os.path.relpath(n).replace('\\', '/'))
     if singf.endswith('.css'):
         with epub.open(singf) as f:
             cl = re.sub(r'\/\*[^*]*\*+([^/*][^*]*\*+)*\/',
@@ -471,7 +476,7 @@ def check_urls(singf, epub, _file_dec):
             for line in cl:
                 m = re.match(r'.+?url\([ ]?(\"|\')?(.+?)(\"|\')?[ ]?\)', line)
                 if m is not None:
-                    check_url(unquote(m.group(2)), singf, epub, _file_dec)
+                    check_url(unquote(m.group(2)), singf, prepnl, _file_dec)
     else:
         try:
             tree = etree.fromstring(epub.read(singf))
@@ -488,10 +493,10 @@ def check_urls(singf, epub, _file_dec):
             url = unquote(url)
             if '#' in url:
                 url = url.split('#')[0]
-            check_url(url, singf, epub, _file_dec)
+            check_url(url, singf, prepnl, _file_dec)
 
 
-def check_url(url, singf, epub, _file_dec):
+def check_url(url, singf, nlist, _file_dec):
     if not isinstance(url, unicode):
         url = url.decode('utf-8')
     relp = os.path.relpath(
@@ -499,11 +504,10 @@ def check_url(url, singf, epub, _file_dec):
     )
     relp = relp.replace('\\', '/')
     found_proper_url = False
-    for n in epub.namelist():
-        if not isinstance(n, unicode):
-            n = n.decode('utf-8')
-        if os.path.relpath(n).replace('\\', '/') == relp:
+    for n in nlist:
+        if n == relp:
             found_proper_url = True
+            break
     if not found_proper_url:
         print('%sLinked resource "%s" in "%s" does NOT exist'
               % (_file_dec, url, singf))
