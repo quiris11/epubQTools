@@ -78,9 +78,6 @@ parser.add_argument("--left", help='replace "text-align: justify" '
                     'with "text-align: left" in all CSS files (experimental) '
                     '(only with -e)',
                     action="store_true")
-parser.add_argument("--find-cover", help="force find cover (experimental) "
-                    "(only with -e)",
-                    action="store_true")
 parser.add_argument("--replace-fonts",
                     help="replace font (experimental) (only with -e)",
                     action="store_true")
@@ -119,8 +116,6 @@ def main():
     print('')
     if args.alter and not args.qcheck:
         print('* WARNING! -a was ignored because it works only with -q.')
-    if args.find_cover and not args.epub:
-        print('* WARNING! -c was ignored because it works only with -e.')
     if args.huffdic and not args.kindlegen:
         print('* WARNING! -d was ignored because it works only with -k.')
     if args.force and not (args.epub or args.kindlegen):
@@ -235,8 +230,7 @@ def main():
         print('*** Fixing with internal qfix tool...  ***')
         print('******************************************')
         qfix(args.directory, args.force, args.replace_fonts,
-             args.skip_reset_css,
-             args.find_cover, args.tools, args.skip_hyphenate,
+             args.skip_reset_css, args.tools, args.skip_hyphenate,
              args.skip_justify, args.left)
 
     if args.kindlegen:

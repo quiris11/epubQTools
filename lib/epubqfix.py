@@ -663,23 +663,18 @@ def set_cover_meta_elem(_soup, _content):
 
 
 def force_cover_find(_soup):
-    print('* Force cover find...')
+    print('* Trying to find cover image:', end=' ')
     images = etree.XPath('//opf:item[@media-type="image/jpeg"]',
                          namespaces=OPFNS)(_soup)
     cover_found = 0
     if len(images) != 0:
         for imag in images:
-            img_href_lower = imag.get('href').lower()
-            if (img_href_lower.find('cover') != -1 or
-                    img_href_lower.find('okladka') != -1):
-                cover_found = 1
-                print('* Candidate image for cover found:' +
-                      ' href=' + imag.get('href') +
-                      ' id=' + imag.get('id'))
+            img = os.path.basename(imag.get('href')).lower()
+            if 'cover' in img or 'okladka' in img:
+                print('"%s" file found.' % img)
                 return imag.get('href'), imag.get('id')
-                break
-    if cover_found == 0:
-        return None, None
+    print('NOT found!')
+    return None, None
 
 
 def correct_mime_types(_soup):
@@ -705,7 +700,7 @@ def correct_mime_types(_soup):
 
 
 def fix_various_opf_problems(soup, tempdir, xhtml_files,
-                             xhtml_file_paths, _findcover):
+                             xhtml_file_paths):
 
     soup = correct_mime_types(soup)
 
@@ -778,7 +773,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
                 )
                 soup = set_cover_meta_elem(soup, imag_id)
             else:
-                print('* No images found...')
+                print('* No cover images found...')
         if cover_image is not None:
             cib = os.path.basename(cover_image)
             cov_img_id = None
@@ -789,7 +784,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             if cov_img_id is not None:
                 soup = set_cover_meta_elem(soup, cov_img_id)
 
-    elif len(metacovers) == 0 and len(refcovers) == 0 and _findcover:
+    elif len(metacovers) == 0 and len(refcovers) == 0:
         imag_href, imag_id = force_cover_find(soup)
         if imag_href is not None and imag_id is not None:
             soup = set_cover_guide_ref(
@@ -797,7 +792,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             )
             soup = set_cover_meta_elem(soup, imag_id)
         else:
-            print('* No images found...')
+            print('* No cover images found...')
 
     # remove calibre staff
     for meta in soup.xpath("//opf:meta[starts-with(@name, 'calibre')]",
@@ -1153,7 +1148,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path):
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
-                 _findcover, skip_hyph, arg_justify, arg_left):
+                 skip_hyph, arg_justify, arg_left):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path = find_roots(_tempdir)
@@ -1180,7 +1175,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
 
     opftree = fix_various_opf_problems(opftree, opf_dir_abs, _xhtml_files,
-                                       _xhtml_file_paths, _findcover)
+                                       _xhtml_file_paths)
     opftree = fix_ncx_dtd_uid(opftree, opf_dir_abs)
     opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
                            _xhtml_file_paths)
@@ -1323,7 +1318,7 @@ def html_cover_first(opftree):
     return opftree
 
 
-def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf,
+def qfix(_documents, _forced, _replacefonts, _resetmargins, zbf,
          skip_hyph, arg_justify, arg_left):
     global qfixerr
     qfixerr = False
@@ -1354,7 +1349,7 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, _findcover, zbf,
                 if skip_hyph:
                     print('* Hyphenating is turned OFF...')
                 process_epub(_tempdir, _replacefonts,
-                             _resetmargins, _findcover, skip_hyph,
+                             _resetmargins, skip_hyph,
                              arg_justify, arg_left)
                 pack_epub(os.path.join(root, newfile), _tempdir)
                 clean_temp(_tempdir)
