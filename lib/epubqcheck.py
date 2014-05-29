@@ -93,13 +93,12 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
         html_cover_path = etree.XPath('//opf:reference[@type="cover"]',
                                       namespaces=OPFNS)(tree)[0].get('href')
     except:
-        print(_file_dec + 'Meta cover image is NOT defined.')
         return 0
     try:
         meta_cover_id = etree.XPath('//opf:meta[@name="cover"]',
                                     namespaces=OPFNS)(tree)[0].get('content')
     except:
-        print(_file_dec + 'HTML cover is NOT defined.')
+        print(_file_dec + 'Meta cover image is NOT defined.')
         return 0
     try:
         meta_cover_path = etree.XPath(
@@ -107,7 +106,7 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
             namespaces=OPFNS
         )(tree)[0].get('href')
     except IndexError:
-        print(_file_dec + 'Meta cover does not properly defined.')
+        print(_file_dec + 'Meta cover is NOT properly defined.')
         return 0
     parser = etree.XMLParser(recover=True)
     try:
@@ -308,14 +307,14 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             _reftextcount += 1
 
     if _refcovcount == 0:
-        print(_file_dec + 'No cover guide element defined.')
-    elif _refcovcount > 1:
-        print(_file_dec + 'Multiple cover guide elements defined.')
+        print(_file_dec + 'HTML cover is NOT defined.')
+    if _refcovcount > 1:
+        print(_file_dec + 'Multiple HTML covers defined.')
 
     if _reftoccount == 0:
-        print(_file_dec + 'No TOC guide element defined.')
+        print(_file_dec + 'HTML TOC is NOT defined.')
     elif _reftoccount > 1:
-        print(_file_dec + 'Multiple TOC guide elements defined.')
+        print(_file_dec + 'Multiple HTML TOCs defined.')
 
     if _reftextcount == 0:
         pass  # print(_file_dec + 'No text guide element defined.')
