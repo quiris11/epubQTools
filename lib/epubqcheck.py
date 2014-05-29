@@ -94,7 +94,7 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
     try:
         meta_cover_id = etree.XPath('//opf:meta[@name="cover"]',
                                     namespaces=OPFNS)(tree)[0].get('content')
-    except IndexError:
+    except:
         print(_file_dec + 'No meta cover image defined.')
         return 0
     try:
@@ -320,8 +320,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
 
     if len(_metacovers) == 0 and _refcovcount == 0:
         find_cover_image(opftree, _file_dec)
-
-    if _refcovcount == 1 and len(_metacovers) == 1:
+    else:
         check_meta_html_covers(opftree, _folder, _epubfile, _file_dec)
 
     check_dl_in_html_toc(opftree, _folder, _epubfile, _file_dec)
