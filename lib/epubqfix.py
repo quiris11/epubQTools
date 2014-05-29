@@ -571,11 +571,7 @@ def fix_mismatched_covers(opftree, tempdir):
             namespaces=OPFNS
         )[0].get('content')
     except IndexError:
-        meta_cover_id = None
-    if meta_cover_id is None:
-        print('* Meta cover image not properly defined. Giving up...')
-        qfixerr = True
-        return opftree
+        meta_cover_id = ''
     try:
         meta_cover_image_file = opftree.xpath(
             '//opf:item[@id="' + meta_cover_id + '"]',
@@ -585,9 +581,7 @@ def fix_mismatched_covers(opftree, tempdir):
         if html_cover_img_file is not None:
             for i in opftree.xpath('//opf:item', namespaces=OPFNS):
                 if html_cover_img_file in i.get('href'):
-                    opftree.xpath(
-                        '//opf:meta[@name="cover"]', namespaces=OPFNS
-                    )[0].set('content', i.get('id'))
+                    opftree = set_cover_meta_elem(opftree, i.get('id'))
         meta_cover_image_file = html_cover_img_file
     if html_cover_img_file != meta_cover_image_file:
         print('* Mismatched meta and HTML covers. Fixing...')
@@ -653,8 +647,9 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
     return _soup
 
 
-def set_cover_meta_elem(_metacovers, _soup, _content):
-    _metadatas = etree.XPath('//opf:metadata', namespaces=OPFNS)(_soup)
+def set_cover_meta_elem(_soup, _content):
+    _metadatas = _soup.xpath('//opf:metadata', namespaces=OPFNS)
+    _metacovers = _soup.xpath('//opf:meta[@name="cover"]', namespaces=OPFNS)
     if len(_metadatas) == 1 and len(_metacovers) == 0:
         _newmeta = etree.Element(
             '{http://www.idpf.org/2007/opf}meta',
@@ -754,7 +749,6 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
         soup = set_cover_guide_ref(
             xhtml_files, itemcoverhref, xhtml_file_paths, soup
         )
-
     elif len(metacovers) == 0 and len(refcovers) == 1:
         # set missing cover meta element
         cover_image = None
@@ -782,20 +776,18 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
                 soup = set_cover_guide_ref(
                     xhtml_files, imag_href, xhtml_file_paths, soup
                 )
-                soup = set_cover_meta_elem(metacovers, soup, imag_id)
+                soup = set_cover_meta_elem(soup, imag_id)
             else:
                 print('* No images found...')
         if cover_image is not None:
-            cover_image = re.sub('^\.\.\/', '', cover_image)
-            itemhrefcovers = etree.XPath(
-                '//opf:item[translate(@href, "ABCDEFGHJIKLMNOPQRSTUVWXYZ", '
-                '"abcdefghjiklmnopqrstuvwxyz")="' + cover_image.lower() +
-                '"]', namespaces=OPFNS
-            )(soup)
-            if len(itemhrefcovers) == 1:
-                soup = set_cover_meta_elem(
-                    metacovers, soup, itemhrefcovers[0].get('id')
-                )
+            cib = os.path.basename(cover_image)
+            cov_img_id = None
+            for item in soup.xpath('//opf:item', namespaces=OPFNS):
+                if cib in item.get('href'):
+                    cov_img_id = item.get('href')
+                    break
+            if cov_img_id is not None:
+                soup = set_cover_meta_elem(soup, cov_img_id)
 
     elif len(metacovers) == 0 and len(refcovers) == 0 and _findcover:
         imag_href, imag_id = force_cover_find(soup)
@@ -803,7 +795,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             soup = set_cover_guide_ref(
                 xhtml_files, imag_href, xhtml_file_paths, soup
             )
-            soup = set_cover_meta_elem(metacovers, soup, imag_id)
+            soup = set_cover_meta_elem(soup, imag_id)
         else:
             print('* No images found...')
 
