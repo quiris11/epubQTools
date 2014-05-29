@@ -48,30 +48,22 @@ def unquote_urls(tree):
     return tree
 
 
-def check_wm_info(singlefile, epub, _file_dec):
-    try:
-        tree = etree.fromstring(epub.read(singlefile))
-    except:
-        return 0
+def check_wm_info(singf, tree, epub, _file_dec):
     alltexts = etree.XPath('//xhtml:body//text()',
                            namespaces=XHTMLNS)(tree)
     alltext = ' '.join(alltexts)
     alltext = alltext.replace(u'\u00AD', '').strip()
     if alltext == 'Plik jest zabezpieczony znakiem wodnym':
-        print(_file_dec + 'WM info file found: ' + singlefile)
+        print('%sWM info file found "%s"' % (_file_dec, singf))
 
 
-def check_display_none(singlefile, epub, _file_dec):
-    try:
-        tree = etree.fromstring(epub.read(singlefile))
-    except:
-        return 0
+def check_display_none(singf, tree, epub, _file_dec):
     styles = etree.XPath('//*[@style]',
                          namespaces=XHTMLNS)(tree)
     for s in styles:
         if ('display: none' or 'display:none') in s.get('style'):
-            print(_file_dec + 'Element with display:none style found: ' +
-                  etree.tostring(s))
+            print('%sElement with display:none style found in file "%s"'
+                  % (_file_dec, singf))
 
 
 def check_dl_in_html_toc(tree, dir, epub, _file_dec):
@@ -213,7 +205,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                     ):
                         found = True
                 if not found:
-                    print('%sORPHAN file "%s" does NOT defined in OPF file'
+                    print('%sORPHAN file "%s" is NOT defined in OPF file'
                           % (_file_dec, os.path.relpath(os.path.join(n))))
 
     def check_font_mime_types(tree):
@@ -463,37 +455,29 @@ def find_opf(epub):
     return os.path.dirname(opf_path), opf_path
 
 
-def check_urls(singf, epub, _file_dec):
-    prepnl = []
-    for n in epub.namelist():
-        if not isinstance(n, unicode):
-            n = n.decode('utf-8')
-        prepnl.append(os.path.relpath(n).replace('\\', '/'))
-    if singf.endswith('.css'):
-        with epub.open(singf) as f:
-            cl = re.sub(r'\/\*[^*]*\*+([^/*][^*]*\*+)*\/',
-                        '', f.read()).splitlines()
-            for line in cl:
-                m = re.match(r'.+?url\([ ]?(\"|\')?(.+?)(\"|\')?[ ]?\)', line)
-                if m is not None:
-                    check_url(unquote(m.group(2)), singf, prepnl, _file_dec)
-    else:
-        try:
-            tree = etree.fromstring(epub.read(singf))
-        except:
-            return 0
-        exclude_urls = ('http://', 'https://', 'mailto:', 'tel:', 'data:', '#')
-        for u in tree.xpath('//*[@href or @src]'):
-            if u.get('src'):
-                url = u.get('src')
-            elif u.get('href'):
-                url = u.get('href')
-            if url.startswith(exclude_urls):
-                continue
-            url = unquote(url)
-            if '#' in url:
-                url = url.split('#')[0]
-            check_url(url, singf, prepnl, _file_dec)
+def check_urls_in_css(singf, epub, prepnl, _file_dec):
+    with epub.open(singf) as f:
+        cl = re.sub(r'\/\*[^*]*\*+([^/*][^*]*\*+)*\/',
+                    '', f.read()).splitlines()
+        for line in cl:
+            m = re.match(r'.+?url\([ ]?(\"|\')?(.+?)(\"|\')?[ ]?\)', line)
+            if m is not None:
+                check_url(unquote(m.group(2)), singf, prepnl, _file_dec)
+
+
+def check_urls(singf, tree, prepnl, _file_dec):
+    exclude_urls = ('http://', 'https://', 'mailto:', 'tel:', 'data:', '#')
+    for u in tree.xpath('//*[@href or @src]'):
+        if u.get('src'):
+            url = u.get('src')
+        elif u.get('href'):
+            url = u.get('href')
+        if url.startswith(exclude_urls):
+            continue
+        url = unquote(url)
+        if '#' in url:
+            url = url.split('#')[0]
+        check_url(url, singf, prepnl, _file_dec)
 
 
 def check_url(url, singf, nlist, _file_dec):
@@ -501,15 +485,14 @@ def check_url(url, singf, nlist, _file_dec):
         url = url.decode('utf-8')
     relp = os.path.relpath(
         os.path.join("/".join(singf.split("/")[:-1]), url)
-    )
-    relp = relp.replace('\\', '/')
+    ).replace('\\', '/')
     found_proper_url = False
     for n in nlist:
         if n == relp:
             found_proper_url = True
             break
     if not found_proper_url:
-        print('%sLinked resource "%s" in "%s" does NOT exist'
+        print('%sLinked resource "%s" in "%s" is NOT exist'
               % (_file_dec, url, singf))
 
 
@@ -537,6 +520,11 @@ def qcheck(_documents, _moded, alter):
                 epubfile = zipfile.ZipFile(os.path.join(root, _file))
                 opf_root, opf_path = find_opf(epubfile)
                 qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec)
+                prepnl = []
+                for n in epubfile.namelist():
+                    if not isinstance(n, unicode):
+                        n = n.decode('utf-8')
+                    prepnl.append(os.path.relpath(n).replace('\\', '/'))
                 for singlefile in epubfile.namelist():
                     if '../' in singlefile:
                         print(_file_dec + 'CRITICAL! Problematic path found'
@@ -573,10 +561,23 @@ def qcheck(_documents, _moded, alter):
                                       % (_file_dec, singlefile, signature))
                         if os.path.isdir(temp_font_dir):
                             shutil.rmtree(temp_font_dir)
+                    elif singlefile.lower().endswith('.css'):
+                        check_urls_in_css(singlefile, epubfile, prepnl,
+                                          _file_dec)
                     else:
-                        check_urls(singlefile, epubfile, _file_dec)
-                        check_wm_info(singlefile, epubfile, _file_dec)
-                        check_display_none(singlefile, epubfile, _file_dec)
+                        try:
+                            sftree = etree.fromstring(
+                                epubfile.read(singlefile)
+                            )
+                        except:
+                            sftree = None
+                        if sftree is not None:
+                            check_urls(singlefile, sftree, prepnl,
+                                       _file_dec)
+                            check_wm_info(singlefile, sftree, epubfile,
+                                          _file_dec)
+                            check_display_none(singlefile, sftree, epubfile,
+                                               _file_dec)
                 if not alter:
                     print('FINISH qcheck for: ' + file_dec)
     if counter == 0:
