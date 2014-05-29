@@ -466,7 +466,9 @@ def find_opf(epub):
 def check_urls(singf, epub, _file_dec):
     if singf.endswith('.css'):
         with epub.open(singf) as f:
-            for line in f:
+            cl = re.sub(r'\/\*[^*]*\*+([^/*][^*]*\*+)*\/',
+                        '', f.read()).splitlines()
+            for line in cl:
                 m = re.match(r'.+?url\([ ]?(\"|\')?(.+?)(\"|\')?[ ]?\)', line)
                 if m is not None:
                     check_url(unquote(m.group(2)), singf, epub, _file_dec)
