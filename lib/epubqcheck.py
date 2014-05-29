@@ -187,26 +187,29 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                     return True
             return False
 
+        nlist = []
         for n in epub.namelist():
             if not isinstance(n, unicode):
                 n = n.decode('utf-8')
-            if 'jacket.xhtml' in n:
-                print('%s"Jacket" file produced by calibre found: %s'
-                      % (_file_dec, n))
-            if 'calibre_bookmarks.txt' in n:
-                print('%scalibre bookmarks file found: %s' % (_file_dec, n))
-            elif 'itunesmetadata.plist' in n.lower():
-                print('%siTunesMetadata file found: %s' % (_file_dec, n))
-            elif not is_exluded(n):
-                found = False
-                for i in opftree.xpath('//*[@href]'):
-                    if os.path.relpath(n) == os.path.relpath(
-                        os.path.join(root, i.get('href'))
-                    ):
-                        found = True
-                if not found:
-                    print('%sORPHAN file "%s" is NOT defined in OPF file'
-                          % (_file_dec, os.path.relpath(os.path.join(n))))
+            if not is_exluded(n):
+                nlist.append(os.path.relpath(n))
+
+        hlist = []
+        for i in opftree.xpath('//*[@href]'):
+            h = i.get('href')
+            if not isinstance(h, unicode):
+                h = h.decode('utf-8')
+            hlist.append(os.path.relpath(os.path.join(root, h)))
+
+        for n in nlist:
+            found = False
+            for h in hlist:
+                if n == h:
+                    found = True
+                    break
+            if not found:
+                print('%sORPHAN file "%s" is NOT defined in OPF file'
+                      % (_file_dec, n.encode('utf-8').decode(SFENC)))
 
     def check_font_mime_types(tree):
         items = tree.xpath('//opf:item[@href]', namespaces=OPFNS)
@@ -531,8 +534,17 @@ def qcheck(_documents, _moded, alter):
                               ' in ePUB archive: ' + singlefile.decode(SFENC))
                     if 'META-INF/encryption.xml' in singlefile:
                         encryption_file_found = True
-                        print(_file_dec + 'Encryption.xml file found. '
-                              'Embedded fonts probably are encrypted...')
+                        print('%sEncryption.xml file found: "%s" '
+                              % (_file_dec, singlefile))
+                    elif 'jacket.xhtml' in singlefile.lower():
+                        print('%s"Jacket" file produced by calibre found: %s'
+                              % (_file_dec, singlefile))
+                    elif 'calibre_bookmarks.txt' in singlefile.lower():
+                        print('%scalibre bookmarks file found: %s'
+                              % (_file_dec, singlefile))
+                    elif 'itunesmetadata.plist' in singlefile.lower():
+                        print('%siTunesMetadata file found: %s'
+                              % (_file_dec, singlefile))
                     elif (
                             singlefile.lower().endswith('.otf') or
                             singlefile.lower().endswith('.ttf')
