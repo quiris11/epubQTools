@@ -89,13 +89,17 @@ def check_dl_in_html_toc(tree, dir, epub, _file_dec):
 
 
 def check_meta_html_covers(tree, dir, epub, _file_dec):
-    html_cover_path = etree.XPath('//opf:reference[@type="cover"]',
-                                  namespaces=OPFNS)(tree)[0].get('href')
+    try:
+        html_cover_path = etree.XPath('//opf:reference[@type="cover"]',
+                                      namespaces=OPFNS)(tree)[0].get('href')
+    except:
+        print(_file_dec + 'Meta cover image is NOT defined.')
+        return 0
     try:
         meta_cover_id = etree.XPath('//opf:meta[@name="cover"]',
                                     namespaces=OPFNS)(tree)[0].get('content')
     except:
-        print(_file_dec + 'No meta cover image defined.')
+        print(_file_dec + 'HTML cover is NOT defined.')
         return 0
     try:
         meta_cover_path = etree.XPath(
