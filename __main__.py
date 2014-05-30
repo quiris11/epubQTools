@@ -8,13 +8,12 @@
 from __future__ import print_function
 import argparse
 import codecs
-import sys
-import subprocess
 import os
-import subprocess
-import zipfile
 import shutil
+import subprocess
+import sys
 import tempfile
+import zipfile
 
 from datetime import datetime
 from lib.epubqcheck import qcheck
@@ -131,7 +130,8 @@ def main():
     if args.replace_fonts and not args.epub:
         print('* WARNING! -t was ignored because it works only with -e.')
     if not args.skip_justify and not args.epub:
-        print('* WARNING! --skip-justify was ignored because it works only with -e.')
+        print('* WARNING! --skip-justify was ignored because it works only '
+              'with -e.')
     if args.left and not args.epub:
         print('* WARNING! --left was ignored because it works only with -e.')
     if args.log == '1':
@@ -173,7 +173,7 @@ def main():
         print('*** Checking with ePubCheck 3.0.1 tool ***')
         print('******************************************')
         try:
-            java = subprocess.Popen(
+            subprocess.Popen(
                 ['java', '-version'],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
@@ -271,7 +271,7 @@ def main():
                         sys.exit('ERROR! Kindlegen not found in directory: "' +
                                  args.tools + '" Giving up...')
                     for ln in proc.splitlines():
-                        if 'Warning' in ln and not 'W14029' in ln:
+                        if 'Warning' in ln and 'W14029' not in ln:
                             print(' ', ln)
                         if 'Error' in ln:
                             print(' ', ln)

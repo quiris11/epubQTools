@@ -666,7 +666,6 @@ def force_cover_find(_soup):
     print('* Trying to find cover image:', end=' ')
     images = etree.XPath('//opf:item[@media-type="image/jpeg"]',
                          namespaces=OPFNS)(_soup)
-    cover_found = 0
     if len(images) != 0:
         for imag in images:
             img = os.path.basename(imag.get('href')).lower()
@@ -1128,7 +1127,6 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path):
         print('* File "%s" is NOT hyphenated...' % os.path.basename(xhfile))
     xhtree = fix_styles(xhtree)
     if _resetmargins:
-        res_css_info_printed = True
         xhtree = append_reset_css(xhtree, xhfile, opf_path, opftree)
     xhtree = modify_problematic_styles(xhtree)
     _wmarks = xhtree.xpath('//xhtml:span[starts-with(text(), "==")]',
