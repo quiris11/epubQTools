@@ -24,7 +24,6 @@ NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
 SFENC = sys.getfilesystemencoding()
-encryption_file_found = False
 
 
 def check_font(path):
@@ -180,7 +179,8 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             excludes = ['mimetype',
                         'META-INF/container.xml',
                         'META-INF/com.apple.ibooks.display-options.xml',
-                        'META-INF/encryption.xml', '/',
+                        'META-INF/encryption.xml',
+                        '/',
                         opf_path]
             for e in excludes:
                 if name.endswith(e):
@@ -188,7 +188,10 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             return False
 
         nlist = []
+        enc_found = False
         for n in epub.namelist():
+            if 'META-INF/encryption.xml' in n:
+                enc_found = True
             if not isinstance(n, unicode):
                 n = n.decode('utf-8')
             if not is_exluded(n):
@@ -210,6 +213,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             if not found:
                 print('%sORPHAN file "%s" is NOT defined in OPF file'
                       % (_file_dec, n.encode('utf-8').decode(SFENC)))
+        return enc_found
 
     def check_font_mime_types(tree):
         items = tree.xpath('//opf:item[@href]', namespaces=OPFNS)
@@ -239,7 +243,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
         _folder = opf_root + '/'
     opftree = etree.fromstring(_epubfile.read(opf_path))
     opftree = unquote_urls(opftree)
-    check_orphan_files(_epubfile, opftree, _folder, _file_dec)
+    enc_found = check_orphan_files(_epubfile, opftree, _folder, _file_dec)
     if opftree.xpath('//opf:metadata', namespaces=OPFNS) is None:
         print(_file_dec + 'CRITICAL! No metadata defined in OPF file...')
     creators = opftree.xpath('//dc:creator', namespaces=DCNS)
@@ -344,16 +348,6 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             print(_file_dec + 'XML file: ' + _htmlfilepath +
                   ' not well formed: "' + str(e) + '"')
             continue
-#         for u in _xhtmlsoup.xpath('//*[@href or @src]'):
-#             if u.get('src'):
-#                 url = u.get('src')
-#             elif u.get('href'):
-#                 url = u.get('href')
-#             if 'http://' in url or 'mailto:' in url:
-#                 continue
-#             if '%' in url:
-#                 print('%sEncoded URLs: %s found '
-#                       'in html file: %s' % (_file_dec, url, _htmlfilepath))
         if _wmfound is False:
             _watermarks = etree.XPath('//*[starts-with(text(),"==")]',
                                       namespaces=XHTMLNS)(_xhtmlsoup)
@@ -391,7 +385,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                 print(_file_dec + 'At least one xhtml file has link tag '
                       'without type attribute defined')
 
-    #Check dtb:uid - should be identical go dc:identifier
+    # Check dtb:uid - should be identical go dc:identifier
     ncxfile = etree.XPath('//opf:item[@media-type="application/x-dtbncx+xml"]',
                           namespaces=OPFNS)(opftree)[0].get('href')
     ncxtree = etree.fromstring(_epubfile.read(os.path.relpath(
@@ -432,7 +426,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
 
     check_font_mime_types(opftree)
 
-    if encryption_file_found:
+    if enc_found:
         uid = None
         for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
             if dcid.get("{http://www.idpf.org/2007/opf}scheme") == "UUID":
@@ -519,7 +513,6 @@ def qcheck(_documents, _moded, alter):
                 if not alter:
                     print('')
                     print('START qcheck for: ' + file_dec)
-                encryption_file_found = False
                 epubfile = zipfile.ZipFile(os.path.join(root, _file))
                 opf_root, opf_path = find_opf(epubfile)
                 qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec)
@@ -533,7 +526,6 @@ def qcheck(_documents, _moded, alter):
                         print(_file_dec + 'CRITICAL! Problematic path found'
                               ' in ePUB archive: ' + singlefile.decode(SFENC))
                     if 'META-INF/encryption.xml' in singlefile:
-                        encryption_file_found = True
                         print('%sEncryption.xml file found: "%s" '
                               % (_file_dec, singlefile))
                     elif 'jacket.xhtml' in singlefile.lower():
