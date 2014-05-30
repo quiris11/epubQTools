@@ -78,7 +78,7 @@ parser.add_argument("--left", help='replace "text-align: justify" '
                     '(only with -e)',
                     action="store_true")
 parser.add_argument("--replace-fonts",
-                    help="replace font (experimental) (only with -e)",
+                    help="replace fonts (experimental) (only with -e)",
                     action="store_true")
 parser.add_argument("-k", "--kindlegen", help="convert _moh.epub files to"
                     " .mobi with kindlegen", action="store_true")
