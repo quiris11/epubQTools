@@ -923,7 +923,11 @@ def append_reset_css_file(opftree, tempdir):
         cssdir = ''
     with open(os.path.join(tempdir, cssdir, 'reset-quiris.css'), 'w') as f:
         f.write('@page { margin: 5pt } \r\n'
-                'body, body.calibre  { margin: 5pt; padding: 0 }')
+                'body, body.calibre  { margin: 5pt; padding: 0 }\r\n'
+                '* { adobe-hyphenate: explicit;\r\n'
+                'hyphens: manual;\r\n'
+                '-webkit-hyphens: manual;\r\n'
+                '-moz-hyphens: manual }')
     newcssmanifest = etree.Element(
         '{http://www.idpf.org/2007/opf}item',
         attrib={'media-type': 'text/css',
