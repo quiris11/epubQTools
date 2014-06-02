@@ -911,8 +911,17 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
 
 
 def append_reset_css_file(opftree, tempdir):
+    is_quiris = False
     cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
                              namespaces=OPFNS)
+    try:
+        for c in cssitems:
+            if 'reset-quiris.css' in c.get('href'):
+                is_quiris = True
+                return opftree, is_quiris
+    except IndexError:
+        is_quiris = True
+        return opftree, is_quiris
     if len(cssitems) > 0 and all(
         os.path.dirname(x.get('href')) == os.path.dirname(
             cssitems[0].get('href')
@@ -937,7 +946,7 @@ def append_reset_css_file(opftree, tempdir):
     )
     opftree.xpath('//opf:manifest',
                   namespaces=OPFNS)[0].insert(0, newcssmanifest)
-    return opftree
+    return opftree, is_quiris
 
 
 def modify_problematic_styles(source_file):
@@ -1083,7 +1092,8 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
     os.remove(os.path.join(rootepubdir, file_rel_to_opf))
 
 
-def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path):
+def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
+                       is_quiris):
     global qfixerr
     try:
         with open(xhfile, 'r') as content_file:
@@ -1130,7 +1140,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path):
     else:
         print('* File "%s" is NOT hyphenated...' % os.path.basename(xhfile))
     xhtree = fix_styles(xhtree)
-    if _resetmargins:
+    if _resetmargins and not is_quiris:
         xhtree = append_reset_css(xhtree, xhfile, opf_path, opftree)
     xhtree = modify_problematic_styles(xhtree)
     _wmarks = xhtree.xpath('//xhtml:span[starts-with(text(), "==")]',
@@ -1200,9 +1210,10 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         find_and_replace_fonts(opftree, opf_dir_abs)
     if _resetmargins:
         print('* Setting custom CSS styles...')
-        opftree = append_reset_css_file(opftree, opf_dir_abs)
+        opftree, is_quiris = append_reset_css_file(opftree, opf_dir_abs)
     for s in _xhtml_files:
-        process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs)
+        process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
+                           is_quiris)
     opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
 
