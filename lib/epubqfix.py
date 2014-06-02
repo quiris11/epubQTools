@@ -269,7 +269,7 @@ def decrypt_font(path, key, method):
             print('OK! Replaced.')
         else:
             qfixerr = True
-            print('FAILED! Candidate does NOT found.')
+            print('FAILED! Substitute did NOT found.')
 
 
 def find_and_replace_fonts(opftree, rootepubdir):
