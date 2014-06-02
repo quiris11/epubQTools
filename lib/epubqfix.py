@@ -308,7 +308,7 @@ def replace_font(actual_font_path):
         print('* Font replaced: ' + os.path.basename(actual_font_path))
     else:
         qfixerr = True
-        print('* Font "%s" not replaced. Candidate does NOT found.'
+        print('* Font "%s" not replaced. Substitute did NOT found.'
               % os.path.basename(actual_font_path))
 
 
