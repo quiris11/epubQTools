@@ -455,7 +455,8 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 type='toc', href=html_toc
             )
         else:
-            print('* Fix for a missing HTML TOC file. Generating a new TOC...')
+            print('* Fix for a missing HTML TOC file. Generating a new TOC...',
+                  end=' ')
             parser = etree.XMLParser(remove_blank_text=True)
             if not hasattr(sys, 'frozen'):
                 transform = etree.XSLT(etree.fromstring(get_data('lib',
@@ -483,6 +484,17 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                     a.set('href', os.path.basename(a.get('href')))
             else:
                 textdir = ''
+            head = result.xpath('//xhtml:head', namespaces=XHTMLNS)[0]
+            for ci in soup.xpath('//opf:item[@media-type="text/css"]',
+                                 namespaces=OPFNS):
+
+                head.append(etree.fromstring(
+                    '<link href="%s" rel="stylesheet" type="text/css" />'
+                    % os.path.join(
+                        os.path.relpath(tempdir, os.path.dirname(xhtml_file)),
+                        ci.get('href')
+                    ).replace('\\', '/')
+                ))
             with open(os.path.join(tempdir, textdir, 'toc-quiris.xhtml'),
                       "w") as f:
                 f.write(etree.tostring(
@@ -515,6 +527,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 href=os.path.join(textdir, 'toc-quiris.xhtml').replace('\\',
                                                                        '/')
             )
+        print('Done...')
         try:
             soup.xpath('//opf:guide',
                        namespaces=OPFNS)[0].append(newtocreference)
@@ -1193,15 +1206,13 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = fix_various_opf_problems(opftree, opf_dir_abs, _xhtml_files,
                                        _xhtml_file_paths)
     opftree = fix_ncx_dtd_uid(opftree, opf_dir_abs)
-    opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
-                           _xhtml_file_paths)
     opftree = fix_meta_cover_order(opftree)
 
     # experimental - disabled
     # replace_svg_html_cover(opftree, opf_dir_abs)
 
     opftree = fix_mismatched_covers(opftree, opf_dir_abs)
-    convert_dl_to_ul(opftree, opf_dir_abs)
+
     remove_text_from_html_cover(opftree, opf_dir_abs)
 
     # parse encryption.xml file
@@ -1213,10 +1224,14 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if _replacefonts:
         find_and_replace_fonts(opftree, opf_dir_abs)
     if _resetmargins:
-        print('* Setting custom CSS styles...')
+        print('* Setting custom CSS styles...', end=' ')
         opftree, is_quiris = append_reset_css_file(opftree, opf_dir_abs)
+        print('Done...')
     else:
         is_quiris = False
+    opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
+                           _xhtml_file_paths)
+    convert_dl_to_ul(opftree, opf_dir_abs)
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
                            is_quiris)

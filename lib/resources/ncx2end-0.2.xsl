@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<xsl:stylesheet version="1.0" 
+<xsl:stylesheet version="1.0"
                 exclude-result-prefixes="ncx xsl"
                 xmlns="http://www.w3.org/1999/xhtml"
                 xmlns:ncx="http://www.daisy.org/z3986/2005/ncx/"
@@ -15,7 +15,7 @@
   <xsl:template match="ncx:ncx">
     <html>
       <xsl:call-template name="html-head"/>
-      <body>
+      <body id="toc-quiris">
         <xsl:apply-templates/>
       </body>
     </html>
@@ -100,8 +100,11 @@
   <xsl:template name="html-head">
     <head>
       <title><xsl:apply-templates select="/ncx:ncx/ncx:docTitle/ncx:text"/></title>
-      <style type="text/css">ul {padding-left: 1em} h1 {text-align: center}</style>
-    </head>  
+      <style type="text/css">
+        #toc-quiris ul { padding-left: 1em }
+        #toc-quiris h1 { text-align: center }
+      </style>
+    </head>
   </xsl:template>
 
 </xsl:stylesheet>
