@@ -1193,15 +1193,15 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = fix_various_opf_problems(opftree, opf_dir_abs, _xhtml_files,
                                        _xhtml_file_paths)
     opftree = fix_ncx_dtd_uid(opftree, opf_dir_abs)
-    # opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
-    #                        _xhtml_file_paths)
+    opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
+                           _xhtml_file_paths)
     opftree = fix_meta_cover_order(opftree)
 
     # experimental - disabled
     # replace_svg_html_cover(opftree, opf_dir_abs)
 
     opftree = fix_mismatched_covers(opftree, opf_dir_abs)
-    # convert_dl_to_ul(opftree, opf_dir_abs)
+    convert_dl_to_ul(opftree, opf_dir_abs)
     remove_text_from_html_cover(opftree, opf_dir_abs)
 
     # parse encryption.xml file
