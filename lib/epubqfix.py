@@ -1211,6 +1211,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if _resetmargins:
         print('* Setting custom CSS styles...')
         opftree, is_quiris = append_reset_css_file(opftree, opf_dir_abs)
+    else:
+        is_quiris = False
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
                            is_quiris)
