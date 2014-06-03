@@ -78,13 +78,13 @@ def mobi_header_fields(mobi_content):
 
 
 def mobi_check(_documents):
-    for root, dirs, files in os.walk(_documents):
+    for dirpath, dirs, files in os.walk(_documents):
         for file in files:
             file_extension = os.path.splitext(file)[1].lower()
             file_dec = file.decode(sys.getfilesystemencoding())
             if file_extension not in ['.mobi', '.azw', '.azw3']:
                 continue
-            with open(os.path.join(root, file), 'rb') as f:
+            with open(os.path.join(dirpath, file), 'rb') as f:
                 mobi_content = f.read()
             if mobi_content[60:68] != 'BOOKMOBI':
                 print(file_dec + ': invalid file format. Skipping...')
@@ -100,8 +100,42 @@ def mobi_check(_documents):
             # experimental feature
             if args.ebok:
                 mobi_content = mobi_content.replace('PDOC', 'EBOK')
-                with open(os.path.join(root, 'mod_' + file), 'wb') as f:
+                with open(os.path.join(dirpath, 'mod_' + file), 'wb') as f:
                     f.write(mobi_content)
+
+
+def fix_extension(dir):
+    for dirpath, dirs, files in os.walk(dir):
+        for file in files:
+            file_extension = os.path.splitext(file)[1].lower()
+            file_dec = file.decode(sys.getfilesystemencoding())
+            if file_extension not in ['.azw', '.azw3']:
+                continue
+            with open(os.path.join(dirpath, file), 'rb') as f:
+                mobi_content = f.read()
+            if mobi_content[60:68] != 'BOOKMOBI':
+                print(file_dec + ': invalid file format. Skipping...')
+                continue
+            id, ver = mobi_header_fields(mobi_content)
+            if ver == 8:
+                new_ext = '.azw3'
+            elif ver == 6:
+                new_ext = '.azw'
+            else:
+                continue
+            if new_ext == os.path.splitext(file)[1]:
+                continue
+            if not os.path.exists(os.path.join(dirpath,
+                                  os.path.splitext(file)[0] + new_ext)):
+                os.rename(os.path.join(dirpath, file),
+                          os.path.join(dirpath,
+                                       os.path.splitext(file)[0] + new_ext))
+                print('* File extension for "%s" was changed to "%s"'
+                      % (file_dec, new_ext))
+            else:
+                print('* File extension was not changed for file "%s". '
+                      'File with updated filename already exists...'
+                      % file_dec)
 
 
 if __name__ == "__main__":
@@ -114,6 +148,10 @@ if __name__ == "__main__":
     parser.add_argument("--version", nargs='?',
                         default=None, type=int, metavar="VER",
                         help="find books with Mobi header version (6 or 8)")
+    parser.add_argument("-e", "--fix-extension",
+                        help='rename file with correct extension .azw or'
+                        '.azw3',
+                        action="store_true")
     parser.add_argument("-n", "--rename",
                         help="rename .epub files to 'author - title.epub'",
                         action="store_true")
@@ -132,4 +170,7 @@ if __name__ == "__main__":
         st = datetime.now().strftime('%Y%m%d%H%M%S')
         sys.stdout = Logger(os.path.join(args.log, 'eQM-' + st + '.log'))
 
-    mobi_check(args.directory)
+    if args.fix_extension:
+        fix_extension(args.directory)
+    else:
+        mobi_check(args.directory)
