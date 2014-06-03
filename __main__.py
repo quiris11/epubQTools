@@ -263,7 +263,7 @@ def main():
                     try:
                         proc = subprocess.Popen([
                             os.path.join(args.tools, kgapp),
-                            '-dont_append_source',
+                            # '-dont_append_source',
                             compression,
                             os.path.join(root, _file)
                         ], stdout=subprocess.PIPE).communicate()[0]

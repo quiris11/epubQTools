@@ -489,6 +489,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                     result,
                     pretty_print=True,
                     xml_declaration=True,
+                    standalone=False,
                     encoding="utf-8",
                     doctype=DTD
                 ))
@@ -501,7 +502,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                         'id': 'toc-quiris'}
             )
             soup.xpath('//opf:manifest',
-                       namespaces=OPFNS)[0].insert(0, newtocmanifest)
+                       namespaces=OPFNS)[0].append(newtocmanifest)
             newtocspine = etree.Element(
                 '{http://www.idpf.org/2007/opf}itemref',
                 idref='toc-quiris'
@@ -516,7 +517,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             )
         try:
             soup.xpath('//opf:guide',
-                       namespaces=OPFNS)[0].insert(0, newtocreference)
+                       namespaces=OPFNS)[0].append(newtocreference)
         except IndexError:
             newguide = etree.Element('{http://www.idpf.org/2007/opf}guide')
             newguide.append(newtocreference)
@@ -596,6 +597,7 @@ def fix_mismatched_covers(opftree, tempdir):
                 xhtmltree,
                 pretty_print=True,
                 xml_declaration=True,
+                standalone=False,
                 encoding="utf-8",
                 doctype=DTD)
             )
@@ -638,7 +640,7 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
                 _refcovers[0].set('href', cover_file)
             else:
                 _soup.xpath('//opf:guide',
-                            namespaces=OPFNS)[0].insert(0, _newcoverreference)
+                            namespaces=OPFNS)[0].append(_newcoverreference)
         except IndexError:
             newguide = etree.Element('{http://www.idpf.org/2007/opf}guide')
             newguide.append(_newcoverreference)
@@ -656,7 +658,7 @@ def set_cover_meta_elem(_soup, _content):
             name='cover',
             content=_content
         )
-        _metadatas[0].insert(0, _newmeta)
+        _metadatas[0].append(_newmeta)
     elif len(_metadatas) == 1 and len(_metacovers) == 1:
         _metacovers[0].set('content', _content)
     return _soup
@@ -688,11 +690,11 @@ def correct_mime_types(_soup):
             _item.set('media-type', 'application/vnd.ms-opentype')
         elif (
                 _item.get('href').lower().endswith('.ttf') and
-                _item.get('media-type') != 'application/x-font-truetype'
+                _item.get('media-type') != 'application/x-truetype-font'
         ):
-            print('* Setting correct mime type "application/x-font-truetype" '
+            print('* Setting correct mime type "application/x-truetype-font" '
                   'for font "%s"' % _item.get('href'))
-            _item.set('media-type', 'application/x-font-truetype')
+            _item.set('media-type', 'application/x-truetype-font')
         elif _item.get('media-type').lower() == 'text/html':
             _item.set('media-type', 'application/xhtml+xml')
     return _soup
@@ -885,7 +887,7 @@ def fix_ncx_dtd_uid(opftree, tempdir):
         metadtd.set('content', dc_identifier)
     with open(os.path.join(tempdir, ncxfile), 'w') as f:
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
-                xml_declaration=True, encoding='utf-8'))
+                xml_declaration=True, encoding='utf-8', standalone=False))
     return opftree
 
 
@@ -945,7 +947,7 @@ def append_reset_css_file(opftree, tempdir):
                 'id': 'reset-quiris'}
     )
     opftree.xpath('//opf:manifest',
-                  namespaces=OPFNS)[0].insert(0, newcssmanifest)
+                  namespaces=OPFNS)[0].append(newcssmanifest)
     return opftree, is_quiris
 
 
@@ -1001,12 +1003,13 @@ def remove_text_from_html_cover(opftree, rootepubdir):
         print('* Removing text from HTML cover...')
     except:
         return 0
-    with open(html_cover_path, "w") as f:
+    with open(html_cover_path, 'w') as f:
         f.write(etree.tostring(
             html_cover_tree,
             pretty_print=True,
             xml_declaration=True,
-            encoding="utf-8",
+            standalone=False,
+            encoding='utf-8',
             doctype=DTD)
         )
 
@@ -1037,6 +1040,7 @@ def replace_svg_html_cover(opftree, rootepubdir):
                 new_cover_tree,
                 pretty_print=True,
                 xml_declaration=True,
+                standalone=False,
                 encoding="utf-8",
                 doctype=DTD)
             )
@@ -1156,7 +1160,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
     with open(xhfile, "w") as f:
         f.write(etree.tostring(xhtree, pretty_print=True, xml_declaration=True,
-                encoding="utf-8", doctype=DTD))
+                standalone=False, encoding="utf-8", doctype=DTD))
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
@@ -1189,15 +1193,15 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = fix_various_opf_problems(opftree, opf_dir_abs, _xhtml_files,
                                        _xhtml_file_paths)
     opftree = fix_ncx_dtd_uid(opftree, opf_dir_abs)
-    opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
-                           _xhtml_file_paths)
+    # opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
+    #                        _xhtml_file_paths)
     opftree = fix_meta_cover_order(opftree)
 
     # experimental - disabled
     # replace_svg_html_cover(opftree, opf_dir_abs)
 
     opftree = fix_mismatched_covers(opftree, opf_dir_abs)
-    convert_dl_to_ul(opftree, opf_dir_abs)
+    # convert_dl_to_ul(opftree, opf_dir_abs)
     remove_text_from_html_cover(opftree, opf_dir_abs)
 
     # parse encryption.xml file
@@ -1230,7 +1234,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'w') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
-                xml_declaration=True, encoding='utf-8'))
+                standalone=False, xml_declaration=True, encoding='utf-8'))
 
 
 def process_corrupted_zip(e, root, f, zipbinf):
