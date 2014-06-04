@@ -961,14 +961,15 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                             if ff != '':
                                 break
                     if is_rm_family:
+                        ff = ff.replace('"', '').replace("'", '')
                         for e in lis:
                             if '@font-face' in e:
                                 continue
                             elif 'body' in e:
                                 continue
                             lis[lis.index(e)] = re.sub(
-                                r'font-family\s*:\s*' + re.escape(ff) + r'.+',
-                                '', e
+                                r'font-family\s*:\s*(\"|\')?' + re.escape(ff) +
+                                r'(\"|\')?.+', '', e
                             )
                         fs = '}'.join(lis)
                         f.seek(0)
