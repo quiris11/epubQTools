@@ -1027,38 +1027,6 @@ def remove_text_from_html_cover(opftree, rootepubdir):
         )
 
 
-def replace_svg_html_cover(opftree, rootepubdir):
-    print('* Replacing svg cover procedure starting...')
-    html_cover_path = os.path.join(rootepubdir, opftree.xpath(
-        '//opf:reference[@type="cover"]',
-        namespaces=OPFNS
-    )[0].get('href'))
-    html_cover_tree = etree.parse(html_cover_path,
-                                  parser=etree.XMLParser(recover=True))
-    svg_imgs = html_cover_tree.xpath('//svg:image', namespaces=SVGNS)
-    if len(svg_imgs) == 1:
-        if not hasattr(sys, 'frozen'):
-            new_cover_tree = etree.fromstring(get_data('lib',
-                                              'resources/cover.xhtml'))
-        else:
-            new_cover_tree = etree.parse(os.path.join(
-                os.path.dirname(sys.executable), 'resources', 'cover.xhtml'
-            ))
-        new_cover_tree.xpath(
-            '//xhtml:img',
-            namespaces=XHTMLNS
-        )[0].set('src', svg_imgs[0].get('{http://www.w3.org/1999/xlink}href'))
-        with open(html_cover_path, "w") as f:
-            f.write(etree.tostring(
-                new_cover_tree,
-                pretty_print=True,
-                xml_declaration=True,
-                standalone=False,
-                encoding="utf-8",
-                doctype=DTD)
-            )
-
-
 def convert_dl_to_ul(opftree, rootepubdir):
     html_toc_path = os.path.join(rootepubdir, opftree.xpath(
         '//opf:reference[@type="toc"]',
@@ -1208,9 +1176,6 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = fix_ncx_dtd_uid(opftree, opf_dir_abs)
     opftree = fix_meta_cover_order(opftree)
 
-    # experimental - disabled
-    # replace_svg_html_cover(opftree, opf_dir_abs)
-
     opftree = fix_mismatched_covers(opftree, opf_dir_abs)
 
     remove_text_from_html_cover(opftree, opf_dir_abs)
@@ -1259,32 +1224,6 @@ def process_corrupted_zip(e, root, f, zipbinf):
         return 1
     print('* EPUB file "%s" is corrupted! Trying to fix it...'
           % f.decode(SFENC), end=' ')
-#         try:
-#             zipbin = zipfile.ZipFile(os.path.join(zipbinf,
-#                                                   'zip-3.0-bin.zip'))
-#         except:
-#             print('NOT FIXED')
-#             print('zip-3.0-bin.zip not found in directory: "' +
-#                   zipbinf + '" Giving up...')
-#             print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
-#             return 1
-#         try:
-#             zipdep = zipfile.ZipFile(os.path.join(zipbinf,
-#                                                   'zip-3.0-dep.zip'))
-#         except:
-#             print('NOT FIXED')
-#             print('zip-3.0-dep.zip not found in directory: "' +
-#                   zipbinf + '" Giving up...')
-#             print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
-#             return 1
-#         zipbin_temp = tempfile.mkdtemp(
-#             suffix='',
-#             prefix='quiris-tmp-'
-#         )
-#         zipbin.extract('bin/zip32z64.dll', zipbin_temp)
-#         zipbin.extract('bin/zip.exe', zipbin_temp)
-#         zipdep.extract('bin/bzip2.dll', zipbin_temp)
-#         zipbinpath = os.path.join(zipbin_temp, 'bin', 'zip.exe')
     zipbinpath = 'zip'
     if 'differ' in str(e):
         zipp = subprocess.Popen([
