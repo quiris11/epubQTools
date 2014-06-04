@@ -80,6 +80,9 @@ parser.add_argument("--left", help='replace "text-align: justify" '
 parser.add_argument("--replace-fonts",
                     help="replace fonts (experimental) (only with -e)",
                     action="store_true")
+parser.add_argument("--remove-font-family",
+                    help="remove font-family (experimental) (only with -e)",
+                    action="store_true")
 parser.add_argument("-k", "--kindlegen", help="convert _moh.epub files to"
                     " .mobi with kindlegen", action="store_true")
 parser.add_argument("-d", "--huffdic", help="tell kindlegen to use huffdic "
@@ -231,7 +234,7 @@ def main():
         print('******************************************')
         qfix(args.directory, args.force, args.replace_fonts,
              args.skip_reset_css, args.tools, args.skip_hyphenate,
-             args.skip_justify, args.left)
+             args.skip_justify, args.left, args.remove_font_family)
 
     if args.kindlegen:
         print('')

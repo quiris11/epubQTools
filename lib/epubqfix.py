@@ -925,7 +925,7 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
     return source_file
 
 
-def append_reset_css_file(opftree, tempdir):
+def append_reset_css_file(opftree, tempdir, is_rm_family):
     is_quiris = is_body_family = False
     ff = ''
     cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
@@ -936,16 +936,44 @@ def append_reset_css_file(opftree, tempdir):
                 is_quiris = True
                 return opftree, is_quiris
             else:
-                with open(os.path.join(tempdir, c.get('href'))) as f:
+                with open(os.path.join(tempdir, c.get('href')), 'r+') as f:
                     fs = f.read()
-                    if re.search(r'[(?:\s|\,)]\bbody\b[(?:\s|\,)]?.*?\{.*?font'
-                                 '-family\s*:\s*(.*?);', fs, re.DOTALL):
-                        is_body_family = True
-                    try:
-                        ff = re.search(r'@font-face\s*\{.*?font-family\s*:\s*'
-                                       '(.*?);', fs, re.DOTALL).group(1)
-                    except:
-                        pass
+                    lis = fs.split('}')
+                    for e in lis:
+                        if 'body' in e:
+                            try:
+                                fft = re.search(r'font-family\s*:\s*(.*?);',
+                                                e).group(1)
+                                ff = fft.split(',')[0]
+                                is_body_family = True
+                            except:
+                                ff = ''
+                        if ff != '':
+                            break
+                    if ff == '':
+                        for e in lis:
+                            if '@font-face' in e:
+                                try:
+                                    ff = re.search(r'font-family\s*:\s*(.*?);',
+                                                   e).group(1)
+                                except:
+                                    ff = ''
+                            if ff != '':
+                                break
+                    if is_rm_family:
+                        for e in lis:
+                            if '@font-face' in e:
+                                continue
+                            elif 'body' in e:
+                                continue
+                            lis[lis.index(e)] = re.sub(
+                                r'font-family\s*:\s*' + re.escape(ff) + r'.+',
+                                '', e
+                            )
+                        fs = '}'.join(lis)
+                        f.seek(0)
+                        f.truncate()
+                        f.write(fs)
     except IndexError:
         is_quiris = True
         return opftree, is_quiris
@@ -1162,7 +1190,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
-                 skip_hyph, arg_justify, arg_left):
+                 skip_hyph, arg_justify, arg_left, irmf):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path = find_roots(_tempdir)
@@ -1207,7 +1235,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         find_and_replace_fonts(opftree, opf_dir_abs)
     if _resetmargins:
         print('* Setting custom CSS styles...', end=' ')
-        opftree, is_quiris = append_reset_css_file(opftree, opf_dir_abs)
+        opftree, is_quiris = append_reset_css_file(opftree, opf_dir_abs, irmf)
         print('Done...')
     else:
         is_quiris = False
@@ -1309,7 +1337,7 @@ def html_cover_first(opftree):
 
 
 def qfix(_documents, _forced, _replacefonts, _resetmargins, zbf,
-         skip_hyph, arg_justify, arg_left):
+         skip_hyph, arg_justify, arg_left, irmf):
     global qfixerr
     qfixerr = False
     counter = 0
@@ -1340,7 +1368,7 @@ def qfix(_documents, _forced, _replacefonts, _resetmargins, zbf,
                     print('* Hyphenating is turned OFF...')
                 process_epub(_tempdir, _replacefonts,
                              _resetmargins, skip_hyph,
-                             arg_justify, arg_left)
+                             arg_justify, arg_left, irmf)
                 pack_epub(os.path.join(root, newfile), _tempdir)
                 clean_temp(_tempdir)
                 if qfixerr:
