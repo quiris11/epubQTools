@@ -926,7 +926,8 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
 
 
 def append_reset_css_file(opftree, tempdir):
-    is_quiris = False
+    is_quiris = is_body_family = False
+    ff = ''
     cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
                              namespaces=OPFNS)
     try:
@@ -934,6 +935,17 @@ def append_reset_css_file(opftree, tempdir):
             if 'reset-quiris.css' in c.get('href'):
                 is_quiris = True
                 return opftree, is_quiris
+            else:
+                with open(os.path.join(tempdir, c.get('href'))) as f:
+                    fs = f.read()
+                    if re.search(r'[(?:\s|\,)]\bbody\b[(?:\s|\,)]?.*?\{.*?font'
+                                 '-family\s*:\s*(.*?);', fs, re.DOTALL):
+                        is_body_family = True
+                    try:
+                        ff = re.search(r'@font-face\s*\{.*?font-family\s*:\s*'
+                                       '(.*?);', fs, re.DOTALL).group(1)
+                    except:
+                        pass
     except IndexError:
         is_quiris = True
         return opftree, is_quiris
@@ -945,13 +957,18 @@ def append_reset_css_file(opftree, tempdir):
         cssdir = os.path.dirname(cssitems[0].get('href'))
     else:
         cssdir = ''
+    if not is_body_family and ff != '':
+        bs = 'body {font-family: %s }' % ff
+    else:
+        bs = ''
     with open(os.path.join(tempdir, cssdir, 'reset-quiris.css'), 'w') as f:
         f.write('@page { margin: 5pt } \r\n'
                 'body, body.calibre  { margin: 5pt; padding: 0 }\r\n'
                 '* { adobe-hyphenate: explicit !important;\r\n'
                 'hyphens: manual !important;\r\n'
                 '-webkit-hyphens: manual !important;\r\n'
-                '-moz-hyphens: manual !important }')
+                '-moz-hyphens: manual !important }\r\n' +
+                bs)
     newcssmanifest = etree.Element(
         '{http://www.idpf.org/2007/opf}item',
         attrib={'media-type': 'text/css',
