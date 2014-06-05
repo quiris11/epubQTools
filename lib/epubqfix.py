@@ -969,7 +969,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                                 continue
                             lis[lis.index(e)] = re.sub(
                                 r'font-family\s*:\s*(\"|\')?' + re.escape(ff) +
-                                r'(\"|\')?.+', '', e
+                                r'(\"|\')?.*?;', '', e
                             )
                         fs = '}'.join(lis)
                         f.seek(0)
