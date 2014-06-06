@@ -16,11 +16,12 @@ import difflib
 parser = argparse.ArgumentParser()
 parser.add_argument("file", help="original EPUB file (without _moh)")
 parser.add_argument("nr", nargs='?', default='0',
-                    help='nr of file to compare from --list-files')
-parser.add_argument("-l", "--list-files", help="list all files inside EPUB",
+                    help='number of file (from --list-files) of original EPUB'
+                    'to compare')
+parser.add_argument("-l", "--list-files", help="list all files inside EPUBs",
                     action="store_true")
 parser.add_argument("-e", '--extension', nargs='?', default='',
-                    help='list only files with given extension')
+                    help='(with -l only) list only files with given extension')
 ar = parser.parse_args()
 
 
@@ -29,7 +30,7 @@ def epubqcompare(file, nr, lisfiles, ext):
     epubf2 = zipfile.ZipFile(os.path.join(
         os.getcwd(), os.path.splitext(file)[0] + '_moh.epub'))
     if lisfiles:
-        print('*** File 1 ***')
+        print('*** EPUB 1 ***')
         count = 0
         for n in epubf1.namelist():
             if not isinstance(n, unicode):
@@ -37,7 +38,7 @@ def epubqcompare(file, nr, lisfiles, ext):
             if n.endswith(ext):
                 print(count, n)
             count += 1
-        print('*** File 2 ***')
+        print('*** EPUB 2 ***')
         count2 = 0
         for n in epubf2.namelist():
             if not isinstance(n, unicode):
