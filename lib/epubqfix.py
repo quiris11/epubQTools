@@ -492,15 +492,11 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             head = result.xpath('//xhtml:head', namespaces=XHTMLNS)[0]
             for ci in soup.xpath('//opf:item[@media-type="text/css"]',
                                  namespaces=OPFNS):
-                # print('')
-                # print(ci.get('href'))
-                # print(tempdir, os.path.dirname(xhtml_file))
                 head.append(etree.fromstring(
                     '<link href="%s" rel="stylesheet" type="text/css" />'
                     % os.path.join(
-                        os.path.relpath(tempdir, os.path.dirname(
-                            os.path.join(xhtml_file, textdir)
-                        )),
+                        os.path.relpath(tempdir,
+                                        os.path.join(tempdir, textdir)),
                         ci.get('href')
                     ).replace('\\', '/')
                 ))
