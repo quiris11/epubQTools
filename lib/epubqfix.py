@@ -461,8 +461,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 type='toc', href=html_toc
             )
         else:
-            print('* Fix for a missing HTML TOC file. Generating a new TOC...',
-                  end=' ')
+            print('* Fix for a missing HTML TOC file. Generating a new TOC...')
             parser = etree.XMLParser(remove_blank_text=True)
             if not hasattr(sys, 'frozen'):
                 transform = etree.XSLT(etree.fromstring(get_data('lib',
@@ -537,7 +536,6 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 href=os.path.join(textdir, 'toc-quiris.xhtml').replace('\\',
                                                                        '/')
             )
-        print('Done...')
         try:
             soup.xpath('//opf:guide',
                        namespaces=OPFNS)[0].append(newtocreference)
@@ -997,6 +995,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
     else:
         cssdir = ''
     if not is_body_family and ff != '':
+        print('! Setting font-family for body to "%s"' % ff)
         bs = 'body {font-family: %s }' % ff
     else:
         bs = ''
@@ -1245,9 +1244,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if _replacefonts:
         find_and_replace_fonts(opftree, opf_dir_abs, fontdir)
     if _resetmargins:
-        print('* Setting custom CSS styles...', end=' ')
+        print('* Setting custom CSS styles...')
         opftree, is_quiris = append_reset_css_file(opftree, opf_dir_abs, irmf)
-        print('Done...')
     else:
         is_quiris = False
     opftree = remove_wm_info(opftree, opf_dir_abs)
