@@ -489,101 +489,81 @@ def check_url(url, singf, nlist, _file_dec):
             found_proper_url = True
             break
     if not found_proper_url:
-        print('%sLinked resource "%s" in "%s" is NOT exist'
+        print('%sLinked resource "%s" in "%s" does NOT exist'
               % (_file_dec, url, singf))
 
 
-def qcheck(_documents, _moded, alter):
-    if _moded:
-        fe = '_moh.epub'
-        nfe = '_org.epub'
+def qcheck(root, _file, alter):
+    file_dec = _file.decode(SFENC)
+    if alter:
+        _file_dec = file_dec + ': '
     else:
-        fe = '.epub'
-        nfe = '_moh.epub'
-    counter = 0
-    for root, dirs, files in os.walk(_documents):
-        for _file in files:
-            file_dec = _file.decode(SFENC)
-            if alter:
-                _file_dec = file_dec + ': '
-            else:
-                _file_dec = '* '
-            if _file.endswith(fe) and not _file.endswith(nfe):
-                counter += 1
-                if not alter:
-                    print('')
-                    print('START qcheck for: ' + file_dec)
-                epubfile = zipfile.ZipFile(os.path.join(root, _file))
-                opf_root, opf_path = find_opf(epubfile)
-                qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec)
-                prepnl = []
-                for n in epubfile.namelist():
-                    if not isinstance(n, unicode):
-                        n = n.decode('utf-8')
-                    prepnl.append(os.path.relpath(n).replace('\\', '/'))
-                for singlefile in epubfile.namelist():
-                    if '../' in singlefile:
-                        print(_file_dec + 'CRITICAL! Problematic path found'
-                              ' in ePUB archive: ' + singlefile.decode(SFENC))
-                    if 'META-INF/encryption.xml' in singlefile:
-                        print('%sEncryption.xml file found: "%s" '
-                              % (_file_dec, singlefile))
-                    elif 'jacket.xhtml' in singlefile.lower():
-                        print('%s"Jacket" file produced by calibre found: %s'
-                              % (_file_dec, singlefile))
-                    elif 'calibre_bookmarks.txt' in singlefile.lower():
-                        print('%scalibre bookmarks file found: %s'
-                              % (_file_dec, singlefile))
-                    elif 'itunesmetadata.plist' in singlefile.lower():
-                        print('%siTunesMetadata file found: %s'
-                              % (_file_dec, singlefile))
-                    elif (
-                            singlefile.lower().endswith('.otf') or
-                            singlefile.lower().endswith('.ttf')
-                    ):
-                        temp_font_dir = tempfile.mkdtemp()
-                        try:
-                            epubfile.extract(singlefile, temp_font_dir)
-                        except zipfile.BadZipfile:
-                            print(_file_dec + 'Font file: ' + singlefile +
-                                  ' is corrupted!')
-                            continue
-                        is_empty = False
-                        if os.path.getsize(
-                                os.path.join(temp_font_dir, singlefile)
-                        ) == 0:
-                            print('%sFont file "%s" is EMPTY!'
-                                  % (_file_dec, singlefile))
-                            is_empty = True
-                        if not is_empty:
-                            is_font, signature = check_font(
-                                os.path.join(temp_font_dir, singlefile)
-                            )
-                            if not is_font:
-                                print('%sFont file "%s" is probably encrypted.'
-                                      ' Incorrect signature %r.'
-                                      % (_file_dec, singlefile, signature))
-                        if os.path.isdir(temp_font_dir):
-                            shutil.rmtree(temp_font_dir)
-                    elif singlefile.lower().endswith('.css'):
-                        check_urls_in_css(singlefile, epubfile, prepnl,
-                                          _file_dec)
-                    else:
-                        try:
-                            sftree = etree.fromstring(
-                                epubfile.read(singlefile)
-                            )
-                        except:
-                            sftree = None
-                        if sftree is not None:
-                            check_urls(singlefile, sftree, prepnl,
-                                       _file_dec)
-                            check_wm_info(singlefile, sftree, epubfile,
-                                          _file_dec)
-                            check_display_none(singlefile, sftree, epubfile,
-                                               _file_dec)
-                if not alter:
-                    print('FINISH qcheck for: ' + file_dec)
-    if counter == 0:
+        _file_dec = '* '
+    if not alter:
         print('')
-        print('* NO epub files for checking found!')
+        print('START qcheck for: ' + file_dec)
+    epubfile = zipfile.ZipFile(os.path.join(root, _file))
+    opf_root, opf_path = find_opf(epubfile)
+    qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec)
+    prepnl = []
+    for n in epubfile.namelist():
+        if not isinstance(n, unicode):
+            n = n.decode('utf-8')
+        prepnl.append(os.path.relpath(n).replace('\\', '/'))
+    for singlefile in epubfile.namelist():
+        if '../' in singlefile:
+            print(_file_dec + 'CRITICAL! Problematic path found'
+                  ' in ePUB archive: ' + singlefile.decode(SFENC))
+        if 'META-INF/encryption.xml' in singlefile:
+            print('%sEncryption.xml file found: "%s" '
+                  % (_file_dec, singlefile))
+        elif 'jacket.xhtml' in singlefile.lower():
+            print('%s"Jacket" file produced by calibre found: %s'
+                  % (_file_dec, singlefile))
+        elif 'calibre_bookmarks.txt' in singlefile.lower():
+            print('%scalibre bookmarks file found: %s'
+                  % (_file_dec, singlefile))
+        elif 'itunesmetadata.plist' in singlefile.lower():
+            print('%siTunesMetadata file found: %s'
+                  % (_file_dec, singlefile))
+        elif (
+                singlefile.lower().endswith('.otf') or
+                singlefile.lower().endswith('.ttf')
+        ):
+            temp_font_dir = tempfile.mkdtemp()
+            try:
+                epubfile.extract(singlefile, temp_font_dir)
+            except zipfile.BadZipfile:
+                print(_file_dec + 'Font file: ' + singlefile +
+                      ' is corrupted!')
+                continue
+            is_empty = False
+            if os.path.getsize(
+                    os.path.join(temp_font_dir, singlefile)
+            ) == 0:
+                print('%sFont file "%s" is EMPTY!'
+                      % (_file_dec, singlefile))
+                is_empty = True
+            if not is_empty:
+                is_font, signature = check_font(
+                    os.path.join(temp_font_dir, singlefile)
+                )
+                if not is_font:
+                    print('%sFont file "%s" is probably encrypted.'
+                          ' Incorrect signature %r.'
+                          % (_file_dec, singlefile, signature))
+            if os.path.isdir(temp_font_dir):
+                shutil.rmtree(temp_font_dir)
+        elif singlefile.lower().endswith('.css'):
+            check_urls_in_css(singlefile, epubfile, prepnl, _file_dec)
+        else:
+            try:
+                sftree = etree.fromstring(epubfile.read(singlefile))
+            except:
+                sftree = None
+            if sftree is not None:
+                check_urls(singlefile, sftree, prepnl, _file_dec)
+                check_wm_info(singlefile, sftree, epubfile, _file_dec)
+                check_display_none(singlefile, sftree, epubfile, _file_dec)
+    if not alter:
+        print('FINISH qcheck for: ' + file_dec)

@@ -168,7 +168,7 @@ def remove_node(node):
 
 
 # based on calibri work
-def process_encryption(encfile, opftree):
+def process_encryption(encfile, opftree, fontdir):
     print('* Font decrypting started...')
     root = etree.parse(encfile)
     for em in root.xpath(
@@ -185,7 +185,7 @@ def process_encryption(encfile, opftree):
                                     '..', *uri.split('/')))
         key = find_encryption_key(opftree, algorithm)
         if (key and os.path.exists(font_path)):
-            decrypt_font(font_path, key, algorithm)
+            decrypt_font(font_path, key, algorithm, fontdir)
     return True
 
 
@@ -226,7 +226,7 @@ def find_encryption_key(opftree, method):
 
 
 # based on calibri work
-def decrypt_font(path, key, method):
+def decrypt_font(path, key, method, fontdir):
     global qfixerr
     if method == ADOBE_OBFUSCATION:
         crypt_len = 1024
@@ -251,11 +251,14 @@ def decrypt_font(path, key, method):
         print('* Starting replace procedure for encrypted file "%s" with font'
               ' from system directory...' % os.path.basename(path), end=' ')
         if sys.platform == 'win32':
-            font_paths = [os.path.abspath(os.path.join(os.environ['WINDIR'],
-                                                       'Fonts'))]
+            font_paths = [
+                os.path.abspath(os.path.join(os.environ['WINDIR'], 'Fonts')),
+                fontdir
+            ]
         else:
             font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
-                          os.path.join(HOME, 'Library', 'Fonts')]
+                          os.path.join(HOME, 'Library', 'Fonts'),
+                          fontdir]
         for font_path in font_paths:
             if os.path.exists(os.path.join(font_path,
                               os.path.basename(path))):
@@ -272,27 +275,30 @@ def decrypt_font(path, key, method):
             print('FAILED! Substitute did NOT found.')
 
 
-def find_and_replace_fonts(opftree, rootepubdir):
+def find_and_replace_fonts(opftree, rootepubdir, fontdir):
     items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree)
     for item in items:
         if item.get('href').lower().endswith('.otf'):
             actual_font_path = os.path.join(rootepubdir, item.get('href'))
-            replace_font(actual_font_path)
+            replace_font(actual_font_path, fontdir)
             continue
         if item.get('href').lower().endswith('.ttf'):
             actual_font_path = os.path.join(rootepubdir, item.get('href'))
-            replace_font(actual_font_path)
+            replace_font(actual_font_path, fontdir)
             continue
 
 
-def replace_font(actual_font_path):
+def replace_font(actual_font_path, fontdir):
     global qfixerr
     if sys.platform == 'win32':
-        font_paths = [os.path.abspath(os.path.join(os.environ['WINDIR'],
-                                                   'Fonts'))]
+        font_paths = [
+            os.path.abspath(os.path.join(os.environ['WINDIR'], 'Fonts')),
+            fontdir
+        ]
     else:
         font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
-                      os.path.join(HOME, 'Library', 'Fonts')]
+                      os.path.join(HOME, 'Library', 'Fonts'),
+                      fontdir]
     font_replaced = False
     for font_path in font_paths:
         if os.path.exists(
@@ -487,11 +493,15 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             head = result.xpath('//xhtml:head', namespaces=XHTMLNS)[0]
             for ci in soup.xpath('//opf:item[@media-type="text/css"]',
                                  namespaces=OPFNS):
-
+                # print('')
+                # print(ci.get('href'))
+                # print(tempdir, os.path.dirname(xhtml_file))
                 head.append(etree.fromstring(
                     '<link href="%s" rel="stylesheet" type="text/css" />'
                     % os.path.join(
-                        os.path.relpath(tempdir, os.path.dirname(xhtml_file)),
+                        os.path.relpath(tempdir, os.path.dirname(
+                            os.path.join(xhtml_file, textdir)
+                        )),
                         ci.get('href')
                     ).replace('\\', '/')
                 ))
@@ -1191,7 +1201,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
-                 skip_hyph, arg_justify, arg_left, irmf):
+                 skip_hyph, arg_justify, arg_left, irmf, fontdir):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path = find_roots(_tempdir)
@@ -1229,24 +1239,25 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     # parse encryption.xml file
     enc_file = os.path.join(_tempdir, 'META-INF', 'encryption.xml')
     if os.path.exists(enc_file):
-        process_encryption(enc_file, opftree)
+        process_encryption(enc_file, opftree, fontdir)
         os.remove(enc_file)
 
     if _replacefonts:
-        find_and_replace_fonts(opftree, opf_dir_abs)
+        find_and_replace_fonts(opftree, opf_dir_abs, fontdir)
     if _resetmargins:
         print('* Setting custom CSS styles...', end=' ')
         opftree, is_quiris = append_reset_css_file(opftree, opf_dir_abs, irmf)
         print('Done...')
     else:
         is_quiris = False
+    opftree = remove_wm_info(opftree, opf_dir_abs)
+    _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
     opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
                            _xhtml_file_paths)
     convert_dl_to_ul(opftree, opf_dir_abs)
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
                            is_quiris)
-    opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
 
     if arg_justify:
@@ -1337,46 +1348,34 @@ def html_cover_first(opftree):
     return opftree
 
 
-def qfix(_documents, _forced, _replacefonts, _resetmargins, zbf,
-         skip_hyph, arg_justify, arg_left, irmf):
+def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
+         skip_hyph, arg_justify, arg_left, irmf, fontdir):
     global qfixerr
     qfixerr = False
-    counter = 0
-    for root, dirs, files in os.walk(_documents):
-        for f in files:
-            if (f.endswith('.epub') and
-                    not f.endswith('_moh.epub') and
-                    not f.endswith('_org.epub')):
-                counter += 1
-                newfile = os.path.splitext(f)[0] + '_moh.epub'
-                if not _forced:
-                    if os.path.isfile(os.path.join(root, newfile)):
-                        print('* Skipping previously generated _moh file: ' +
-                              newfile.decode(SFENC))
-                        continue
-                print('')
-                print('START qfix for: ' + f.decode(SFENC))
-                try:
-                    _tempdir = unpack_epub(os.path.join(root, f))
-                except zipfile.BadZipfile, e:
-                    fixed_pth = process_corrupted_zip(e, root, f, zbf)
-                    if str(fixed_pth) == '1':
-                        continue
-                    else:
-                        _tempdir = unpack_epub(fixed_pth)
-                        os.unlink(fixed_pth)
-                if skip_hyph:
-                    print('* Hyphenating is turned OFF...')
-                process_epub(_tempdir, _replacefonts,
-                             _resetmargins, skip_hyph,
-                             arg_justify, arg_left, irmf)
-                pack_epub(os.path.join(root, newfile), _tempdir)
-                clean_temp(_tempdir)
-                if qfixerr:
-                    print('FINISH (with PROBLEMS) qfix for: ' +
-                          f.decode(SFENC))
-                else:
-                    print('FINISH qfix for: ' + f.decode(SFENC))
-    if counter == 0:
-        print('')
-        print('* NO epub files for fixing found!')
+    newfile = os.path.splitext(f)[0] + '_moh.epub'
+    if not _forced:
+        if os.path.isfile(os.path.join(root, newfile)):
+            print('* Skipping previously generated _moh file: ' +
+                  newfile.decode(SFENC))
+            return 0
+    print('')
+    print('START qfix for: ' + f.decode(SFENC))
+    try:
+        _tempdir = unpack_epub(os.path.join(root, f))
+    except zipfile.BadZipfile, e:
+        fixed_pth = process_corrupted_zip(e, root, f, zbf)
+        if str(fixed_pth) == '1':
+            return 0
+        else:
+            _tempdir = unpack_epub(fixed_pth)
+            os.unlink(fixed_pth)
+    if skip_hyph:
+        print('* Hyphenating is turned OFF...')
+    process_epub(_tempdir, _replacefonts, _resetmargins, skip_hyph,
+                 arg_justify, arg_left, irmf, fontdir)
+    pack_epub(os.path.join(root, newfile), _tempdir)
+    clean_temp(_tempdir)
+    if qfixerr:
+        print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+    else:
+        print('FINISH qfix for: ' + f.decode(SFENC))
