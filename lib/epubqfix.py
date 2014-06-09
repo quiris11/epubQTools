@@ -946,8 +946,9 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                     for e in lis:
                         if 'body' in e:
                             try:
-                                fft = re.search(r'font-family\s*:\s*(.*?);',
-                                                e).group(1)
+                                fft = re.search(
+                                    r'font-family\s*:\s*(.*?)(;|$)', e
+                                ).group(1)
                                 ff = fft.split(',')[0]
                                 is_body_family = True
                             except:
@@ -958,13 +959,15 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                         for e in lis:
                             if '@font-face' in e:
                                 try:
-                                    ff = re.search(r'font-family\s*:\s*(.*?);',
-                                                   e).group(1)
+                                    ff = re.search(
+                                        r'font-family\s*:\s*(.*?)(;|$)', e
+                                    ).group(1)
                                 except:
                                     ff = ''
                             if ff != '':
                                 break
                     if is_rm_family:
+                        print('* Removing problematic font-family...')
                         ff = ff.replace('"', '').replace("'", '')
                         for e in lis:
                             if '@font-face' in e:
