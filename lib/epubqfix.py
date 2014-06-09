@@ -995,7 +995,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
         cssdir = ''
     if not is_body_family and ff != '':
         print('! Setting font-family for body to "%s"' % ff)
-        bs = 'body {font-family: %s }' % ff
+        bs = 'body {font-family: "%s" }' % ff
     else:
         bs = ''
     with open(os.path.join(tempdir, cssdir, 'reset-quiris.css'), 'w') as f:
