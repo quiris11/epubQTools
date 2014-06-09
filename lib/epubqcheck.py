@@ -507,7 +507,7 @@ def check_body_font_family(singf, epub, _file_dec, is_body_family,
                     is_body_family = True
                     sfound = singf
                 except:
-                    ff = ''
+                    pass
             if ff != '':
                 break
         if ff == '':

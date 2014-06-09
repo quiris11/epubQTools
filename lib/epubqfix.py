@@ -952,7 +952,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                                 ff = fft.split(',')[0]
                                 is_body_family = True
                             except:
-                                ff = ''
+                                pass
                         if ff != '':
                             break
                     if ff == '':
