@@ -976,7 +976,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                                 continue
                             lis[lis.index(e)] = re.sub(
                                 r'font-family\s*:\s*(\"|\')?' + re.escape(ff) +
-                                r'(\"|\')?.*?;', '', e
+                                r'(\"|\')?.*?(;|$)', '', e
                             )
                         fs = '}'.join(lis)
                         f.seek(0)
@@ -1001,6 +1001,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
     with open(os.path.join(tempdir, cssdir, 'reset-quiris.css'), 'w') as f:
         f.write('@page { margin: 5pt } \r\n'
                 'body, body.calibre  { margin: 5pt; padding: 0 }\r\n'
+                'p { margin-left: 0; margin-right: 0 }\r\n'
                 '* { adobe-hyphenate: explicit !important;\r\n'
                 'hyphens: manual !important;\r\n'
                 '-webkit-hyphens: manual !important;\r\n'
