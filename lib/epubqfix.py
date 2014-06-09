@@ -957,13 +957,14 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                             break
                     if ff == '':
                         for e in lis:
-                            if '@font-face' in e:
-                                try:
-                                    ff = re.search(
-                                        r'font-family\s*:\s*(.*?)(;|$)', e
-                                    ).group(1)
-                                except:
-                                    ff = ''
+                            if '@font-face':
+                                if re.search(r'font-style\s*:\s*normal', e):
+                                    try:
+                                        ff = re.search(
+                                            r'font-family\s*:\s*(.*?)(;|$)', e
+                                        ).group(1)
+                                    except:
+                                        ff = ''
                             if ff != '':
                                 break
                     if is_rm_family:
