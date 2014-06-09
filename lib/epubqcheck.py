@@ -608,9 +608,10 @@ def qcheck(root, _file, alter, mod):
                 check_urls(singlefile, sftree, prepnl, _file_dec)
                 check_wm_info(singlefile, sftree, epubfile, _file_dec)
                 check_display_none(singlefile, sftree, epubfile, _file_dec)
-    if is_body_family and not mod:
-        print('%sfont-family for body: "%s" found in "%s"'
-              % (_file_dec, ff, sfound))
+    if is_body_family:
+        if not mod:
+            print('%sfont-family for body: "%s" found in "%s"'
+                  % (_file_dec, ff, sfound))
     elif is_font_face:
         print('%sWarning! Potential "stripping font" problem!' % (_file_dec))
     if not alter:
