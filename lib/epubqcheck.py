@@ -493,7 +493,44 @@ def check_url(url, singf, nlist, _file_dec):
               % (_file_dec, url, singf))
 
 
-def qcheck(root, _file, alter):
+def check_body_font_family(singf, epub, _file_dec, is_body_family,
+                           is_font_face, ff, sfound):
+    with epub.open(singf) as f:
+        fs = f.read()
+        lis = fs.split('}')
+        for e in lis:
+            if 'body' in e:
+                try:
+                    fft = re.search(r'font-family\s*:\s*(.*?)(;|$)',
+                                    e).group(1)
+                    ff = fft.split(',')[0]
+                    is_body_family = True
+                    sfound = singf
+                except:
+                    ff = ''
+            if ff != '':
+                break
+        if ff == '':
+            for e in lis:
+                if '@font-face' in e:
+                    is_font_face = True
+                    break
+        else:
+            ff = ff.replace('"', '').replace("'", '')
+            for e in lis:
+                if '@font-face' in e:
+                    continue
+                elif 'body' in e:
+                    continue
+                if re.search(r'font-family\s*:\s*(\"|\')?' + re.escape(ff), e):
+                    print('%sProblematic (same as in body) '
+                          'font-family: "%s" found in at least one other '
+                          'declaration in file: "%s"'
+                          % (_file_dec, ff, singf))
+    return is_body_family, is_font_face, ff, sfound
+
+
+def qcheck(root, _file, alter, mod):
     file_dec = _file.decode(SFENC)
     if alter:
         _file_dec = file_dec + ': '
@@ -510,6 +547,8 @@ def qcheck(root, _file, alter):
         if not isinstance(n, unicode):
             n = n.decode('utf-8')
         prepnl.append(os.path.relpath(n).replace('\\', '/'))
+    is_body_family = is_font_face = False
+    ff = sfound = ''
     for singlefile in epubfile.namelist():
         if '../' in singlefile:
             print(_file_dec + 'CRITICAL! Problematic path found'
@@ -556,6 +595,10 @@ def qcheck(root, _file, alter):
                 shutil.rmtree(temp_font_dir)
         elif singlefile.lower().endswith('.css'):
             check_urls_in_css(singlefile, epubfile, prepnl, _file_dec)
+            is_body_family, is_font_face, ff, sfound = check_body_font_family(
+                singlefile, epubfile, _file_dec,
+                is_body_family, is_font_face, ff, sfound
+            )
         else:
             try:
                 sftree = etree.fromstring(epubfile.read(singlefile))
@@ -565,5 +608,10 @@ def qcheck(root, _file, alter):
                 check_urls(singlefile, sftree, prepnl, _file_dec)
                 check_wm_info(singlefile, sftree, epubfile, _file_dec)
                 check_display_none(singlefile, sftree, epubfile, _file_dec)
+    if is_body_family and not mod:
+        print('%sfont-family for body: "%s" found in "%s"'
+              % (_file_dec, ff, sfound))
+    elif is_font_face:
+        print('%sWarning! Potential "stripping font" problem!' % (_file_dec))
     if not alter:
         print('FINISH qcheck for: ' + file_dec)

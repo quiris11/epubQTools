@@ -212,13 +212,13 @@ def main():
             counter += 1
             if args.mod:
                 ind_file = os.path.splitext(ind_file)[0] + '_moh.epub'
-            qcheck(ind_root, ind_file, args.alter)
+            qcheck(ind_root, ind_file, args.alter, args.mod)
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
                     if f.endswith(fe) and not f.endswith(nfe):
                         counter += 1
-                        qcheck(root, f, args.alter)
+                        qcheck(root, f, args.alter, args.mod)
         if counter == 0:
             print('')
             print('* NO epub files for checking found!')
