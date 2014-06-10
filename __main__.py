@@ -46,9 +46,11 @@ parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
 parser.add_argument('-i', '--individual', nargs='?', metavar='NR',
                     const='nonr', help='individual file mode')
 parser.add_argument('--author', nargs='?', metavar='Surname, First Name',
-                    const='no_author', help='set new author name')
+                    const='no_author',
+                    help='set new author name (only with -i)')
 parser.add_argument('--title', nargs='?', metavar='Title',
-                    const='no_title', help='set new book title')
+                    const='no_title',
+                    help='set new book title (only with -i')
 parser.add_argument('-o', '--font-dir', nargs='?', metavar='DIR', default='',
                     help='path to directory with user fonts stored')
 parser.add_argument("-a", "--alter", help="alternative output display",
