@@ -87,9 +87,11 @@ def fix_name_author(root, f, author, title):
     opff_abs = os.path.join(tempdir, opff)
     parser = etree.XMLParser(remove_blank_text=True)
     opftree = etree.parse(opff_abs, parser)
-    if author:
+    if author != 'no_author' and author is not None:
+        print('* Setting new author to "%s"...' % author)
         set_author(opftree, author)
-    if title:
+    if title != 'no_title' and title is not None:
+        print('* Setting new title to "%s"...' % title)
         set_title(opftree, title)
     with open(opff_abs, 'w') as file:
         file.write(etree.tostring(opftree.getroot(), pretty_print=True,

@@ -182,15 +182,7 @@ def main():
         print('*** Processing author or book title... ***')
         print('******************************************')
         print('')
-        counter = 0
-        if args.author != 'no_author' and args.author is not None:
-            counter += 1
-            fix_name_author(ind_root, ind_file, args.author, args.title)
-        if args.title != 'no_title' and args.title is not None:
-            counter += 1
-            fix_name_author(ind_root, ind_file, args.author, args.title)
-        if counter == 0:
-            print('* NO epub files for processing found!')
+        fix_name_author(ind_root, ind_file, args.author, args.title)
 
     if args.rename:
         print('')
