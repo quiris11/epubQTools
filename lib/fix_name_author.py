@@ -37,9 +37,12 @@ def set_author(tree, author):
     )
     newauthor.text = au_rev
     if len(crs) == 1:
+        print('* Current author: "%s"'
+              % crs[0].text.encode('utf8').decode(SFENC))
         crs[0].getparent().append(newauthor)
         crs[0].getparent().remove(crs[0])
     elif len(crs) == 0:
+        print('* Current author is NOT defined...')
         try:
             dcmetadata = tree.xpath('//dc:metadata', namespaces=DCNS)[0]
         except IndexError:
@@ -47,11 +50,12 @@ def set_author(tree, author):
             return 0
         dcmetadata.append(newauthor)
     else:
-        print('Multiple dc:creator found. Updating the first tag...')
-        crs[0].getparent().append(newauthor)
+        print('* Multiple dc:creator found. Updating the first tag...')
+        print('* Current first author: "%s"'
+              % crs[0].text.encode('utf8').decode(SFENC))
+        crs[0].getparent().insert(0, newauthor)
         crs[0].getparent().remove(crs[0])
-    # print(etree.tostring(newauthor))
-    # print(etree.tostring(tree, pretty_print=True))
+    print('* Setting new author to "%s"...' % au_rev)
 
 
 def set_title(tree, title):
@@ -60,9 +64,12 @@ def set_title(tree, title):
     title = title.decode(SFENC)
     newtitle.text = title
     if len(ts) == 1:
+        print('* Current title: "%s"'
+              % ts[0].text.encode('utf8').decode(SFENC))
         ts[0].getparent().append(newtitle)
         ts[0].getparent().remove(ts[0])
     elif len(ts) == 0:
+        print('* Current author is NOT defined...')
         try:
             dcmetadata = tree.xpath('//dc:metadata', namespaces=DCNS)[0]
         except IndexError:
@@ -70,10 +77,12 @@ def set_title(tree, title):
             return 0
         dcmetadata.append(newtitle)
     else:
-        print('Multiple dc:creator found. Updating the first tag...')
-        ts[0].getparent().append(newtitle)
+        print('* Multiple dc:creator found. Updating the first tag...')
+        print('* Current first title: "%s"'
+              % ts[0].text.encode('utf8').decode(SFENC))
+        ts[0].getparent().insert(0, newtitle)
         ts[0].getparent().remove(ts[0])
-    # print(etree.tostring(tree, pretty_print=True))
+    print('* Setting new title to "%s"...' % title)
 
 
 def fix_name_author(root, f, author, title):
@@ -88,15 +97,12 @@ def fix_name_author(root, f, author, title):
     parser = etree.XMLParser(remove_blank_text=True)
     opftree = etree.parse(opff_abs, parser)
     if author != 'no_author' and author is not None:
-        print('* Setting new author to "%s"...' % author)
         set_author(opftree, author)
     if title != 'no_title' and title is not None:
-        print('* Setting new title to "%s"...' % title)
         set_title(opftree, title)
     with open(opff_abs, 'w') as file:
         file.write(etree.tostring(opftree.getroot(), pretty_print=True,
                    standalone=False, xml_declaration=True, encoding='utf-8'))
-    newfile = os.path.splitext(f)[0] + '_m.epub'
-    pack_epub(os.path.join(root, newfile), tempdir)
+    pack_epub(os.path.join(root, f), tempdir)
     clean_temp(tempdir)
     print('FINISH work for: ' + f.decode(SFENC))
