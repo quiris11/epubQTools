@@ -20,6 +20,7 @@ from lib.epubqcheck import qcheck
 from lib.epubqcheck import find_opf
 from lib.epubqfix import qfix
 from lib.epubqfix import rename_files
+from lib.fix_name_author import fix_name_author
 
 SFENC = sys.getfilesystemencoding()
 
@@ -44,6 +45,10 @@ parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
                     ' omitted write log to directory with epub files')
 parser.add_argument('-i', '--individual', nargs='?', metavar='NR',
                     const='nonr', help='individual file mode')
+parser.add_argument('--author', nargs='?', metavar='Surname, First Name',
+                    const='no_author', help='set new author name')
+parser.add_argument('--title', nargs='?', metavar='Title',
+                    const='no_title', help='set new book title')
 parser.add_argument('-o', '--font-dir', nargs='?', metavar='DIR', default='',
                     help='path to directory with user fonts stored')
 parser.add_argument("-a", "--alter", help="alternative output display",
@@ -63,13 +68,10 @@ parser.add_argument("-m", "--mod", help="validate only _moh.epub files "
 parser.add_argument("-e", "--epub", help="fix and hyphenate original epub "
                     "files to _moh.epub files", action="store_true")
 parser.add_argument("--skip-hyphenate",
-                    help="do not hyphenate book  (only with -e)",
+                    help="do not hyphenate book (only with -e)",
                     action="store_true")
 parser.add_argument("--skip-reset-css",
-                    help='skip linking a CSS file to every xthml file with '
-                    'content: "'
-                    '@page { margin: 5pt } '
-                    'body, body.calibre { margin: 5pt; padding: 0 }"'
+                    help='skip linking a reset CSS file to every xthml file'
                     ' (only with -e)',
                     action="store_false")
 parser.add_argument("--skip-justify", help='skip replacing '
@@ -171,6 +173,22 @@ def main():
                         ind_file = f
                         ind_root = root
                     counter += 1
+    if (args.author or args.title) and args.individual != 'nonr':
+        print('')
+        print('******************************************')
+        print('*** Processing author or book title... ***')
+        print('******************************************')
+        print('')
+        counter = 0
+        if args.author != 'no_author' and args.author is not None:
+            counter += 1
+            fix_name_author(ind_root, ind_file, args.author, args.title)
+        if args.title != 'no_title' and args.title is not None:
+            counter += 1
+            fix_name_author(ind_root, ind_file, args.author, args.title)
+        if counter == 0:
+            print('* NO epub files for processing found!')
+
     if args.rename:
         print('')
         print('******************************************')

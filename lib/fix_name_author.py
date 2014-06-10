@@ -21,20 +21,20 @@ DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 
 
 def set_author(tree):
-    crs = tree.xpath('//dc:creator/', namespaces=DCNS)
+    crs = tree.xpath('//dc:creator', namespaces=DCNS)
     for c in crs:
-        print(c)
+        print(etree.tostring(c))
 
 
 def set_title(tree):
-    ts = tree.xpath('//dc:title/', namespaces=DCNS)
+    ts = tree.xpath('//dc:title', namespaces=DCNS)
     for t in ts:
-        print(t)
+        print(etree.tostring(t))
 
 
-def fix_name_author(root, f, name, author):
+def fix_name_author(root, f, author, title):
     print('')
-    print('START qfix for: ' + f.decode(SFENC))
+    print('START work for: ' + f.decode(SFENC))
     try:
         tempdir = unpack_epub(os.path.join(root, f))
     except zipfile.BadZipfile:
@@ -44,9 +44,11 @@ def fix_name_author(root, f, name, author):
     opff_abs = os.path.join(tempdir, opff)
     parser = etree.XMLParser(remove_blank_text=True)
     opftree = etree.parse(opff_abs, parser)
-    set_author(opftree)
-    set_title(opftree)
-    newfile = f.splitext(0) + '_m.epub'
+    if author:
+        set_author(opftree)
+    if title:
+        set_title(opftree)
+    newfile = os.path.splitext(f)[0] + '_m.epub'
     pack_epub(os.path.join(root, newfile), tempdir)
     clean_temp(tempdir)
-    print('FINISH qfix for: ' + f.decode(SFENC))
+    print('FINISH work for: ' + f.decode(SFENC))
