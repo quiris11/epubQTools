@@ -50,13 +50,13 @@ def set_author(tree, author):
         print('Multiple dc:creator found. Updating the first tag...')
         crs[0].getparent().append(newauthor)
         crs[0].getparent().remove(crs[0])
-    print(etree.tostring(newauthor))
-    print(etree.tostring(tree, pretty_print=True))
+    # print(etree.tostring(newauthor))
+    # print(etree.tostring(tree, pretty_print=True))
 
 
 def set_title(tree, title):
     ts = tree.xpath('//dc:title', namespaces=DCNS)
-    newtitle = etree.Element('{http://purl.org/dc/elements/1.1/}creator')
+    newtitle = etree.Element('{http://purl.org/dc/elements/1.1/}title')
     title = title.decode(SFENC)
     newtitle.text = title
     if len(ts) == 1:
@@ -73,11 +73,10 @@ def set_title(tree, title):
         print('Multiple dc:creator found. Updating the first tag...')
         ts[0].getparent().append(newtitle)
         ts[0].getparent().remove(ts[0])
-    print(etree.tostring(tree, pretty_print=True))
+    # print(etree.tostring(tree, pretty_print=True))
 
 
 def fix_name_author(root, f, author, title):
-    print('')
     print('START work for: ' + f.decode(SFENC))
     try:
         tempdir = unpack_epub(os.path.join(root, f))
@@ -92,6 +91,9 @@ def fix_name_author(root, f, author, title):
         set_author(opftree, author)
     if title:
         set_title(opftree, title)
+    with open(opff_abs, 'w') as file:
+        file.write(etree.tostring(opftree.getroot(), pretty_print=True,
+                   standalone=False, xml_declaration=True, encoding='utf-8'))
     newfile = os.path.splitext(f)[0] + '_m.epub'
     pack_epub(os.path.join(root, newfile), tempdir)
     clean_temp(tempdir)
