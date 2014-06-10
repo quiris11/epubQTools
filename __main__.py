@@ -173,7 +173,10 @@ def main():
                         ind_file = f
                         ind_root = root
                     counter += 1
-    if (args.author or args.title) and args.individual != 'nonr':
+    if (
+            (args.author or args.title) and args.individual != 'nonr' and
+            args.individual is not None
+    ):
         print('')
         print('******************************************')
         print('*** Processing author or book title... ***')
