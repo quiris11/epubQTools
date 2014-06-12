@@ -1104,7 +1104,8 @@ def convert_dl_to_ul(opftree, rootepubdir):
 
 
 def remove_wm_info(opftree, rootepubdir):
-    wmfiles = ['watermark.', 'default-info.', 'generated.', 'platon_wm.']
+    wmfiles = ['watermark.', 'default-info.', 'generated.', 'platon_wm.',
+               'cover-special.']
     items = opftree.xpath('//opf:item', namespaces=OPFNS)
     for wmf in wmfiles:
         for i in items:
@@ -1118,7 +1119,8 @@ def remove_wm_info(opftree, rootepubdir):
                                         namespaces=XHTMLNS)
                 alltext = ' '.join(alltexts)
                 alltext = alltext.replace(u'\u00AD', '').strip()
-                if alltext == 'Plik jest zabezpieczony znakiem wodnym':
+                if (alltext == 'Plik jest zabezpieczony znakiem wodnym' or
+                        'Ten ebook jest chroniony znakiem wodnym' in alltext):
                     remove_file_from_epub(i.get('href'), opftree, rootepubdir)
                     print('* Watermark info page removed: ' + i.get('href'))
     return opftree

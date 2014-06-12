@@ -52,7 +52,8 @@ def check_wm_info(singf, tree, epub, _file_dec):
                            namespaces=XHTMLNS)(tree)
     alltext = ' '.join(alltexts)
     alltext = alltext.replace(u'\u00AD', '').strip()
-    if alltext == 'Plik jest zabezpieczony znakiem wodnym':
+    if (alltext == 'Plik jest zabezpieczony znakiem wodnym' or
+            'Ten ebook jest chroniony znakiem wodnym' in alltext):
         print('%sWM info file found "%s"' % (_file_dec, singf))
 
 
