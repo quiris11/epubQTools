@@ -15,7 +15,7 @@
   <xsl:template match="ncx:ncx">
     <html>
       <xsl:call-template name="html-head"/>
-      <body id="toc-quiris">
+      <body id="epubQTools-toc">
         <xsl:apply-templates/>
       </body>
     </html>
@@ -101,8 +101,9 @@
     <head>
       <title><xsl:apply-templates select="/ncx:ncx/ncx:docTitle/ncx:text"/></title>
       <style type="text/css">
-        #toc-quiris ul { padding-left: 1em }
-        #toc-quiris h1 { text-align: center }
+        #epubQTools-toc ul { padding-left: 1em }
+        #epubQTools-toc h1 { text-align: center }
+        #epubQTools-toc *  { text-decoration: none !important; text-align: left }
       </style>
     </head>
   </xsl:template>
