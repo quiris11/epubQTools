@@ -996,6 +996,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
         cssdir = ''
     if not is_body_family and ff != '':
         print('! Setting font-family for body to "%s"' % ff)
+        ff = ff.replace('"', '').replace("'", '')
         bs = 'body {font-family: "%s" }' % ff
     else:
         bs = ''
@@ -1120,6 +1121,15 @@ def remove_wm_info(opftree, rootepubdir):
                 if alltext == 'Plik jest zabezpieczony znakiem wodnym':
                     remove_file_from_epub(i.get('href'), opftree, rootepubdir)
                     print('* Watermark info page removed: ' + i.get('href'))
+    return opftree
+
+
+def remove_jacket(opftree, rootepubdir):
+    items = opftree.xpath('//opf:item', namespaces=OPFNS)
+    for i in items:
+        if 'jacket.xhtml' in i.get('href'):
+            print('* Removing calibre file: "%s"' % i.get('href'))
+            remove_file_from_epub(i.get('href'), opftree, rootepubdir)
     return opftree
 
 
@@ -1250,6 +1260,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     else:
         is_quiris = False
     opftree = remove_wm_info(opftree, opf_dir_abs)
+    opftree = remove_jacket(opftree, opf_dir_abs)
     _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
     opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
                            _xhtml_file_paths)
