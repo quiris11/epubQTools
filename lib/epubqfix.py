@@ -27,7 +27,7 @@ from os.path import expanduser
 
 
 if not hasattr(sys, 'frozen'):
-    dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
+    dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='epubQTools-tmp-')
     dic_name = os.path.join(dic_tmp_dir, 'hyph_pl_PL.dic')
     try:
         with open(dic_name, 'wb') as f:
@@ -320,7 +320,7 @@ def replace_font(actual_font_path, fontdir):
 
 def unpack_epub(source_epub):
     epubzipfile = zipfile.ZipFile(source_epub)
-    tempdir = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
+    tempdir = tempfile.mkdtemp(suffix='', prefix='epubQTools-tmp-')
     epubzipfile.extractall(tempdir)
     os.remove(os.path.join(tempdir, 'mimetype'))
     for f in epubzipfile.namelist():
@@ -351,7 +351,7 @@ def pack_epub(output_filename, source_dir):
 
 def clean_temp(sourcedir):
     for p in os.listdir(os.path.join(sourcedir, os.pardir)):
-            if 'quiris-tmp-' in p:
+            if 'epubQTools-tmp-' in p:
                 if os.path.isdir(os.path.join(sourcedir, os.pardir, p)):
                     try:
                         shutil.rmtree(os.path.join(sourcedir, os.pardir, p))
@@ -500,7 +500,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                         ci.get('href')
                     ).replace('\\', '/')
                 ))
-            with open(os.path.join(tempdir, textdir, 'toc-quiris.xhtml'),
+            with open(os.path.join(tempdir, textdir, 'epubQTools-toc.xhtml'),
                       "w") as f:
                 f.write(etree.tostring(
                     result,
@@ -514,23 +514,23 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 '{http://www.idpf.org/2007/opf}item',
                 attrib={'media-type': 'application/xhtml+xml',
                         'href': os.path.join(
-                            textdir, 'toc-quiris.xhtml'
+                            textdir, 'epubQTools-toc.xhtml'
                         ).replace('\\', '/'),
-                        'id': 'toc-quiris'}
+                        'id': 'epubQTools-toc'}
             )
             soup.xpath('//opf:manifest',
                        namespaces=OPFNS)[0].append(newtocmanifest)
             newtocspine = etree.Element(
                 '{http://www.idpf.org/2007/opf}itemref',
-                idref='toc-quiris'
+                idref='epubQTools-toc'
             )
             soup.xpath('//opf:spine', namespaces=OPFNS)[0].append(newtocspine)
             newtocreference = etree.Element(
                 '{http://www.idpf.org/2007/opf}reference',
                 title='TOC',
                 type='toc',
-                href=os.path.join(textdir, 'toc-quiris.xhtml').replace('\\',
-                                                                       '/')
+                href=os.path.join(textdir,
+                                  'epubQTools-toc.xhtml').replace('\\', '/')
             )
         try:
             soup.xpath('//opf:guide',
@@ -918,7 +918,7 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
         print('* No head found...')
     for ci in opftree.xpath('//opf:item[@media-type="text/css"]',
                             namespaces=OPFNS):
-        if 'reset-quiris.css' in ci.get('href'):
+        if 'epubQTools-reset.css' in ci.get('href'):
             rqcss = ci.get('href')
             break
     heads[0].append(etree.fromstring(
@@ -930,15 +930,15 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
 
 
 def append_reset_css_file(opftree, tempdir, is_rm_family):
-    is_quiris = is_body_family = False
+    is_reset_css = is_body_family = False
     ff = ''
     cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
                              namespaces=OPFNS)
     try:
         for c in cssitems:
-            if 'reset-quiris.css' in c.get('href'):
-                is_quiris = True
-                return opftree, is_quiris
+            if 'epubQTools-reset.css' in c.get('href'):
+                is_reset_css = True
+                return opftree, is_reset_css
             else:
                 with open(os.path.join(tempdir, c.get('href')), 'r+') as f:
                     fs = f.read()
@@ -984,8 +984,8 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                         f.truncate()
                         f.write(fs)
     except IndexError:
-        is_quiris = True
-        return opftree, is_quiris
+        is_reset_css = True
+        return opftree, is_reset_css
     if len(cssitems) > 0 and all(
         os.path.dirname(x.get('href')) == os.path.dirname(
             cssitems[0].get('href')
@@ -1000,7 +1000,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
         bs = 'body {font-family: "%s" }' % ff
     else:
         bs = ''
-    with open(os.path.join(tempdir, cssdir, 'reset-quiris.css'), 'w') as f:
+    with open(os.path.join(tempdir, cssdir, 'epubQTools-reset.css'), 'w') as f:
         f.write('@page { margin: 5pt } \r\n'
                 'body, body.calibre  { margin: 5pt; padding: 0 }\r\n'
                 'p { margin-left: 0; margin-right: 0 }\r\n'
@@ -1012,13 +1012,15 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
     newcssmanifest = etree.Element(
         '{http://www.idpf.org/2007/opf}item',
         attrib={'media-type': 'text/css',
-                'href': os.path.join(cssdir,
-                                     'reset-quiris.css').replace('\\', '/'),
-                'id': 'reset-quiris'}
+                'href': os.path.join(
+                    cssdir,
+                    'epubQTools-reset.css'
+                ).replace('\\', '/'),
+                'id': 'epubQTools-reset'}
     )
     opftree.xpath('//opf:manifest',
                   namespaces=OPFNS)[0].append(newcssmanifest)
-    return opftree, is_quiris
+    return opftree, is_reset_css
 
 
 def modify_problematic_styles(source_file):
@@ -1146,7 +1148,7 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
 
 
 def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
-                       is_quiris):
+                       is_reset_css):
     global qfixerr
     try:
         with open(xhfile, 'r') as content_file:
@@ -1193,7 +1195,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     else:
         print('* File "%s" is NOT hyphenated...' % os.path.basename(xhfile))
     xhtree = fix_styles(xhtree)
-    if _resetmargins and not is_quiris:
+    if _resetmargins and not is_reset_css:
         xhtree = append_reset_css(xhtree, xhfile, opf_path, opftree)
     xhtree = modify_problematic_styles(xhtree)
     _wmarks = xhtree.xpath('//xhtml:span[starts-with(text(), "==")]',
@@ -1258,9 +1260,10 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         find_and_replace_fonts(opftree, opf_dir_abs, fontdir)
     if _resetmargins:
         print('* Setting custom CSS styles...')
-        opftree, is_quiris = append_reset_css_file(opftree, opf_dir_abs, irmf)
+        opftree, is_reset_css = append_reset_css_file(opftree, opf_dir_abs,
+                                                      irmf)
     else:
-        is_quiris = False
+        is_reset_css = False
     opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = remove_jacket(opftree, opf_dir_abs)
     _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
@@ -1269,7 +1272,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     convert_dl_to_ul(opftree, opf_dir_abs)
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
-                           is_quiris)
+                           is_reset_css)
     opftree = html_cover_first(opftree)
 
     if arg_justify:
