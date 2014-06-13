@@ -934,22 +934,22 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
     ff = ''
     cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
                              namespaces=OPFNS)
+    for c in cssitems:
+        if 'epubQTools-reset.css' in c.get('href'):
+            is_reset_css = True
+            return opftree, is_reset_css
     try:
         for c in cssitems:
-            if 'epubQTools-reset.css' in c.get('href'):
-                is_reset_css = True
-                return opftree, is_reset_css
-            else:
-                with open(os.path.join(tempdir, c.get('href')), 'r+') as f:
+            if ff == '':
+                with open(os.path.join(tempdir, c.get('href')), 'r') as f:
                     fs = f.read()
                     lis = fs.split('}')
                     for e in lis:
                         if 'body' in e:
                             try:
-                                fft = re.search(
+                                ff = re.search(
                                     r'font-family\s*:\s*(.*?)(;|$)', e
                                 ).group(1)
-                                ff = fft.split(',')[0]
                                 is_body_family = True
                             except:
                                 pass
@@ -967,25 +967,34 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                                         ff = ''
                             if ff != '':
                                 break
-                    if is_rm_family:
-                        print('* Removing problematic font-family...')
-                        ff = ff.replace('"', '').replace("'", '')
-                        for e in lis:
-                            if '@font-face' in e:
-                                continue
-                            elif 'body' in e:
-                                continue
-                            lis[lis.index(e)] = re.sub(
-                                r'font-family\s*:\s*(\"|\')?' + re.escape(ff) +
-                                r'(\"|\')?.*?(;|$)', '', e
-                            )
-                        fs = '}'.join(lis)
-                        f.seek(0)
-                        f.truncate()
-                        f.write(fs)
     except IndexError:
         is_reset_css = True
         return opftree, is_reset_css
+    if ff != '':
+        for c in cssitems:
+            with open(os.path.join(tempdir, c.get('href')), 'r+') as f:
+                fs = f.read()
+                if is_rm_family:
+                    print('* Removing problematic font-family...')
+                    ffr = ff.split(',')[0]
+                    ffr = ffr.replace('"', '').replace("'", '')
+                    print(ffr)
+                    lis = fs.split('}')
+                    for e in lis:
+                        if '@font-face' in e:
+                            continue
+                        lis[lis.index(e)] = re.sub(
+                            r'font-family\s*:\s*(\"|\')?' + re.escape(ffr) +
+                            r'(\"|\')?.*?(;|$)', '', e
+                        )
+                    fs = '}'.join(lis)
+                    fs = 'body {font-family: ' + ff + ' }\r\n' + fs
+                else:
+                    fs = 'body {font-family: ' + ff + ' }\r\n' + fs
+                f.seek(0)
+                f.truncate()
+                f.write(fs)
+
     if len(cssitems) > 0 and all(
         os.path.dirname(x.get('href')) == os.path.dirname(
             cssitems[0].get('href')
@@ -994,21 +1003,23 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
         cssdir = os.path.dirname(cssitems[0].get('href'))
     else:
         cssdir = ''
-    if not is_body_family and ff != '':
-        print('! Setting font-family for body to "%s"' % ff)
-        ff = ff.replace('"', '').replace("'", '')
-        bs = 'body {font-family: "%s" }' % ff
+    if ff != '':
+        print('! Setting font-family for body to: %s' % ff)
+        if is_body_family:
+            bs = 'body {font-family: %s }\r\n' % ff
+        else:
+            bs = 'body {font-family: %s, serif }\r\n' % ff
     else:
         bs = ''
     with open(os.path.join(tempdir, cssdir, 'epubQTools-reset.css'), 'w') as f:
-        f.write('@page { margin: 5pt } \r\n'
+        f.write(bs +
+                '@page { margin: 5pt } \r\n'
                 'body, body.calibre  { margin: 5pt; padding: 0 }\r\n'
                 'p { margin-left: 0; margin-right: 0 }\r\n'
                 '* { adobe-hyphenate: explicit !important;\r\n'
                 'hyphens: manual !important;\r\n'
                 '-webkit-hyphens: manual !important;\r\n'
-                '-moz-hyphens: manual !important }\r\n' +
-                bs)
+                '-moz-hyphens: manual !important }\r\n')
     newcssmanifest = etree.Element(
         '{http://www.idpf.org/2007/opf}item',
         attrib={'media-type': 'text/css',
