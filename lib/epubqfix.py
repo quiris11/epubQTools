@@ -978,7 +978,6 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                     print('* Removing problematic font-family...')
                     ffr = ff.split(',')[0]
                     ffr = ffr.replace('"', '').replace("'", '')
-                    print(ffr)
                     lis = fs.split('}')
                     for e in lis:
                         if '@font-face' in e:
