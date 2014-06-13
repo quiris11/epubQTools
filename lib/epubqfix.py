@@ -994,7 +994,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
         cssdir = os.path.dirname(cssitems[0].get('href'))
     else:
         cssdir = ''
-    if ff != '':
+    if not is_body_family and ff != '':
         print('! Setting font-family for body to "%s"' % ff)
         ff = ff.replace('"', '').replace("'", '')
         bs = 'body {font-family: "%s" }' % ff
