@@ -945,7 +945,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                     fs = f.read()
                     lis = fs.split('}')
                     for e in lis:
-                        if 'body' in e:
+                        if 'body' in e or '.calibre' in e:
                             try:
                                 ff = re.search(
                                     r'font-family\s*:\s*(.*?)(;|$)', e
@@ -987,9 +987,15 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                             r'(\"|\')?.*?(;|$)', '', e
                         )
                     fs = '}'.join(lis)
-                    fs = 'body {font-family: ' + ff + ' }\r\n' + fs
+                    if is_body_family:
+                        fs = 'body {font-family: ' + ff + ' }\r\n' + fs
+                    else:
+                        fs = 'body {font-family: ' + ff + ', serif }\r\n' + fs
                 else:
-                    fs = 'body {font-family: ' + ff + ' }\r\n' + fs
+                    if is_body_family:
+                        fs = 'body {font-family: ' + ff + ' }\r\n' + fs
+                    else:
+                        fs = 'body {font-family: ' + ff + ', serif }\r\n' + fs
                 f.seek(0)
                 f.truncate()
                 f.write(fs)
@@ -1003,10 +1009,11 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
     else:
         cssdir = ''
     if ff != '':
-        print('! Setting font-family for body to: %s' % ff)
         if is_body_family:
+            print('! Setting font-family for body to: %s' % ff)
             bs = 'body {font-family: %s }\r\n' % ff
         else:
+            print('! Setting font-family for body to: \'%s, serif\'' % ff)
             bs = 'body {font-family: %s, serif }\r\n' % ff
     else:
         bs = ''
