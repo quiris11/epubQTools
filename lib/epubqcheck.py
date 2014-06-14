@@ -117,9 +117,13 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
             '//xhtml:body//text()',
             namespaces=XHTMLNS
         )(html_cover_tree)
-        cover_texts = ' '.join(cover_texts).strip()
-        if cover_texts != '':
+        cover_texts = ' '.join(cover_texts)
+        if u'\xa0' in cover_texts:
             print(_file_dec + 'HTML cover should not contain any text...')
+        else:
+            cover_texts = cover_texts.strip()
+            if cover_texts != '':
+                print(_file_dec + 'HTML cover should not contain any text...')
     except:
         pass
     if html_cover_tree is None:
@@ -500,7 +504,7 @@ def check_body_font_family(singf, epub, _file_dec, is_body_family,
         fs = f.read()
         lis = fs.split('}')
         for e in lis:
-            if 'body' in e:
+            if 'body' in e or '.calibre' in e:
                 try:
                     fft = re.search(r'font-family\s*:\s*(.*?)(;|$)',
                                     e).group(1)
