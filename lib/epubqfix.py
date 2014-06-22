@@ -940,7 +940,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
             return opftree, is_reset_css
     try:
         for c in cssitems:
-            if ff == '':
+            if not is_body_family:
                 with open(os.path.join(tempdir, c.get('href')), 'r') as f:
                     fs = f.read()
                     lis = fs.split('}')
@@ -955,18 +955,21 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                                 pass
                         if ff != '':
                             break
-                    if ff == '':
-                        for e in lis:
-                            if '@font-face':
-                                if re.search(r'font-style\s*:\s*normal', e):
-                                    try:
-                                        ff = re.search(
-                                            r'font-family\s*:\s*(.*?)(;|$)', e
-                                        ).group(1)
-                                    except:
-                                        ff = ''
-                            if ff != '':
-                                break
+        if not is_body_family:
+            for c in cssitems:
+                print('! Font-family for body does not found. Trying '
+                      'find best font...')
+                for e in lis:
+                    if '@font-face':
+                        if re.search(r'font-style\s*:\s*normal', e):
+                            try:
+                                ff = re.search(
+                                    r'font-family\s*:\s*(.*?)(;|$)', e
+                                ).group(1)
+                            except:
+                                ff = ''
+                    if ff != '':
+                        break
     except IndexError:
         is_reset_css = True
         return opftree, is_reset_css
