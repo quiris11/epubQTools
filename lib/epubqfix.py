@@ -930,6 +930,10 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
 
 
 def append_reset_css_file(opftree, tempdir, is_rm_family):
+
+    def most_common(lst):
+        return max(set(lst), key=lst.count)
+
     is_reset_css = is_body_family = False
     ff = ''
     cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
@@ -945,10 +949,10 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                     fs = f.read()
                     lis = fs.split('}')
                     for e in lis:
-                        if 'body' in e or '.calibre' in e:
+                        if 'body' in e:
                             try:
                                 ff = re.search(
-                                    r'font-family\s*:\s*(.*?)(;|$)', e
+                                    r'font-family\s*:\s*(.*?)(;|\r|\n)', e
                                 ).group(1)
                                 is_body_family = True
                             except:
@@ -956,20 +960,19 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                         if ff != '':
                             break
         if not is_body_family:
+            print('! Font-family for body does not found. Trying '
+                  'to find the best font...')
+            fflist = []
             for c in cssitems:
-                print('! Font-family for body does not found. Trying '
-                      'find best font...')
-                for e in lis:
-                    if '@font-face':
-                        if re.search(r'font-style\s*:\s*normal', e):
-                            try:
-                                ff = re.search(
-                                    r'font-family\s*:\s*(.*?)(;|$)', e
-                                ).group(1)
-                            except:
-                                ff = ''
-                    if ff != '':
-                        break
+                with open(os.path.join(tempdir, c.get('href')), 'r') as f:
+                    fs = f.read()
+                    lis = fs.split('}')
+                    for e in lis:
+                        if 'font-family' in e:
+                            fflist.append(re.search(
+                                r'font-family\s*:\s*(.+?)(;|\r|\n)', e
+                            ).group(1))
+            ff = most_common(fflist)
     except IndexError:
         is_reset_css = True
         return opftree, is_reset_css
@@ -987,7 +990,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                             continue
                         lis[lis.index(e)] = re.sub(
                             r'font-family\s*:\s*(\"|\')?' + re.escape(ffr) +
-                            r'(\"|\')?.*?(;|$)', '', e
+                            r'(\"|\')?.*?(;|\r|\n)', '', e
                         )
                     fs = '}'.join(lis)
                     if is_body_family:
@@ -1012,12 +1015,8 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
     else:
         cssdir = ''
     if ff != '':
-        if is_body_family:
             print('! Setting font-family for body to: %s' % ff)
             bs = 'body {font-family: %s }\r\n' % ff
-        else:
-            print('! Setting font-family for body to: \'%s, serif\'' % ff)
-            bs = 'body {font-family: %s, serif }\r\n' % ff
     else:
         bs = ''
     with open(os.path.join(tempdir, cssdir, 'epubQTools-reset.css'), 'w') as f:
