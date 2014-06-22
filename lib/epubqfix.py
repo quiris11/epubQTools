@@ -993,15 +993,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                             r'(\"|\')?.*?(;|\r|\n)', '', e
                         )
                     fs = '}'.join(lis)
-                    if is_body_family:
-                        fs = 'body {font-family: ' + ff + ' }\r\n' + fs
-                    else:
-                        fs = 'body {font-family: ' + ff + ', serif }\r\n' + fs
-                else:
-                    if is_body_family:
-                        fs = 'body {font-family: ' + ff + ' }\r\n' + fs
-                    else:
-                        fs = 'body {font-family: ' + ff + ', serif }\r\n' + fs
+                fs = 'body {font-family: ' + ff + ' }\r\n' + fs
                 f.seek(0)
                 f.truncate()
                 f.write(fs)
