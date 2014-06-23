@@ -1246,6 +1246,10 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         os.remove(os.path.join(_tempdir, 'iTunesMetadata.plist'))
     except OSError:
         pass
+    try:
+        os.remove(os.path.join(_tempdir, 'msg.txt'))
+    except OSError:
+        pass
     parser = etree.XMLParser(remove_blank_text=True)
     opftree = etree.parse(opf_file_path_abs, parser)
     opftree = unquote_urls(opftree)
