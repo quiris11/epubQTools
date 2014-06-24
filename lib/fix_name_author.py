@@ -69,7 +69,7 @@ def set_title(tree, title):
         ts[0].getparent().append(newtitle)
         ts[0].getparent().remove(ts[0])
     elif len(ts) == 0:
-        print('* Current author is NOT defined...')
+        print('* Current title is NOT defined...')
         try:
             dcmetadata = tree.xpath('//dc:metadata', namespaces=DCNS)[0]
         except IndexError:
@@ -77,7 +77,7 @@ def set_title(tree, title):
             return 0
         dcmetadata.append(newtitle)
     else:
-        print('* Multiple dc:creator found. Updating the first tag...')
+        print('* Multiple dc:title found. Updating the first tag...')
         print('* Current first title: "%s"'
               % ts[0].text.encode('utf8').decode(SFENC))
         ts[0].getparent().insert(0, newtitle)
