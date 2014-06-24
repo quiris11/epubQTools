@@ -972,7 +972,10 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                             fflist.append(re.search(
                                 r'font-family\s*:\s*(.+?)(;|\r|\n)', e
                             ).group(1))
-            ff = most_common(fflist)
+            try:
+                ff = most_common(fflist)
+            except:
+                ff = ''
     except IndexError:
         is_reset_css = True
         return opftree, is_reset_css
