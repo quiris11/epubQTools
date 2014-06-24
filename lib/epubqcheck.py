@@ -474,7 +474,7 @@ def check_urls(singf, tree, prepnl, _file_dec):
             url = u.get('src')
         elif u.get('href'):
             url = u.get('href')
-        if url.startswith(exclude_urls):
+        if url.lower().startswith(exclude_urls):
             continue
         url = unquote(url)
         if '#' in url:
