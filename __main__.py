@@ -36,7 +36,7 @@ else:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-V', '--version', action='version',
-                    version="%(prog)s (version 0.5)")
+                    version="%(prog)s (version 0.6)")
 parser.add_argument("directory", help="Directory with EPUB files stored")
 parser.add_argument("--tools", nargs='?',
                     default=q_cwd, metavar="DIR",
