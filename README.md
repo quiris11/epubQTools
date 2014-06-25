@@ -4,7 +4,7 @@ epubQTools
 Tools for checking, correcting and hyphenating epub files.
 
 #### External apps used by this tool available for download:
-* **Kindlegen** (only unpacked binary is needed): http://www.amazon.com/kindleformat/kindlegen
+* **kindlegen** (only unpacked binary is needed): http://www.amazon.com/kindleformat/kindlegen
 * **epubcheck-3.0.1.zip** (Java installed is required for run it): https://github.com/IDPF/epubcheck/releases
 
 
