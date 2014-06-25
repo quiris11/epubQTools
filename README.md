@@ -9,9 +9,11 @@ Tools for checking, correcting and hyphenating epub files.
 
 
 ```
-usage: epubQTools [-h] [--tools [DIR]] [-l [DIR]] [-a] [-n] [-q] [-p] [-m]
-                  [-e] [--skip-hyphenate] [--skip-reset-css] [--skip-justify]
-                  [--left] [--find-cover] [--replace-fonts] [-k] [-d] [-f]
+usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]]
+                  [--author [Surname, First Name]] [--title [Title]]
+                  [-o [DIR]] [-a] [-n] [-q] [-p] [-m] [-e] [--skip-hyphenate]
+                  [--skip-reset-css] [--skip-justify] [--left]
+                  [--replace-fonts] [--remove-font-family] [-k] [-d] [-f]
                   directory
 
 positional arguments:
@@ -19,11 +21,19 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
+  -V, --version         show program's version number and exit
   --tools [DIR]         path to additional tools: kindlegen,
                         epubcheck-3.0.1.zip
   -l [DIR], --log [DIR]
                         path to directory to write log file. If DIR is omitted
                         write log to directory with epub files
+  -i [NR], --individual [NR]
+                        individual file mode
+  --author [Surname, First Name]
+                        set new author name (only with -i)
+  --title [Title]       set new book title (only with -i
+  -o [DIR], --font-dir [DIR]
+                        path to directory with user fonts stored
   -a, --alter           alternative output display
   -n, --rename          rename .epub files to 'author - title.epub'
   -q, --qcheck          validate files with qcheck internal tool
@@ -33,15 +43,14 @@ optional arguments:
   -e, --epub            fix and hyphenate original epub files to _moh.epub
                         files
   --skip-hyphenate      do not hyphenate book (only with -e)
-  --skip-reset-css      skip linking a CSS file to every xthml file with
-                        content: "@page { margin: 5pt } body, body.calibre {
-                        margin: 5pt; padding: 0 }" (only with -e)
+  --skip-reset-css      skip linking a reset CSS file to every xthml file
+                        (only with -e)
   --skip-justify        skip replacing "text-align: left" with "text-align:
                         justify" in all CSS files (only with -e)
   --left                replace "text-align: justify" with "text-align: left"
                         in all CSS files (experimental) (only with -e)
-  --find-cover          force find cover (experimental) (only with -e)
-  --replace-fonts       replace font (experimental) (only with -e)
+  --replace-fonts       replace fonts (experimental) (only with -e)
+  --remove-font-family  remove font-family (experimental) (only with -e)
   -k, --kindlegen       convert _moh.epub files to .mobi with kindlegen
   -d, --huffdic         tell kindlegen to use huffdic compression (slow
                         conversion) (only with -k)
