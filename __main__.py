@@ -98,8 +98,9 @@ parser.add_argument("--left", help='replace "text-align: justify" '
 parser.add_argument("--replace-fonts",
                     help="replace fonts (experimental) (only with -e)",
                     action="store_true")
-parser.add_argument("--remove-font-family",
-                    help="remove font-family (experimental) (only with -e)",
+parser.add_argument("--myk-fix",
+                    help="fix for MYK conversion oddity (experimental) "
+                    "(only with -e)",
                     action="store_true")
 parser.add_argument("-k", "--kindlegen", help="convert _moh.epub files to"
                     " .mobi with kindlegen", action="store_true")
@@ -328,7 +329,7 @@ def main():
             counter += 1
             qfix(ind_root, ind_file, args.force, args.replace_fonts,
                  args.skip_reset_css, args.tools, args.skip_hyphenate,
-                 args.skip_justify, args.left, args.remove_font_family,
+                 args.skip_justify, args.left, args.myk_fix,
                  args.font_dir)
         else:
             for root, dirs, files in os.walk(args.directory):
@@ -339,7 +340,7 @@ def main():
                         qfix(root, f, args.force, args.replace_fonts,
                              args.skip_reset_css, args.tools,
                              args.skip_hyphenate, args.skip_justify, args.left,
-                             args.remove_font_family, args.font_dir)
+                             args.myk_fix, args.font_dir)
         if counter == 0:
             print('')
             print('* NO epub files for fixing found!')
