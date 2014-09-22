@@ -969,9 +969,12 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
                     lis = fs.split('}')
                     for e in lis:
                         if 'font-family' in e:
-                            fflist.append(re.search(
-                                r'font-family\s*:\s*(.+?)(;|\r|\n)', e
-                            ).group(1))
+                            try:
+                                fflist.append(re.search(
+                                    r'font-family\s*:\s*(.+?)(;|\r|\n)', e
+                                ).group(1))
+                            except:
+                                continue
             try:
                 ff = most_common(fflist)
             except:
