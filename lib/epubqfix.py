@@ -398,6 +398,12 @@ def find_xhtml_files(rootepubdir, opftree):
 
 
 def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph):
+    # set correct xml:lang attribute for html tag
+    html_tag = source_file.xpath('//xhtml:html', namespaces=XHTMLNS)[0]
+    html_tag.attrib['{http://www.w3.org/XML/1998/namespace}lang'] = MY_LANGUAGE
+    if 'lang' in html_tag.attrib:
+        del html_tag.attrib['lang']
+
     try:
         texts = etree.XPath(
             '//xhtml:body//text()',
