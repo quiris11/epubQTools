@@ -1391,7 +1391,8 @@ def html_cover_first(opftree):
 
 
 def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
-         skip_hyph, arg_justify, arg_left, irmf, fontdir):
+         skip_hyph, arg_justify, arg_left, irmf, del_colors, del_fonts,
+         fontdir):
     global qfixerr
     qfixerr = False
     newfile = os.path.splitext(f)[0] + '_moh.epub'

@@ -102,6 +102,14 @@ parser.add_argument("--myk-fix",
                     help="fix for MYK conversion oddity (experimental) "
                     "(only with -e)",
                     action="store_true")
+parser.add_argument("--remove-colors",
+                    help="remove all color definitions from CSS files "
+                    "(only with -e)",
+                    action="store_true")
+parser.add_argument("--remove-fonts",
+                    help="remove all embedded font files "
+                    "(only with -e)",
+                    action="store_true")
 parser.add_argument("-k", "--kindlegen", help="convert _moh.epub files to"
                     " .mobi with kindlegen", action="store_true")
 parser.add_argument("-d", "--huffdic", help="tell kindlegen to use huffdic "
@@ -330,7 +338,7 @@ def main():
             qfix(ind_root, ind_file, args.force, args.replace_fonts,
                  args.skip_reset_css, args.tools, args.skip_hyphenate,
                  args.skip_justify, args.left, args.myk_fix,
-                 args.font_dir)
+                 args.remove_colors, args.remove_fonts, args.font_dir)
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
@@ -340,7 +348,8 @@ def main():
                         qfix(root, f, args.force, args.replace_fonts,
                              args.skip_reset_css, args.tools,
                              args.skip_hyphenate, args.skip_justify, args.left,
-                             args.myk_fix, args.font_dir)
+                             args.myk_fix, args.remove_colors,
+                             args.remove_fonts, args.font_dir)
         if counter == 0:
             print('')
             print('* NO epub files for fixing found!')
