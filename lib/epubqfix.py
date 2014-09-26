@@ -1238,7 +1238,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
-                 skip_hyph, arg_justify, arg_left, irmf, fontdir):
+                 skip_hyph, arg_justify, arg_left, irmf, fontdir, del_colors):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path = find_roots(_tempdir)
@@ -1305,11 +1305,11 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if arg_justify:
         print('* Replacing "text-align: left" with "text-align: justify" in '
               'all CSS files...')
-        modify_css_align(opftree, opf_dir_abs, 'justify')
+        modify_css_align(opftree, opf_dir_abs, 'justify', del_colors)
     elif arg_left:
         print('* Replacing "text-align: justify" with "text-align: left" in '
               'all CSS files...')
-        modify_css_align(opftree, opf_dir_abs, 'left')
+        modify_css_align(opftree, opf_dir_abs, 'left', del_colors)
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'w') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
@@ -1350,7 +1350,7 @@ def process_corrupted_zip(e, root, f, zipbinf):
         return 1
 
 
-def modify_css_align(opftree, opfdir, mode):
+def modify_css_align(opftree, opfdir, mode, del_colors):
     global qfixerr
     if mode == 'justify':
         searchmode = 'left'
@@ -1364,6 +1364,10 @@ def modify_css_align(opftree, opfdir, mode):
                 cc = cf.read()
                 cc = re.sub(r'text-align\s*:\s*' + searchmode,
                             'text-align: ' + mode, cc)
+                if del_colors:
+                    print('* Removing all color definitions in all '
+                          'CSS files...')
+                    cc = re.sub(r'color\s*:\s*(.*?)(;|\r|\n)', '', cc)
                 cf.seek(0)
                 cf.truncate()
                 cf.write(cc)
@@ -1415,7 +1419,7 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
     if skip_hyph:
         print('* Hyphenating is turned OFF...')
     process_epub(_tempdir, _replacefonts, _resetmargins, skip_hyph,
-                 arg_justify, arg_left, irmf, fontdir)
+                 arg_justify, arg_left, irmf, fontdir, del_colors)
     pack_epub(os.path.join(root, newfile), _tempdir)
     clean_temp(_tempdir)
     if qfixerr:
