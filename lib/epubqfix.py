@@ -1365,7 +1365,7 @@ def modify_css_align(opftree, opfdir, mode, del_colors):
                 cc = re.sub(r'text-align\s*:\s*' + searchmode,
                             'text-align: ' + mode, cc)
                 if del_colors:
-                    print('* Removing all color definitions in all '
+                    print('* Removing all color definitions from all '
                           'CSS files...')
                     cc = re.sub(r'color\s*:\s*(.*?)(;|\r|\n)', '', cc)
                 cf.seek(0)
