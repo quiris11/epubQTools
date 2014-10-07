@@ -701,6 +701,16 @@ def force_cover_find(_soup):
     return None, None
 
 
+def remove_fonts(opftree, rootepubdir):
+    print('* Removing all fonts...')
+    for i in opftree.xpath('//opf:item[@href]', namespaces=OPFNS):
+        if (i.get('href').lower().endswith('.otf') or
+                i.get('href').lower().endswith('.ttf')):
+            remove_node(i)
+            os.remove(os.path.join(rootepubdir, i.get('href')))
+    return opftree
+
+
 def correct_mime_types(_soup):
     _items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(_soup)
     for _item in _items:
@@ -1238,7 +1248,8 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
-                 skip_hyph, arg_justify, arg_left, irmf, fontdir, del_colors):
+                 skip_hyph, arg_justify, arg_left, irmf, fontdir, del_colors,
+                 del_fonts):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path = find_roots(_tempdir)
@@ -1301,7 +1312,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
                            is_reset_css)
     opftree = html_cover_first(opftree)
-
+    if del_fonts:
+        opftree = remove_fonts(opftree, opf_dir_abs)
     if arg_justify:
         print('* Replacing "text-align: left" with "text-align: justify" in '
               'all CSS files...')
@@ -1419,7 +1431,7 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
     if skip_hyph:
         print('* Hyphenating is turned OFF...')
     process_epub(_tempdir, _replacefonts, _resetmargins, skip_hyph,
-                 arg_justify, arg_left, irmf, fontdir, del_colors)
+                 arg_justify, arg_left, irmf, fontdir, del_colors, del_fonts)
     pack_epub(os.path.join(root, newfile), _tempdir)
     clean_temp(_tempdir)
     if qfixerr:
