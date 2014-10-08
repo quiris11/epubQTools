@@ -13,7 +13,8 @@ usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]]
                   [--author [Surname, First Name]] [--title [Title]]
                   [-o [DIR]] [-a] [-n] [-q] [-p] [-m] [-e] [--skip-hyphenate]
                   [--skip-reset-css] [--skip-justify] [--left]
-                  [--replace-fonts] [--remove-font-family] [-k] [-d] [-f]
+                  [--replace-fonts] [--myk-fix] [--remove-colors]
+                  [--remove-fonts] [-k] [-d] [-f]
                   directory
 
 positional arguments:
@@ -50,7 +51,11 @@ optional arguments:
   --left                replace "text-align: justify" with "text-align: left"
                         in all CSS files (experimental) (only with -e)
   --replace-fonts       replace fonts (experimental) (only with -e)
-  --remove-font-family  remove font-family (experimental) (only with -e)
+  --myk-fix             fix for MYK conversion oddity (experimental) (only
+                        with -e)
+  --remove-colors       remove all color definitions from CSS files (only with
+                        -e)
+  --remove-fonts        remove all embedded font files (only with -e)
   -k, --kindlegen       convert _moh.epub files to .mobi with kindlegen
   -d, --huffdic         tell kindlegen to use huffdic compression (slow
                         conversion) (only with -k)
