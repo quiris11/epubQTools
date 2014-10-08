@@ -945,7 +945,7 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
     return source_file
 
 
-def append_reset_css_file(opftree, tempdir, is_rm_family):
+def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
 
     def most_common(lst):
         return max(set(lst), key=lst.count)
@@ -1002,6 +1002,11 @@ def append_reset_css_file(opftree, tempdir, is_rm_family):
         for c in cssitems:
             with open(os.path.join(tempdir, c.get('href')), 'r+') as f:
                 fs = f.read()
+                if del_fonts:
+                    print('* Removing all @font-face rules...')
+                    fs = re.sub(re.compile(
+                        r'@font-face.*?\{.*?\}', re.DOTALL
+                    ), '', fs)
                 if is_rm_family:
                     print('* Removing problematic font-family...')
                     ffr = ff.split(',')[0]
@@ -1299,7 +1304,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if _resetmargins:
         print('* Setting custom CSS styles...')
         opftree, is_reset_css = append_reset_css_file(opftree, opf_dir_abs,
-                                                      irmf)
+                                                      irmf, del_fonts)
     else:
         is_reset_css = False
     opftree = remove_wm_info(opftree, opf_dir_abs)
