@@ -32,7 +32,7 @@ def set_author(tree, author):
         au_rev = au_rev_l[1] + ' ' + au_rev_l[0]
     newauthor = etree.Element(
         '{http://purl.org/dc/elements/1.1/}creator',
-        attrib={'{http://www.idpf.org/2007/opf}file': author,
+        attrib={'{http://www.idpf.org/2007/opf}file-as': author,
                 '{http://www.idpf.org/2007/opf}role': 'aut'}
     )
     newauthor.text = au_rev
