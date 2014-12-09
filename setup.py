@@ -31,3 +31,10 @@ setup(
         'lib/resources/dictionaries/README_hyph_pl.txt'
     ])],
 )
+
+# build on Mac:
+# pyinstaller -Fn epubQTools ~/github/epubQTools/__main__.py
+
+# build on Windows:
+# 1) turn off antivirus
+# 2) python setup.py py2exe
