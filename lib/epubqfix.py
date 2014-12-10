@@ -48,6 +48,7 @@ HYPHEN_MARK = u'\u00AD'
 HOME = expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
        '"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">')
+DTDN = '<!DOCTYPE html>'
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
 DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
@@ -57,6 +58,15 @@ ADOBE_OBFUSCATION = 'http://ns.adobe.com/pdf/enc#RC'
 IDPF_OBFUSCATION = 'http://www.idpf.org/2008/embedding'
 CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
 SFENC = sys.getfilesystemencoding()
+
+
+def set_dtd(opftree):
+    version = opftree.xpath('//opf:package',
+                            namespaces=OPFNS)[0].get('version')
+    if version == '3.0':
+        return DTDN
+    else:
+        return DTD
 
 
 def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
@@ -514,7 +524,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                     xml_declaration=True,
                     standalone=False,
                     encoding="utf-8",
-                    doctype=DTD
+                    doctype=set_dtd(soup)
                 ))
             newtocmanifest = etree.Element(
                 '{http://www.idpf.org/2007/opf}item',
@@ -622,7 +632,7 @@ def fix_mismatched_covers(opftree, tempdir):
                 xml_declaration=True,
                 standalone=False,
                 encoding="utf-8",
-                doctype=DTD)
+                doctype=set_dtd(opftree))
             )
     return opftree
 
@@ -1120,7 +1130,7 @@ def remove_text_from_html_cover(opftree, rootepubdir):
             xml_declaration=True,
             standalone=False,
             encoding='utf-8',
-            doctype=DTD)
+            doctype=set_dtd(opftree))
         )
 
 
@@ -1249,7 +1259,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
     with open(xhfile, "w") as f:
         f.write(etree.tostring(xhtree, pretty_print=True, xml_declaration=True,
-                standalone=False, encoding="utf-8", doctype=DTD))
+                standalone=False, encoding="utf-8", doctype=set_dtd(opftree)))
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
