@@ -151,7 +151,7 @@ def main():
         print('* WARNING! -d was ignored because it works only with -k.')
     if args.force and not (args.epub or args.kindlegen):
         print('* WARNING! -f was ignored because it works only with -e or -k.')
-    if args.mod and not (args.qcheck or args.epubcheck):
+    if args.mod and not (args.qcheck or args.epubcheck or args.epubcheck4):
         print('* WARNING! -m was ignored because it works only with -q or -p.')
     if not args.skip_reset_css and not args.epub:
         print('* WARNING! --skip-reset-css was ignored because it works only '
