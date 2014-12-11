@@ -973,12 +973,12 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
             if not is_body_family:
                 with open(os.path.join(tempdir, c.get('href')), 'r') as f:
                     fs = f.read()
-                    lis = fs.split('}')
+                    lis = fs.split('(})')
                     for e in lis:
                         if 'body' in e:
                             try:
                                 ff = re.search(
-                                    r'font-family\s*:\s*(.*?)(;|\r|\n)', e
+                                    r'font-family\s*:\s*(.*?)(;|})', e
                                 ).group(1)
                                 is_body_family = True
                             except:
@@ -992,12 +992,12 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
             for c in cssitems:
                 with open(os.path.join(tempdir, c.get('href')), 'r') as f:
                     fs = f.read()
-                    lis = fs.split('}')
+                    lis = fs.split('(})')
                     for e in lis:
                         if 'font-family' in e:
                             try:
                                 fflist.append(re.search(
-                                    r'font-family\s*:\s*(.+?)(;|\r|\n)', e
+                                    r'font-family\s*:\s*(.+?)(;|})', e
                                 ).group(1))
                             except:
                                 continue
@@ -1021,15 +1021,15 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
                     print('* Removing problematic font-family...')
                     ffr = ff.split(',')[0]
                     ffr = ffr.replace('"', '').replace("'", '')
-                    lis = fs.split('}')
+                    lis = fs.split('(})')
                     for e in lis:
                         if '@font-face' in e:
                             continue
                         lis[lis.index(e)] = re.sub(
                             r'font-family\s*:\s*(\"|\')?' + re.escape(ffr) +
-                            r'(\"|\')?.*?(;|\r|\n)', '', e
+                            r'(\"|\')?.*?(;|})', '', e
                         )
-                    fs = '}'.join(lis)
+                    fs = ''.join(lis)
                 fs = 'body {font-family: ' + ff + ' }\r\n' + fs
                 f.seek(0)
                 f.truncate()
