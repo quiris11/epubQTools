@@ -72,7 +72,10 @@ parser.add_argument("-q", "--qcheck", help="validate files with qcheck "
                     "internal tool",
                     action="store_true")
 parser.add_argument("-p", "--epubcheck", help="validate epub files with "
-                    " EpubCheck 3.0.1 tool",
+                    " EpubCheck 3 tool",
+                    action="store_true")
+parser.add_argument("-4", "--epubcheck4", help="validate epub files with "
+                    " EpubCheck 4 tool",
                     action="store_true")
 parser.add_argument("-m", "--mod", help="validate only _moh.epub files "
                     "(works only with -q or -p)",
@@ -257,11 +260,22 @@ def main():
             print('')
             print('* NO epub files for checking found!')
 
-    if args.epubcheck:
+    if args.epubcheck or args.epubcheck4:
+        if args.epubcheck:
+            for e in os.listdir(os.path.join(args.tools)):
+                if e.startswith('epubcheck-3.'):
+                    epubcheckstr = os.path.splitext(e)[0]
+            epubcheckjar = epubcheckstr + '.jar'
+        else:
+            for e in os.listdir(os.path.join(args.tools)):
+                if e.startswith('epubcheck-4.'):
+                    epubcheckstr = os.path.splitext(e)[0]
+            epubcheckjar = 'epubcheck.jar'
+
         print('')
-        print('******************************************')
-        print('*** Checking with ePubCheck 3.0.1 tool ***')
-        print('******************************************')
+        print('***********************************************')
+        print('*** Checking with ' + epubcheckstr + ' tool ***')
+        print('***********************************************')
         try:
             subprocess.Popen(
                 ['java', '-version'],
@@ -271,9 +285,9 @@ def main():
             sys.exit('Java is NOT installed. Giving up...')
         try:
             echpzipfile = zipfile.ZipFile(os.path.join(args.tools,
-                                          'epubcheck-3.0.1.zip'))
+                                          epubcheckstr + '.zip'))
         except:
-            sys.exit('epubcheck-3.0.1.zip not found in directory: "' +
+            sys.exit(epubcheckstr + '.zip not found in directory: "' +
                      args.tools + '" Giving up...')
         echp_temp = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
         echpzipfile.extractall(echp_temp)
@@ -288,7 +302,7 @@ def main():
         def epubchecker(echp_temp, root, f):
             epubchecker_path = os.path.join(
                 echp_temp,
-                'epubcheck-3.0.1', 'epubcheck-3.0.1.jar'
+                epubcheckstr, epubcheckjar
             )
             jp = subprocess.Popen([
                 'java', '-jar', '%s' % epubchecker_path,
