@@ -957,6 +957,11 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
 
 def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
 
+    def splitkeepsep(s, sep):
+        return reduce(lambda acc, elem: acc[:-1] + [acc[-1] + elem]
+                      if elem == sep else acc + [elem],
+                      re.split("(%s)" % re.escape(sep), s), [])
+
     def most_common(lst):
         return max(set(lst), key=lst.count)
 
@@ -973,7 +978,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
             if not is_body_family:
                 with open(os.path.join(tempdir, c.get('href')), 'r') as f:
                     fs = f.read()
-                    lis = fs.split('(})')
+                    lis = splitkeepsep(fs, '}')
                     for e in lis:
                         if 'body' in e:
                             try:
@@ -992,7 +997,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
             for c in cssitems:
                 with open(os.path.join(tempdir, c.get('href')), 'r') as f:
                     fs = f.read()
-                    lis = fs.split('(})')
+                    lis = splitkeepsep(fs, '}')
                     for e in lis:
                         if 'font-family' in e:
                             try:
@@ -1021,7 +1026,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
                     print('* Removing problematic font-family...')
                     ffr = ff.split(',')[0]
                     ffr = ffr.replace('"', '').replace("'", '')
-                    lis = fs.split('(})')
+                    lis = splitkeepsep(fs, '}')
                     for e in lis:
                         if '@font-face' in e:
                             continue
