@@ -1034,10 +1034,13 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
                             r'font-family\s*:\s*(\"|\')?' + re.escape(ffr) +
                             r'(\"|\')?.*?;', '', e
                         )
-                        lis[lis.index(e)] = re.sub(
-                            r'font-family\s*:\s*(\"|\')?' + re.escape(ffr) +
-                            r'(\"|\')?.*?}', '}', e
-                        )
+                        try:
+                            lis[lis.index(e)] = re.sub(
+                                r'font-family\s*:\s*(\"|\')?' + re.escape(ffr)
+                                + r'(\"|\')?.*?}', '}', e
+                            )
+                        except:
+                            continue
                     fs = ''.join(lis)
                 fs = 'body {font-family: ' + ff + ' }\r\n' + fs
                 f.seek(0)
