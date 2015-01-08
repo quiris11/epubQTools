@@ -965,7 +965,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
     def most_common(lst):
         return max(set(lst), key=lst.count)
 
-    is_reset_css = is_body_family = False
+    is_reset_css = is_body_family = is_calibre_class = False
     ff = ''
     cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
                              namespaces=OPFNS)
@@ -980,8 +980,9 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
                     fs = f.read()
                     lis = splitkeepsep(fs, '}')
                     for e in lis:
-                        if (re.search(r'(^|,|\s+)\.calibre(\s+|,|{)', e) or
-                                re.search(r'(^|,|\s+)body(\s+|,|{)', e)):
+                        if re.search(r'(^|,|\s+)\.calibre(\s+|,|{)', e):
+                            is_calibre_class = True
+                        if re.search(r'(^|,|\s+)body(\s+|,|{)', e):
                             try:
                                 ff = re.search(
                                     r'font-family\s*:\s*(.*?)(;|})', e
@@ -1043,7 +1044,10 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
                         except:
                             continue
                     fs = ''.join(lis)
-                fs = 'body {font-family: ' + ff + ' }\r\n' + fs
+                if is_calibre_class:
+                    fs = 'body, .calibre {font-family: ' + ff + ' }\r\n' + fs
+                else:
+                    fs = 'body {font-family: ' + ff + ' }\r\n' + fs
                 f.seek(0)
                 f.truncate()
                 f.write(fs)
@@ -1058,7 +1062,10 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
         cssdir = ''
     if ff != '':
             print('! Setting font-family for body to: %s' % ff)
-            bs = 'body {font-family: %s }\r\n' % ff
+            if is_calibre_class:
+                bs = 'body, .calibre {font-family: %s }\r\n' % ff
+            else:
+                bs = 'body {font-family: %s }\r\n' % ff
     else:
         bs = ''
     with open(os.path.join(tempdir, cssdir, 'epubQTools-reset.css'), 'w') as f:
