@@ -980,7 +980,8 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
                     fs = f.read()
                     lis = splitkeepsep(fs, '}')
                     for e in lis:
-                        if 'body' in e:
+                        if (re.search(r'(^|,|\s+)\.calibre(\s+|,|{)', e) or
+                                re.search(r'(^|,|\s+)body(\s+|,|{)', e)):
                             try:
                                 ff = re.search(
                                     r'font-family\s*:\s*(.*?)(;|})', e
@@ -991,7 +992,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
                         if ff != '':
                             break
         if not is_body_family:
-            print('! Font-family for body does not found. Trying '
+            print('! Font-family for body or .calibre does not found. Trying '
                   'to find the best font...')
             fflist = []
             for c in cssitems:
