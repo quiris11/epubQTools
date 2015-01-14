@@ -224,15 +224,9 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
         items = tree.xpath('//opf:item[@href]', namespaces=OPFNS)
         for i in items:
             if (
-                    i.get('href').lower().endswith('.otf') and
+                    (i.get('href').lower().endswith('.otf') or
+                     i.get('href').lower().endswith('.ttf')) and
                     i.get('media-type') != 'application/vnd.ms-opentype'
-            ):
-                print('%sFont file "%s" has incorrect media-type "%s".' % (
-                    _file_dec, i.get('href'), i.get('media-type')
-                ))
-            elif (
-                    i.get('href').lower().endswith('.ttf') and
-                    i.get('media-type') != 'application/x-font-truetype'
             ):
                 print('%sFont file "%s" has incorrect media-type "%s".' % (
                     _file_dec, i.get('href'), i.get('media-type')

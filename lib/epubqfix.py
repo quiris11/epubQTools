@@ -721,19 +721,13 @@ def correct_mime_types(_soup):
     _items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(_soup)
     for _item in _items:
         if (
-                _item.get('href').lower().endswith('.otf') and
+                (_item.get('href').lower().endswith('.otf') or
+                    _item.get('href').lower().endswith('.ttf')) and
                 _item.get('media-type') != 'application/vnd.ms-opentype'
         ):
             print('* Setting correct mime type "application/vnd.ms-opentype" '
                   'for font "%s"' % _item.get('href'))
             _item.set('media-type', 'application/vnd.ms-opentype')
-        elif (
-                _item.get('href').lower().endswith('.ttf') and
-                _item.get('media-type') != 'application/x-font-truetype'
-        ):
-            print('* Setting correct mime type "application/x-font-truetype" '
-                  'for font "%s"' % _item.get('href'))
-            _item.set('media-type', 'application/x-font-truetype')
         elif _item.get('media-type').lower() == 'text/html':
             _item.set('media-type', 'application/xhtml+xml')
     return _soup
