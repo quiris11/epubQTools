@@ -288,14 +288,10 @@ def decrypt_font(path, key, method, fontdir):
 def find_and_replace_fonts(opftree, rootepubdir, fontdir):
     items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree)
     for item in items:
-        if item.get('href').lower().endswith('.otf'):
+        if (item.get('href').lower().endswith('.otf') or
+                item.get('href').lower().endswith('.ttf')):
             actual_font_path = os.path.join(rootepubdir, item.get('href'))
             replace_font(actual_font_path, fontdir)
-            continue
-        if item.get('href').lower().endswith('.ttf'):
-            actual_font_path = os.path.join(rootepubdir, item.get('href'))
-            replace_font(actual_font_path, fontdir)
-            continue
 
 
 def replace_font(actual_font_path, fontdir):
