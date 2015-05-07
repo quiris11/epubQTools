@@ -134,36 +134,42 @@ def mobi_check(_documents):
             # rename MOBI files
             if args.rename:
                 nt = rename_mobi(title.decode('utf8'), author.decode('utf8'))
-                print('* Renaming file: %s to %s' % (
-                    file,
-                    nt.encode(SFENC) + file_extension
-                ))
-            if os.path.exists(os.path.join(dirpath,
-                              nt.encode(SFENC) + file_extension)):
-                counter = 0
-                while True:
-                    counter += 1
-                    if not os.path.exists(os.path.join(dirpath,
-                                          nt.encode(SFENC) + ' (' +
-                                          str(counter) + ')' +
-                                          file_extension)):
-                        print('* Renaming file: %s to %s' % (
-                            file,
-                            nt.encode(SFENC) + ' (' + str(counter) + ')' +
-                            file_extension
-                        ))
-                        os.rename(os.path.join(dirpath, file),
-                                  os.path.join(
-                                  dirpath,
-                                  nt.encode(SFENC) + ' (' + str(counter) + ')' +
-                                  file_extension
-                                  ))
-                        break
+                newfn = nt.encode(SFENC) + file_extension
+                if (
+                    file.decode(SFENC) == newfn or
+                    file.decode(SFENC).split(
+                        '('
+                    )[0][:-1] + file_extension == newfn
+                ):
+                    print('= Renaming file %s is not needed' % (
+                        file.decode(SFENC)
+                    ))
+                elif os.path.exists(os.path.join(dirpath,
+                                    newfn)):
+                    counter = 0
+                    while True:
+                        counter += 1
+                        if not os.path.exists(os.path.join(dirpath,
+                                              nt.encode(SFENC) + ' (' +
+                                              str(counter) + ')' +
+                                              file_extension)):
+                            print('* Renaming file: %s to %s' % (
+                                file,
+                                nt.encode(SFENC) + ' (' + str(counter) + ')' +
+                                file_extension
+                            ))
+                            os.rename(os.path.join(dirpath, file),
+                                      os.path.join(
+                                      dirpath,
+                                      nt.encode(SFENC) + ' (' + str(counter) +
+                                      ')' + file_extension
+                                      ))
+                            break
 
-            else:
-                os.rename(os.path.join(dirpath, file),
-                          os.path.join(dirpath,
-                                       nt.encode(SFENC) + file_extension))
+                else:
+                    print('* Renaming file: %s to %s' % (file, newfn))
+                    os.rename(os.path.join(dirpath, file),
+                              os.path.join(dirpath, newfn))
 
 
 def fix_extension(dir):
