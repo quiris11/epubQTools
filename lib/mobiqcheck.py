@@ -97,12 +97,15 @@ def mobi_header_fields(mobi_content):
     header = pp.readsection(0)
     id = struct.unpack_from('4s', header, 0x10)[0]
     version = struct.unpack_from('>L', header, 0x24)[0]
+    # number of locations
+    text_length = struct.unpack('>I', header[4:8])[0]
+    locations = text_length/150 + 1
     # title
     toff, tlen = struct.unpack('>II', header[0x54:0x5c])
     tend = toff + tlen
     title = header[toff:tend]
 
-    return id, version, title
+    return id, version, title, locations
 
 
 def mobi_check(_documents):
@@ -117,8 +120,13 @@ def mobi_check(_documents):
             if mobi_content[60:68] != 'BOOKMOBI':
                 print(file_dec + ': invalid file format. Skipping...')
                 continue
-            id, ver, title = mobi_header_fields(mobi_content)
+            id, ver, title, locations = mobi_header_fields(mobi_content)
             author = find_exth(100, mobi_content)
+            if args.locations:
+                print(
+                    locations,
+                    author.decode(SFENC) + ' - ' + title.decode(SFENC),
+                    sep='\t')
             if ver == args.version:
                 print(
                     id, ver, file_dec, title,
@@ -223,10 +231,13 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--rename",
                         help="rename MOBI files to 'author - title.ext'",
                         action="store_true")
+    parser.add_argument("-l", "--locations",
+                        help="print list of books with number of locations",
+                        action="store_true")
     parser.add_argument("-b", "--ebok",
                         help="replace PDOC to EBOK (experimental)",
                         action="store_true")
-    parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
+    parser.add_argument('--log', nargs='?', metavar='DIR', const='1',
                         help='path to directory to write log file. If DIR is '
                         ' omitted write log to directory with epub files')
     args = parser.parse_args()
