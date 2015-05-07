@@ -397,9 +397,17 @@ def main():
                     compression,
                     os.path.join(root, f)
                 ], stdout=subprocess.PIPE).communicate()[0]
-            except:
-                sys.exit('ERROR! Kindlegen not found in directory: "' +
-                         args.tools + '" Giving up...')
+            except OSError:
+                try:
+                    proc = subprocess.Popen([
+                        os.path.join(kgapp),
+                        '-dont_append_source',
+                        compression,
+                        os.path.join(root, f)
+                    ], stdout=subprocess.PIPE).communicate()[0]
+                except:
+                    sys.exit('ERROR! Kindlegen not found in directory: "' +
+                             args.tools + '" Giving up...')
             for ln in proc.splitlines():
                 if 'Warning' in ln and 'W14029' not in ln:
                     print(' ', ln)
