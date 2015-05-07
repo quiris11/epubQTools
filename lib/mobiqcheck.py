@@ -72,12 +72,13 @@ def find_exth(search_id, content):
     return '* NONE *'
 
 
-def rename_mobi(title, author):
-    def strip_accents(text):
-        return ''.join(c for c in unicodedata.normalize(
-            'NFKD', text
-        ) if unicodedata.category(c) != 'Mn')
+def strip_accents(text):
+    return ''.join(c for c in unicodedata.normalize(
+        'NFKD', text
+    ) if unicodedata.category(c) != 'Mn')
 
+
+def rename_mobi(title, author):
     if title.isupper():
         title = title.title()
     if author.isupper():
@@ -127,7 +128,7 @@ def mobi_check(_documents):
             if args.locations:
                 print(
                     locations/15+1, locations,
-                    author.decode(SFENC) + ' - ' + title.decode(SFENC),
+                    strip_accents(author.decode('utf8')) + ' - ' + strip_accents(title.decode('utf8')),
                     sep='\t')
             if ver == args.version:
                 print(
