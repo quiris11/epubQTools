@@ -109,6 +109,8 @@ def mobi_header_fields(mobi_content):
 
 
 def mobi_check(_documents):
+    if args.locations:
+        print('pages', 'locations', 'author - title', sep='\t')
     for dirpath, dirs, files in os.walk(_documents):
         for file in files:
             file_extension = os.path.splitext(file)[1].lower()
@@ -124,7 +126,7 @@ def mobi_check(_documents):
             author = find_exth(100, mobi_content)
             if args.locations:
                 print(
-                    locations,
+                    locations/15+1, locations,
                     author.decode(SFENC) + ' - ' + title.decode(SFENC),
                     sep='\t')
             if ver == args.version:
