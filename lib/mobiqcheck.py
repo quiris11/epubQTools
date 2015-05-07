@@ -134,7 +134,10 @@ def mobi_check(_documents):
             # rename MOBI files
             if args.rename:
                 nt = rename_mobi(title.decode(SFENC), author.decode(SFENC))
-                print(nt.decode(SFENC) + file_extension)
+                print('* Renaming file: %s to %s' % (
+                    file,
+                    nt.decode(SFENC) + file_extension
+                ))
                 os.rename(os.path.join(dirpath, file),
                           os.path.join(dirpath,
                                        nt.decode(SFENC) + file_extension))
