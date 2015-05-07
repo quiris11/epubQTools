@@ -140,8 +140,26 @@ def mobi_check(_documents):
                 ))
             if os.path.exists(os.path.join(dirpath,
                               nt.encode(SFENC) + file_extension)):
-                print('! Renaming not possible! File with the same name '
-                      'exists: ' + nt.encode(SFENC) + file_extension)
+                counter = 0
+                while True:
+                    counter += 1
+                    if not os.path.exists(os.path.join(dirpath,
+                                          nt.encode(SFENC) + ' (' +
+                                          str(counter) + ')' +
+                                          file_extension)):
+                        print('* Renaming file: %s to %s' % (
+                            file,
+                            nt.encode(SFENC) + ' (' + str(counter) + ')' +
+                            file_extension
+                        ))
+                        os.rename(os.path.join(dirpath, file),
+                                  os.path.join(
+                                  dirpath,
+                                  nt.encode(SFENC) + ' (' + str(counter) + ')' +
+                                  file_extension
+                                  ))
+                        break
+
             else:
                 os.rename(os.path.join(dirpath, file),
                           os.path.join(dirpath,
