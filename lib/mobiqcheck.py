@@ -128,7 +128,12 @@ def mobi_check(_documents):
             if args.locations:
                 print(
                     locations/15+1, locations,
-                    strip_accents(author.decode('utf8')) + ' - ' + strip_accents(title.decode('utf8')),
+                    unicode(author.decode(
+                        'utf8'
+                    )).encode(sys.stdout.encoding, 'replace') + ' - ' +
+                    unicode(title.decode(
+                        'utf8'
+                    )).encode(sys.stdout.encoding, 'replace'),
                     sep='\t')
             if ver == args.version:
                 print(
