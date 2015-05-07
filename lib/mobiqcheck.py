@@ -11,6 +11,9 @@ import sys
 import struct
 import codecs
 from datetime import datetime
+import unicodedata
+
+SFENC = sys.getfilesystemencoding()
 
 
 class Logger(object):
@@ -69,12 +72,37 @@ def find_exth(search_id, content):
     return '* NONE *'
 
 
+def rename_mobi(title, author):
+    def strip_accents(text):
+        return ''.join(c for c in unicodedata.normalize(
+            'NFKD', text
+        ) if unicodedata.category(c) != 'Mn')
+
+    if title.isupper():
+        title = title.title()
+    if author.isupper():
+        author = author.title()
+    nfname = strip_accents(unicode(author + ' - ' + title))
+    nfname = nfname.replace(u'\u2013', '-').replace('/', '_')\
+                   .replace(':', '_').replace(u'\u0142', 'l')\
+                   .replace(u'\u0141', 'L')
+    nfname = "".join(x for x in nfname if (
+        x.isalnum() or x.isspace() or x in ('_', '-', '.')
+    ))
+    return nfname.encode(SFENC)
+
+
 def mobi_header_fields(mobi_content):
     pp = PalmDB(mobi_content)
     header = pp.readsection(0)
     id = struct.unpack_from('4s', header, 0x10)[0]
     version = struct.unpack_from('>L', header, 0x24)[0]
-    return id, version
+    # title
+    toff, tlen = struct.unpack('>II', header[0x54:0x5c])
+    tend = toff + tlen
+    title = header[toff:tend]
+
+    return id, version, title
 
 
 def mobi_check(_documents):
@@ -89,19 +117,27 @@ def mobi_check(_documents):
             if mobi_content[60:68] != 'BOOKMOBI':
                 print(file_dec + ': invalid file format. Skipping...')
                 continue
-            id, ver = mobi_header_fields(mobi_content)
+            id, ver, title = mobi_header_fields(mobi_content)
+            author = find_exth(100, mobi_content)
             if ver == args.version:
                 print(
-                    id, ver, file_dec,
-                    find_exth(100, mobi_content).decode('utf8'),
-                    find_exth(503, mobi_content).decode('utf8'),
-                    find_exth(101, mobi_content).decode('utf8'),
+                    id, ver, file_dec, title,
+                    author.decode(SFENC),
+                    find_exth(503, mobi_content).decode(SFENC),
+                    find_exth(101, mobi_content).decode(SFENC),
                     sep='\t')
             # experimental feature
             if args.ebok:
                 mobi_content = mobi_content.replace('PDOC', 'EBOK')
                 with open(os.path.join(dirpath, 'mod_' + file), 'wb') as f:
                     f.write(mobi_content)
+            # rename MOBI files
+            if args.rename:
+                nt = rename_mobi(title.decode(SFENC), author.decode(SFENC))
+                print(nt.decode(SFENC) + file_extension)
+                os.rename(os.path.join(dirpath, file),
+                          os.path.join(dirpath,
+                                       nt.decode(SFENC) + file_extension))
 
 
 def fix_extension(dir):
@@ -153,10 +189,10 @@ if __name__ == "__main__":
                         '.azw3',
                         action="store_true")
     parser.add_argument("-n", "--rename",
-                        help="rename .epub files to 'author - title.epub'",
+                        help="rename MOBI files to 'author - title.ext'",
                         action="store_true")
     parser.add_argument("-b", "--ebok",
-                        help="replace PDOC to EBOK",
+                        help="replace PDOC to EBOK (experimental)",
                         action="store_true")
     parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
                         help='path to directory to write log file. If DIR is '
