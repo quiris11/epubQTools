@@ -12,6 +12,7 @@ import struct
 import codecs
 from datetime import datetime
 import unicodedata
+import csv
 
 SFENC = sys.getfilesystemencoding()
 
@@ -111,6 +112,10 @@ def mobi_header_fields(mobi_content):
 
 def mobi_check(_documents):
     if args.locations:
+        with open(os.path.join('mobi-book-sizes.csv'), 'w') as o:
+            csvwrite = csv.writer(o, delimiter=';', quotechar='"',
+                                  quoting=csv.QUOTE_NONNUMERIC)
+            csvwrite.writerow(['pages', 'locations', 'author', 'title'])
         print('pages', 'locations', 'author - title', sep='\t')
     for dirpath, dirs, files in os.walk(_documents):
         for file in files:
@@ -126,15 +131,27 @@ def mobi_check(_documents):
             id, ver, title, locations = mobi_header_fields(mobi_content)
             author = find_exth(100, mobi_content)
             if args.locations:
+                row = [
+                    locations/15+1,
+                    locations,
+                    author,
+                    title
+                ]
+                with open(os.path.join('mobi-book-sizes.csv'), 'a') as o:
+                    csvwrite = csv.writer(o, delimiter=';', quotechar='"',
+                                          quoting=csv.QUOTE_NONNUMERIC)
+                    csvwrite.writerow(row)
                 print(
-                    locations/15+1, locations,
+                    locations/15+1,
+                    locations,
                     unicode(author.decode(
                         'utf8'
-                    )).encode(sys.stdout.encoding, 'replace') + ' - ' +
+                    )).encode(sys.stdout.encoding, 'replace'),
                     unicode(title.decode(
                         'utf8'
                     )).encode(sys.stdout.encoding, 'replace'),
-                    sep='\t')
+                    sep='\t'
+                )
             if ver == args.version:
                 print(
                     id, ver, file_dec, title,
