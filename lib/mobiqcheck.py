@@ -228,7 +228,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("directory",
-                        help="Directory with EPUB files stored")
+                        help="Directory with MOBI files stored")
     parser.add_argument("--version", nargs='?',
                         default=None, type=int, metavar="VER",
                         help="find books with Mobi header version (6 or 8)")
@@ -240,7 +240,8 @@ if __name__ == "__main__":
                         help="rename MOBI files to 'author - title.ext'",
                         action="store_true")
     parser.add_argument("-l", "--locations",
-                        help="print list of books with number of locations",
+                        help="print list of books with number of pages "
+                             "and locations",
                         action="store_true")
     parser.add_argument("-b", "--ebok",
                         help="replace PDOC to EBOK (experimental)",
