@@ -112,7 +112,7 @@ def mobi_header_fields(mobi_content):
 
 def mobi_check(_documents):
     if args.locations:
-        with open(os.path.join('mobi-book-sizes.csv'), 'w') as o:
+        with open(os.path.join('mobi-book-sizes.csv'), 'wb') as o:
             csvwrite = csv.writer(o, delimiter=';', quotechar='"',
                                   quoting=csv.QUOTE_NONNUMERIC)
             csvwrite.writerow(['pages', 'locations', 'author', 'title'])
@@ -137,7 +137,7 @@ def mobi_check(_documents):
                     author,
                     title
                 ]
-                with open(os.path.join('mobi-book-sizes.csv'), 'a') as o:
+                with open(os.path.join('mobi-book-sizes.csv'), 'ab') as o:
                     csvwrite = csv.writer(o, delimiter=';', quotechar='"',
                                           quoting=csv.QUOTE_NONNUMERIC)
                     csvwrite.writerow(row)
