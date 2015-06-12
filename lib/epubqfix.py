@@ -980,8 +980,8 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
                                 is_body_family = True
                             except:
                                 pass
-                        if ff != '':
-                            break
+                        # if ff != '':
+                        #     break
         if not is_body_family:
             print('! Font-family for body or .calibre does not found. Trying '
                   'to find the best font...')
