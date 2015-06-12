@@ -110,7 +110,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         if _filename == (nfname + '.epub'):
             is_renamed = False
             break
-        elif _filename == (nfname + ' (' + str(counter-1) + ').epub'):
+        elif _filename == (nfname + ' (' + str(counter - 1) + ').epub'):
             is_renamed = False
             break
         elif not os.path.exists(os.path.join(_root, nfname + '.epub')):
@@ -660,7 +660,7 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
                 break
         _newcoverreference = etree.Element(
             '{http://www.idpf.org/2007/opf}reference', title='Cover',
-            type="cover",   href=cover_file
+            type="cover", href=cover_file
         )
         _refcovers = etree.XPath('//opf:reference[@type="cover"]',
                                  namespaces=OPFNS)(_soup)
@@ -836,7 +836,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             "//dc:identifier[@opf:scheme='calibre']",
             namespaces={'dc': 'http://purl.org/dc/elements/1.1/',
                         'opf': 'http://www.idpf.org/2007/opf'}
-            ):
+    ):
         dcid.getparent().remove(dcid)
     return soup
 
