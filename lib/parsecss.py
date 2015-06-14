@@ -14,10 +14,14 @@ with open(os.path.join(os.path.expanduser('~'), 'style.css')) as f:
     content = f.read()
 # print(content)
 ss = parser.parse_stylesheet(content)
-# print(ss)
+# print(ss.errors)
 for r in ss.rules:
-    for d in r.declarations:
-        if d.name == 'font-family':
-            for t in d.value:
-                if t.type == 'STRING' or t.type == 'IDENT':
-                    print(r.selector, d.name, t.type, t.value)
+    # print(r.selector)
+    if r.selector is not None:
+        for s in r.selector:
+            if s.value == 'body':
+                for d in r.declarations:
+                    if d.name == 'font-family':
+                        for t in d.value:
+                            if t.type == 'STRING' or t.type == 'IDENT':
+                                print(s.value, d.name, t.type, t.value)
