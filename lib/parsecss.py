@@ -24,4 +24,4 @@ for r in ss.rules:
                     if d.name == 'font-family':
                         for t in d.value:
                             if t.type == 'STRING' or t.type == 'IDENT':
-                                print(s.value, d.name, t.type, t.value)
+                                print(d.priority, s.value, d.name, t.type, t.value, d.value.as_css())
