@@ -18,10 +18,16 @@ ss = parser.parse_stylesheet(content)
 for r in ss.rules:
     # print(r.selector)
     if r.selector is not None:
-        for s in r.selector:
-            if s.value == 'body':
-                for d in r.declarations:
-                    if d.name == 'font-family':
-                        for t in d.value:
-                            if t.type == 'STRING' or t.type == 'IDENT':
-                                print(d.priority, s.value, d.name, t.type, t.value, d.value.as_css())
+        # for s in r.selector:
+        # if s.value == 'body':
+        for d in r.declarations:
+            if d.name == 'font-family':
+                # for t in d.value:
+                    # if t.type == 'STRING' or t.type == 'IDENT':
+                        print(d.priority,
+                              r.selector.as_css(),
+                            #   d.name,
+                            #   t.type,
+                            #   t.value,
+                              '###',
+                              d.value.as_css())
