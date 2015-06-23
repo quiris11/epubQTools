@@ -26,8 +26,5 @@ for r in ss.rules:
                     # if t.type == 'STRING' or t.type == 'IDENT':
                         print(d.priority,
                               r.selector.as_css(),
-                            #   d.name,
-                            #   t.type,
-                            #   t.value,
                               '###',
                               d.value.as_css())

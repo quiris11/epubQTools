@@ -41,12 +41,14 @@ class PalmDB:
 
     def getsecaddr(self, secno):
         secstart, = struct.unpack_from('>L', self.data,
-                                       PalmDB.first_pdb_record+secno*8)
-        if secno == self.nsec-1:
+                                       PalmDB.first_pdb_record + secno * 8)
+        if secno == self.nsec - 1:
             secend = len(self.data)
         else:
-            secend, = struct.unpack_from('>L', self.data,
-                                         PalmDB.first_pdb_record+(secno+1)*8)
+            secend, = struct.unpack_from(
+                '>L', self.data,
+                PalmDB.first_pdb_record + (secno + 1) * 8
+            )
         return secstart, secend
 
     def readsection(self, secno):
@@ -65,7 +67,7 @@ def find_exth(search_id, content):
     count_items, = struct.unpack('>L', exth_header[8:12])
     pos = 12
     for _ in range(count_items):
-        id, size = struct.unpack('>LL', exth_header[pos:pos+8])
+        id, size = struct.unpack('>LL', exth_header[pos:pos + 8])
         exth_record = exth_header[pos + 8: pos + size]
         if id == search_id:
             return exth_record
@@ -101,7 +103,7 @@ def mobi_header_fields(mobi_content):
     version = struct.unpack_from('>L', header, 0x24)[0]
     # number of locations
     text_length = struct.unpack('>I', header[4:8])[0]
-    locations = text_length/150 + 1
+    locations = text_length / 150 + 1
     # title
     toff, tlen = struct.unpack('>II', header[0x54:0x5c])
     tend = toff + tlen
@@ -132,7 +134,7 @@ def mobi_check(_documents):
             author = find_exth(100, mobi_content)
             if args.locations:
                 row = [
-                    locations/15+1,
+                    locations / 15 + 1,
                     locations,
                     author,
                     title
@@ -142,7 +144,7 @@ def mobi_check(_documents):
                                           quoting=csv.QUOTE_NONNUMERIC)
                     csvwrite.writerow(row)
                 print(
-                    locations/15+1,
+                    locations / 15 + 1,
                     locations,
                     unicode(author.decode(
                         'utf8'
