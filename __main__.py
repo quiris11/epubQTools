@@ -305,7 +305,8 @@ def main():
                 epubcheckstr, epubcheckjar
             )
             jp = subprocess.Popen([
-                'java', '-jar', '%s' % epubchecker_path,
+                'java', '-Djava.awt.headless=true', '-jar',
+                '%s' % epubchecker_path,
                 '%s' % str(os.path.join(root, f))
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             jpout, jperr = jp.communicate()
