@@ -278,7 +278,7 @@ def decrypt_font(path, key, method, fontdir):
                     path
                 )
         is_font, signature = check_font(path)
-        if is_font:
+        if is_font or ('.ttc' in path):
             print('OK! Replaced.')
         else:
             qfixerr = True
