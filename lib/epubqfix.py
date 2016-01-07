@@ -257,7 +257,7 @@ def decrypt_font(path, key, method, fontdir):
         print('FAILED!')
     else:
         print('OK! Decrypted.')
-    if not is_font:
+    if not is_font and not ('.ttc' in path):
         print('* Starting replace procedure for encrypted file "%s" with font'
               ' from system directory...' % os.path.basename(path), end=' ')
         if sys.platform == 'win32':
@@ -278,7 +278,7 @@ def decrypt_font(path, key, method, fontdir):
                     path
                 )
         is_font, signature = check_font(path)
-        if is_font or ('.ttc' in path):
+        if is_font:
             print('OK! Replaced.')
         else:
             qfixerr = True
