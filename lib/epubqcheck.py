@@ -220,7 +220,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                       % (_file_dec, n.encode('utf-8').decode(SFENC)))
         return enc_found
 
-    def check_font_mime_types(tree):
+    def check_mime_types(tree):
         items = tree.xpath('//opf:item[@href]', namespaces=OPFNS)
         for i in items:
 
@@ -240,7 +240,14 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                 print('%sA file "%s" has incorrect media-type "%s".' % (
                     _file_dec, i.get('href'), i.get('media-type')
                 ))
-
+            if (i.get('href').lower().endswith('.xml') and
+                    i.get('media-type') == 'application/xhtml+xml'):
+                print(
+                    '%sA file "%s" has incorrect extension ".xml" '
+                    'for specified media-type "%s".' % (
+                        _file_dec, i.get('href'), i.get('media-type')
+                    )
+                )
     if opf_root == '':
         _folder = ''
     else:
@@ -428,7 +435,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
         print(_file_dec + 'other calibre staff found')
         break
 
-    check_font_mime_types(opftree)
+    check_mime_types(opftree)
 
     if enc_found:
         uid = None
