@@ -295,10 +295,12 @@ def find_and_replace_fonts(opftree, rootepubdir, fontdir):
 
 
 def xml2html_extension(opftree, rootepubdir):
+    is_xml_ext_fixed = False
     items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree)
     for i in items:
         if (i.get('media-type') == 'application/xhtml+xml' and
                 i.get('href').lower().endswith('.xml')):
+            is_xml_ext_fixed = True
             os.rename(
                 os.path.join(rootepubdir, i.get('href')),
                 os.path.join(rootepubdir, i.get('href')[:-4] + '.html')
@@ -306,10 +308,63 @@ def xml2html_extension(opftree, rootepubdir):
             i.set('href', i.get('href')[:-4] + '.html')
     items = etree.XPath('//opf:reference[@href]', namespaces=OPFNS)(opftree)
     for i in items:
-        if (not os.path.isfile(os.path.join(rootepubdir, i.get('href'))) and
-                i.get('href').lower().endswith('.xml')):
+        url = i.get('href')
+        if (
+            not os.path.isfile(os.path.join(rootepubdir, url)) and
+            os.path.isfile(os.path.join(rootepubdir, url[:-4] + '.html')) and
+            url.lower().endswith('.xml')
+        ):
             i.set('href', i.get('href')[:-4] + '.html')
-    return opftree
+    return opftree, is_xml_ext_fixed
+
+
+def xml2html_fix_references(tree, rootepubdir, ncx):
+    if ncx:
+        items = etree.XPath('//ncx:content', namespaces=NCXNS)(tree)
+    else:
+        items = etree.XPath('//xhtml:*[@href or @src]',
+                            namespaces=XHTMLNS)(tree)
+    exclude_urls = ('http://', 'https://', 'mailto:', 'tel:', 'data:', '#')
+    for u in items:
+        if u.get('src'):
+            url = u.get('src')
+        elif u.get('href'):
+            url = u.get('href')
+        if url.lower().startswith(exclude_urls):
+            continue
+        url = unquote(url)
+        if '#' in url:
+            frag_url = '#' + url.split('#')[1]
+            url = url.split('#')[0]
+        else:
+            frag_url = ''
+        if (
+            not os.path.isfile(os.path.join(rootepubdir, url)) and
+            os.path.isfile(os.path.join(rootepubdir, url[:-4] + '.html')) and
+            url.lower().endswith('.xml')
+        ):
+            if u.get('src'):
+                u.set('src', url[:-4] + '.html' + frag_url)
+            elif u.get('href'):
+                u.set('href', url[:-4] + '.html' + frag_url)
+    return tree
+
+
+def fix_ncx(opftree, rootepubdir):
+    toc_ncx_file = etree.XPath(
+        '//opf:item[@media-type="application/x-dtbncx+xml"]',
+        namespaces=OPFNS
+    )(opftree)[0].get('href')
+    ncxtree = etree.parse(
+        os.path.join(rootepubdir, toc_ncx_file),
+        parser=etree.XMLParser(recover=True)
+    )
+    ncxtree = xml2html_fix_references(ncxtree, rootepubdir, True)
+
+    # write all NCX changes back to file
+    with open(os.path.join(rootepubdir, toc_ncx_file), 'w') as f:
+        f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
+                standalone=False, xml_declaration=True, encoding='utf-8'))
 
 
 def replace_font(actual_font_path, fontdir):
@@ -1046,8 +1101,8 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
                         )
                         try:
                             lis[lis.index(e)] = re.sub(
-                                r'font-family\s*:\s*(\"|\')?' + re.escape(ffr)
-                                + r'(\"|\')?.*?}', '}', e
+                                r'font-family\s*:\s*(\"|\')?' +
+                                re.escape(ffr) + r'(\"|\')?.*?}', '}', e
                             )
                         except:
                             continue
@@ -1224,7 +1279,7 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
 
 
 def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
-                       is_reset_css):
+                       is_reset_css, opf_dir_abs, is_xml_ext_fixed):
     global qfixerr
     try:
         with open(xhfile, 'r') as content_file:
@@ -1271,6 +1326,8 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     else:
         print('* File "%s" is NOT hyphenated...' % os.path.basename(xhfile))
     xhtree = fix_styles(xhtree)
+    if is_xml_ext_fixed:
+        xhtree = xml2html_fix_references(xhtree, opf_dir_abs, False)
     if _resetmargins and not is_reset_css:
         xhtree = append_reset_css(xhtree, xhfile, opf_path, opftree)
     xhtree = modify_problematic_styles(xhtree)
@@ -1320,7 +1377,9 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = etree.parse(opf_file_path_abs, parser)
     opftree = unquote_urls(opftree)
 
-    opftree = xml2html_extension(opftree, opf_dir_abs)
+    opftree, is_xml_ext_fixed = xml2html_extension(opftree, opf_dir_abs)
+    if is_xml_ext_fixed:
+        fix_ncx(opftree, opf_dir_abs)
 
     _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
 
@@ -1355,7 +1414,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     convert_dl_to_ul(opftree, opf_dir_abs)
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
-                           is_reset_css)
+                           is_reset_css, opf_dir_abs, is_xml_ext_fixed)
     opftree = html_cover_first(opftree)
     if del_fonts:
         opftree = remove_fonts(opftree, opf_dir_abs)
