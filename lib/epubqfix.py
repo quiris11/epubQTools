@@ -361,6 +361,11 @@ def fix_ncx(opftree, rootepubdir):
     )
     ncxtree = xml2html_fix_references(ncxtree, rootepubdir, True)
 
+    # fix incorrect ids set by one publisher
+    navPoints = etree.XPath('//ncx:navPoint', namespaces=NCXNS)(ncxtree)
+    for i in navPoints:
+        i.set('id', re.sub('[^0-9a-zA-Z_.-]+', '', i.get('id')))
+
     # write all NCX changes back to file
     with open(os.path.join(rootepubdir, toc_ncx_file), 'w') as f:
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
