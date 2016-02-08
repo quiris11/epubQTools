@@ -294,6 +294,24 @@ def find_and_replace_fonts(opftree, rootepubdir, fontdir):
             replace_font(actual_font_path, fontdir)
 
 
+def xml2html_extension(opftree, rootepubdir):
+    items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree)
+    for i in items:
+        if (i.get('media-type') == 'application/xhtml+xml' and
+                i.get('href').lower().endswith('.xml')):
+            os.rename(
+                os.path.join(rootepubdir, i.get('href')),
+                os.path.join(rootepubdir, i.get('href')[:-4] + '.html')
+            )
+            i.set('href', i.get('href')[:-4] + '.html')
+    items = etree.XPath('//opf:reference[@href]', namespaces=OPFNS)(opftree)
+    for i in items:
+        if (not os.path.isfile(os.path.join(rootepubdir, i.get('href'))) and
+                i.get('href').lower().endswith('.xml')):
+            i.set('href', i.get('href')[:-4] + '.html')
+    return opftree
+
+
 def replace_font(actual_font_path, fontdir):
     global qfixerr
     if sys.platform == 'win32':
@@ -1301,6 +1319,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     parser = etree.XMLParser(remove_blank_text=True)
     opftree = etree.parse(opf_file_path_abs, parser)
     opftree = unquote_urls(opftree)
+
+    opftree = xml2html_extension(opftree, opf_dir_abs)
 
     _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
 
