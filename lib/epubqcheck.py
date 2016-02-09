@@ -225,12 +225,13 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
         seen = set()
         dupl = []
         for x in items:
-            if x.lower() not in seen:
+            x = x.lower()
+            if x not in seen:
                 seen.add(x)
             else:
                 dupl.append(x)
         if len(dupl) > 0:
-            print('%sWARNING! Duplicated problematic case-insensitive '
+            print('%sDuplicated problematic case-insensitive '
                   'ids: %s found in <spine>' % (_file_dec, dupl))
 
     def check_mime_types(tree):
@@ -435,6 +436,20 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
             print(_file_dec + 'dtd:uid and dc:identifier mismatched')
     except IndexError:
         print(_file_dec + 'dtd:uid not properly defined')
+
+    # Check for duplicated content attribute of navPoints in NCX file
+    srcs = etree.XPath('//ncx:content/@src',
+                       namespaces=NCXNS)(ncxtree)
+    seen = set()
+    dupl = []
+    for x in srcs:
+        if x not in seen:
+            seen.add(x)
+        else:
+            dupl.append(x)
+    if len(dupl) > 0:
+        print('%sDuplicated content attributes of navPoints: '
+              '%s found in NCX file' % (_file_dec, dupl))
 
     for meta in opftree.xpath("//opf:meta[starts-with(@name, 'calibre')]",
                               namespaces=OPFNS):
