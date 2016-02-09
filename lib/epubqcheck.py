@@ -220,6 +220,19 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                       % (_file_dec, n.encode('utf-8').decode(SFENC)))
         return enc_found
 
+    def check_dupl_ids_insensitive(tree):
+        items = tree.xpath('//opf:itemref/@idref', namespaces=OPFNS)
+        seen = set()
+        dupl = []
+        for x in items:
+            if x.lower() not in seen:
+                seen.add(x)
+            else:
+                dupl.append(x)
+        if len(dupl) > 0:
+            print('%sWARNING! Duplicated problematic case-insensitive '
+                  'ids: %s found in <spine>' % (_file_dec, dupl))
+
     def check_mime_types(tree):
         items = tree.xpath('//opf:item[@href]', namespaces=OPFNS)
         for i in items:
@@ -435,6 +448,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
         print(_file_dec + 'other calibre staff found')
         break
 
+    check_dupl_ids_insensitive(opftree)
     check_mime_types(opftree)
 
     if enc_found:
