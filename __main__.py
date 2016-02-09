@@ -49,7 +49,7 @@ parser.add_argument("directory", help="Directory with EPUB files stored")
 parser.add_argument("--tools", nargs='?',
                     default=q_cwd, metavar="DIR",
                     help="path to additional tools: kindlegen, "
-                    "epubcheck-3.0.1.zip")
+                    "epubcheck zip")
 parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
                     help='path to directory to write log file. If DIR is '
                     ' omitted write log to directory with epub files')
@@ -72,9 +72,6 @@ parser.add_argument("-q", "--qcheck", help="validate files with qcheck "
                     "internal tool",
                     action="store_true")
 parser.add_argument("-p", "--epubcheck", help="validate epub files with "
-                    " EpubCheck 3 tool",
-                    action="store_true")
-parser.add_argument("-4", "--epubcheck4", help="validate epub files with "
                     " EpubCheck 4 tool",
                     action="store_true")
 parser.add_argument("-m", "--mod", help="validate only _moh.epub files "
@@ -151,7 +148,7 @@ def main():
         print('* WARNING! -d was ignored because it works only with -k.')
     if args.force and not (args.epub or args.kindlegen):
         print('* WARNING! -f was ignored because it works only with -e or -k.')
-    if args.mod and not (args.qcheck or args.epubcheck or args.epubcheck4):
+    if args.mod and not (args.qcheck or args.epubcheck):
         print('* WARNING! -m was ignored because it works only with -q or -p.')
     if not args.skip_reset_css and not args.epub:
         print('* WARNING! --skip-reset-css was ignored because it works only '
@@ -260,17 +257,11 @@ def main():
             print('')
             print('* NO epub files for checking found!')
 
-    if args.epubcheck or args.epubcheck4:
-        if args.epubcheck:
-            for e in os.listdir(os.path.join(args.tools)):
-                if e.startswith('epubcheck-3.'):
-                    epubcheckstr = os.path.splitext(e)[0]
-            epubcheckjar = epubcheckstr + '.jar'
-        else:
-            for e in os.listdir(os.path.join(args.tools)):
-                if e.startswith('epubcheck-4.'):
-                    epubcheckstr = os.path.splitext(e)[0]
-            epubcheckjar = 'epubcheck.jar'
+    if args.epubcheck:
+        for e in os.listdir(os.path.join(args.tools)):
+            if e.startswith('epubcheck-4.'):
+                epubcheckstr = os.path.splitext(e)[0]
+        epubcheckjar = 'epubcheck.jar'
 
         print('')
         print('***********************************************')
