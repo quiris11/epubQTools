@@ -1386,8 +1386,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = unquote_urls(opftree)
 
     opftree, is_xml_ext_fixed = xml2html_extension(opftree, opf_dir_abs)
-    if is_xml_ext_fixed:
-        fix_ncx(opftree, opf_dir_abs)
+
+    fix_ncx(opftree, opf_dir_abs)
 
     _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
 
