@@ -364,7 +364,10 @@ def fix_ncx(opftree, rootepubdir):
     # fix incorrect ids set by one publisher
     navPoints = etree.XPath('//ncx:navPoint', namespaces=NCXNS)(ncxtree)
     for i in navPoints:
-        i.set('id', re.sub('[^0-9a-zA-Z_.-]+', '', i.get('id')))
+        chid = i.get('id')
+        if chid[0].isdigit():
+            chid = 'eqt' + chid
+        i.set('id', re.sub('[^0-9a-zA-Z_.-]+', '', chid))
 
     # write all NCX changes back to file
     with open(os.path.join(rootepubdir, toc_ncx_file), 'w') as f:
