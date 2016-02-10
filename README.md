@@ -23,8 +23,7 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -V, --version         show program's version number and exit
-  --tools [DIR]         path to additional tools: kindlegen,
-                        epubcheck-3.0.1.zip
+  --tools [DIR]         path to additional tools: kindlegen, epubcheck zip
   -l [DIR], --log [DIR]
                         path to directory to write log file. If DIR is omitted
                         write log to directory with epub files
@@ -38,7 +37,7 @@ optional arguments:
   -a, --alter           alternative output display
   -n, --rename          rename .epub files to 'author - title.epub'
   -q, --qcheck          validate files with qcheck internal tool
-  -p, --epubcheck       validate epub files with EpubCheck 3.0.1 tool
+  -p, --epubcheck       validate epub files with EpubCheck 4 tool
   -m, --mod             validate only _moh.epub files (works only with -q or
                         -p)
   -e, --epub            fix and hyphenate original epub files to _moh.epub
