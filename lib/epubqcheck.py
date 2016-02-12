@@ -455,6 +455,10 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
                               namespaces=OPFNS):
         print(_file_dec + 'calibre staff found')
         break
+    for meta in opftree.xpath("//opf:meta[@name='Sigil version']",
+                              namespaces=OPFNS):
+        print(_file_dec + 'Sigil version info found')
+        break
     for dcid in opftree.xpath(
         "//dc:identifier[@opf:scheme='calibre']",
         namespaces={'dc': 'http://purl.org/dc/elements/1.1/',
