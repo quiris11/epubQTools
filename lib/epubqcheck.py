@@ -597,7 +597,7 @@ def qcheck(root, _file, alter, mod):
             print('%sEncryption.xml file found: "%s" '
                   % (_file_dec, singlefile))
         elif 'jacket.xhtml' in singlefile.lower():
-            print('%s"JACKET" file produced by calibre found: %s'
+            print('%scalibre Jacket file found: %s'
                   % (_file_dec, singlefile))
         elif 'calibre_bookmarks.txt' in singlefile.lower():
             print('%scalibre bookmarks file found: %s'
