@@ -913,6 +913,12 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
     for meta in soup.xpath("//opf:meta[starts-with(@name, 'calibre')]",
                            namespaces=OPFNS):
         meta.getparent().remove(meta)
+
+    # remove sigil version
+    for meta in soup.xpath("//opf:meta[@name='Sigil version']",
+                           namespaces=OPFNS):
+        meta.getparent().remove(meta)
+
     for dcid in soup.xpath(
             "//dc:identifier[@opf:scheme='calibre']",
             namespaces={'dc': 'http://purl.org/dc/elements/1.1/',
