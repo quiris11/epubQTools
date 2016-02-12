@@ -348,8 +348,9 @@ def main():
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
-                    if (f.endswith('.epub') and not f.endswith('_moh.epub')
-                            and not f.endswith('_org.epub')):
+                    if (f.endswith('.epub') and
+                            not f.endswith('_moh.epub') and
+                            not f.endswith('_org.epub')):
                         counter += 1
                         qfix(root, f, args.force, args.replace_fonts,
                              args.skip_reset_css, args.tools,
