@@ -1331,8 +1331,6 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
         book_lang = ''
     if not skip_hyph and book_lang == 'pl':
         xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph)
-    else:
-        print('* File "%s" is NOT hyphenated...' % os.path.basename(xhfile))
     xhtree = fix_styles(xhtree)
     if is_xml_ext_fixed:
         xhtree = xml2html_fix_references(xhtree, opf_dir_abs, False)
@@ -1420,6 +1418,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
                            _xhtml_file_paths)
     convert_dl_to_ul(opftree, opf_dir_abs)
+    if not skip_hyph and book_lang == 'pl':
+        print('* Hyphenating texts...')
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
                            is_reset_css, opf_dir_abs, is_xml_ext_fixed)
