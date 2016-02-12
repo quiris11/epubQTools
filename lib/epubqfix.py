@@ -1293,7 +1293,7 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
 
 
 def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
-                       is_reset_css, opf_dir_abs, is_xml_ext_fixed):
+                       is_reset_css, opf_dir_abs, is_xml_ext_fixed, book_lang):
     global qfixerr
     try:
         with open(xhfile, 'r') as content_file:
@@ -1331,10 +1331,6 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                   '. NOT well formed: "' + str(e) + '"')
             qfixerr = True
             return 1
-    try:
-        book_lang = opftree.xpath("//dc:language", namespaces=DCNS)[0].text
-    except IndexError:
-        book_lang = ''
     if not skip_hyph and book_lang == 'pl':
         xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph)
     xhtree = fix_styles(xhtree)
@@ -1424,11 +1420,16 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
                            _xhtml_file_paths)
     convert_dl_to_ul(opftree, opf_dir_abs)
+    try:
+        book_lang = opftree.xpath("//dc:language", namespaces=DCNS)[0].text
+    except IndexError:
+        book_lang = ''
     if not skip_hyph and book_lang == 'pl':
         print('* Hyphenating texts...')
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
-                           is_reset_css, opf_dir_abs, is_xml_ext_fixed)
+                           is_reset_css, opf_dir_abs, is_xml_ext_fixed,
+                           book_lang)
     opftree = html_cover_first(opftree)
     if del_fonts:
         opftree = remove_fonts(opftree, opf_dir_abs)
