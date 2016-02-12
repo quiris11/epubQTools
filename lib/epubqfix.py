@@ -1266,8 +1266,11 @@ def remove_wm_info(opftree, rootepubdir):
                                         namespaces=XHTMLNS)
                 alltext = ' '.join(alltexts)
                 alltext = alltext.replace(u'\u00AD', '').strip()
-                if (alltext == 'Plik jest zabezpieczony znakiem wodnym' or
-                        'Ten ebook jest chroniony znakiem wodnym' in alltext):
+                if (
+                    alltext == 'Plik jest zabezpieczony znakiem wodnym' or
+                    'Ten ebook jest chroniony znakiem wodnym' in alltext or
+                    alltext == ''
+                ):
                     remove_file_from_epub(i.get('href'), opftree, rootepubdir)
                     print('* Watermark info page removed: ' + i.get('href'))
     return opftree
