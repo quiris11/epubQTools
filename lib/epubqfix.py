@@ -1312,6 +1312,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
         return 1
     c = re.sub(r'<span class="reset (black|black2|dark-gray|'
                'dark-gray2)">(.+?)</span>', r'\2', c)
+    # placeholder
     for key in entities.iterkeys():
         c = c.replace(key, entities[key])
     try:
@@ -1424,7 +1425,6 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
                                                       irmf, del_fonts)
     else:
         is_reset_css = False
-    opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = remove_jacket(opftree, opf_dir_abs)
     _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
     opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
@@ -1440,6 +1440,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
                            is_reset_css, opf_dir_abs, is_xml_ext_fixed,
                            book_lang)
+    opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
     if del_fonts:
         opftree = remove_fonts(opftree, opf_dir_abs)
