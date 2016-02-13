@@ -1252,7 +1252,7 @@ def convert_dl_to_ul(opftree, rootepubdir):
 
 def remove_wm_info(opftree, rootepubdir):
     wmfiles = ['watermark.', 'default-info.', 'generated.', 'platon_wm.',
-               'cover-special.']
+               'cover-special.', 'default-info-epub3.']
     items = opftree.xpath('//opf:item', namespaces=OPFNS)
     for wmf in wmfiles:
         for i in items:
