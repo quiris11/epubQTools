@@ -1345,7 +1345,10 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     _wmarks = xhtree.xpath('//xhtml:span[starts-with(text(), "==")]',
                            namespaces=XHTMLNS)
     for wm in _wmarks:
+        parent = wm.getparent()
         remove_node(wm)
+        if ''.join(parent.itertext()) == '':
+            remove_node(parent)
 
     # remove meta charsets
     _metacharsets = xhtree.xpath('//xhtml:meta[@charset="utf-8"]',
