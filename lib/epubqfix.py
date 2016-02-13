@@ -1528,6 +1528,8 @@ def html_cover_first(opftree):
                            namespaces=OPFNS)[0].get('id')
         coverir = opftree.xpath('//opf:itemref[@idref="' + id + '"]',
                                 namespaces=OPFNS)[0]
+        if coverir.attrib['linear']:
+            del coverir.attrib['linear']
         spine = coverir.getparent()
         spine.remove(coverir)
     except:
