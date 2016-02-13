@@ -1522,7 +1522,7 @@ def html_cover_first(opftree):
     if len(refcvs) != 1:
         return opftree
     try:
-        if not refcvs[0].get('href').endswhith('html'):
+        if not refcvs[0].get('href').endswith('html'):
             return opftree
         id = opftree.xpath('//opf:item[@href="' + refcvs[0].get('href') + '"]',
                            namespaces=OPFNS)[0].get('id')
