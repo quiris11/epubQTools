@@ -276,9 +276,6 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
         print(_file_dec + 'CRITICAL! dc:creator (book author) element is NOT '
               'defined in OPF file...')
     else:
-        if len(creators) > 1:
-            print(_file_dec + 'Warning! Multiple dc:creator (book author) '
-                  'elements defined in OPF file may be problematic...')
         for c in creators:
             if c.text is None:
                 print(_file_dec + 'CRITICAL! dc:creator (book author) is '
