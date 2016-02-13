@@ -86,12 +86,16 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         print('! Renaming file "%s" failed! ERROR: dc:title (book title) '
               'not found.' % _file_dec)
         return 0
-    try:
-        cr = etree.XPath('//dc:creator/text()', namespaces=DCNS)(opftree)[0]
-    except:
+    crs = etree.XPath('//dc:creator/text()', namespaces=DCNS)(opftree)
+    if len(crs) == 0:
         print('! Renaming file "%s" failed! ERROR: dc:creator (book author) '
               'not found.' % _file_dec)
         return 0
+    else:
+        cr = ''
+        for c in crs:
+            cr = cr + ' ' + c
+        cr = cr[1:]
     if tit.isupper():
         tit = tit.title()
     if cr.isupper():
