@@ -44,11 +44,11 @@ def set_author(tree, author):
     elif len(crs) == 0:
         print('* Current author is NOT defined...')
         try:
-            dcmetadata = tree.xpath('//dc:metadata', namespaces=DCNS)[0]
+            opfmetadata = tree.xpath('//opf:metadata', namespaces=OPFNS)[0]
         except IndexError:
             print('Metadata does not defined...')
             return 0
-        dcmetadata.append(newauthor)
+        opfmetadata.append(newauthor)
     else:
         print('* Multiple dc:creator found. Updating the first tag...')
         print('* Current first author: "%s"'
@@ -71,11 +71,11 @@ def set_title(tree, title):
     elif len(ts) == 0:
         print('* Current title is NOT defined...')
         try:
-            dcmetadata = tree.xpath('//dc:metadata', namespaces=DCNS)[0]
+            opfmetadata = tree.xpath('//opf:metadata', namespaces=OPFNS)[0]
         except IndexError:
             print('Metadata does not defined...')
             return 0
-        dcmetadata.append(newtitle)
+        opfmetadata.append(newtitle)
     else:
         print('* Multiple dc:title found. Updating the first tag...')
         print('* Current first title: "%s"'
