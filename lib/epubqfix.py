@@ -999,9 +999,9 @@ def fix_ncx_dtd_uid(opftree, tempdir):
     ncxtree = etree.parse(os.path.join(tempdir, ncxfile))
 
     # remove empty dc:identifiers
-    for id in opftree.xpath('//dc:identifier', namespaces=DCNS):
-        if id.text is None:
-            id.getparent().remove(id)
+    for i in opftree.xpath('//dc:identifier', namespaces=DCNS):
+        if i.text is None:
+            i.getparent().remove(i)
     uniqid = opftree.xpath('//opf:package',
                            namespaces=OPFNS)[0].get('unique-identifier')
     try:
