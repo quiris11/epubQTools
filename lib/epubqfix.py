@@ -535,6 +535,71 @@ def fix_styles(source_file):
     return source_file
 
 
+def fix_nav_in_cover_file(opftree, tempdir):
+
+    def move_nav_to_new_toc(tempdir, cover_href, toc_href):
+        print('* Moving problematic nav element from a cover file '
+              'to a toc file...')
+        cover_tree = etree.parse(os.path.join(tempdir, cover_href),
+                                 parser=etree.XMLParser(recover=True))
+        toc_tree = etree.parse(os.path.join(tempdir, toc_href),
+                               parser=etree.XMLParser(recover=True))
+        nav = etree.XPath('//xhtml:nav',
+                          namespaces=XHTMLNS)(cover_tree)[0]
+        remove_node(nav)
+        etree.XPath(
+            '//xhtml:body',
+            namespaces=XHTMLNS
+        )(toc_tree)[0].append(nav)
+        with open(os.path.join(tempdir, cover_href),
+                  "w") as f:
+            f.write(etree.tostring(
+                cover_tree,
+                pretty_print=True,
+                xml_declaration=True,
+                standalone=False,
+                encoding="utf-8",
+                doctype=set_dtd(opftree)
+            ))
+        with open(os.path.join(tempdir, toc_href),
+                  "w") as f:
+            f.write(etree.tostring(
+                toc_tree,
+                pretty_print=True,
+                xml_declaration=True,
+                standalone=False,
+                encoding="utf-8",
+                doctype=set_dtd(opftree)
+            ))
+    if opftree.xpath('//opf:package', namespaces=OPFNS)[0].get(
+        'version'
+    ) != '3.0':
+        return oftree
+    reftocs = etree.XPath('//opf:reference[@type="toc"]',
+                          namespaces=OPFNS)(opftree)
+    refcovers = etree.XPath('//opf:reference[@type="cover"]',
+                            namespaces=OPFNS)(opftree)
+    if len(refcovers) != 1:
+        return opftree
+    else:
+        cover_href = refcovers[0].get('href')
+    if len(reftocs) != 1:
+        return opftree
+    else:
+        toc_href = reftocs[0].get('href')
+    items = etree.XPath('//opf:item', namespaces=OPFNS)(opftree)
+    for i in items:
+        if i.get('href') == cover_href and i.get('properties') == 'nav':
+            i.attrib.pop('properties')
+            for e in items:
+                if e.get('href') == toc_href:
+                    e.set('properties', 'nav')
+                    move_nav_to_new_toc(tempdir, cover_href, toc_href)
+                    break
+            break
+    return opftree
+
+
 def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
     reftocs = etree.XPath('//opf:reference[@type="toc"]',
                           namespaces=OPFNS)(soup)
@@ -1493,6 +1558,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
                            book_lang)
     opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
+    opftree = fix_nav_in_cover_file(opftree, opf_dir_abs)
     if del_fonts:
         opftree = remove_fonts(opftree, opf_dir_abs)
     if arg_justify:
