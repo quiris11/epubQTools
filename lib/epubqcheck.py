@@ -271,7 +271,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
     try:
         book_ver = opftree.xpath('//opf:package',
                                  namespaces=OPFNS)[0].get('version')
-        if not alter:
+        if not alter and book_ver != '2.0':
             print(_file_dec + 'Info: EPUB version: ' + book_ver)
     except:
         print(_file_dec + 'CRITICAL! No EPUB version info...')
