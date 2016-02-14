@@ -177,7 +177,7 @@ def find_cover_image(_opftree, _file_dec):
         print(_file_dec + 'No images in an entire book found...')
 
 
-def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
+def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
 
     def check_orphan_files(epub, opftree, root, _file_dec):
         def is_exluded(name):
@@ -268,6 +268,13 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec):
         _folder = opf_root + '/'
     opftree = etree.fromstring(_epubfile.read(opf_path))
     opftree = unquote_urls(opftree)
+    try:
+        book_ver = opftree.xpath('//opf:package',
+                                 namespaces=OPFNS)[0].get('version')
+        if not alter:
+            print(_file_dec + 'Info: EPUB version: ' + book_ver)
+    except:
+        print(_file_dec + 'CRITICAL! No EPUB version info...')
     enc_found = check_orphan_files(_epubfile, opftree, _folder, _file_dec)
     if opftree.xpath('//opf:metadata', namespaces=OPFNS) is None:
         print(_file_dec + 'CRITICAL! No metadata defined in OPF file...')
@@ -582,7 +589,7 @@ def qcheck(root, _file, alter, mod):
         print('START qcheck for: ' + file_dec)
     epubfile = zipfile.ZipFile(os.path.join(root, _file))
     opf_root, opf_path = find_opf(epubfile)
-    qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec)
+    qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec, alter)
     prepnl = []
     for n in epubfile.namelist():
         if not isinstance(n, unicode):
