@@ -929,6 +929,57 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
                         'opf': 'http://www.idpf.org/2007/opf'}
     ):
         dcid.getparent().remove(dcid)
+
+    # remove OPF remainings in EPUB 3.0 files
+    try:
+        book_ver = soup.xpath(
+            '//opf:package', namespaces=OPFNS
+        )[0].get('version')
+    except:
+        print("! No EPUB version found...")
+        return soup
+    if not book_ver == '3.0':
+        return soup
+    opfmetadata = soup.xpath('//opf:metadata', namespaces=OPFNS)[0]
+    creators = soup.xpath('//dc:creator', namespaces=DCNS)
+    counter = 0
+    for c in creators:
+        counter += 1
+        if c.get('{http://www.idpf.org/2007/opf}role'):
+            opf_role = c.get('{http://www.idpf.org/2007/opf}role')
+            new_role = etree.Element(
+                'meta',
+                attrib={'refines': '#' + opf_role + str(counter),
+                        'property': 'role',
+                        'scheme': 'marc:relators'}
+            )
+            new_role.text = opf_role
+            c.set('id', opf_role + str(counter))
+            c.attrib.pop('{http://www.idpf.org/2007/opf}role')
+            opfmetadata.append(new_role)
+        if c.get('{http://www.idpf.org/2007/opf}file-as'):
+            opf_file_as = c.get('{http://www.idpf.org/2007/opf}file-as')
+            if c.get('id'):
+                new_file_as = etree.Element(
+                    'meta',
+                    attrib={'refines': '#' + c.get('id'),
+                            'property': 'file-as'}
+                )
+                new_file_as.text = opf_file_as
+                c.attrib.pop('{http://www.idpf.org/2007/opf}file-as')
+                opfmetadata.append(new_file_as)
+            else:
+                c.attrib.pop('{http://www.idpf.org/2007/opf}file-as')
+    for i in soup.xpath('//dc:identifier', namespaces=DCNS):
+        if i.text is None:
+            continue
+        scheme = i.get('{http://www.idpf.org/2007/opf}scheme')
+        if scheme:
+            if i.text.startswith('urn:'):
+                i.attrib.pop('{http://www.idpf.org/2007/opf}scheme')
+            else:
+                i.text = 'urn:' + scheme.lower() + ':' + i.text
+                i.attrib.pop('{http://www.idpf.org/2007/opf}scheme')
     return soup
 
 
