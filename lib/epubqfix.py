@@ -574,7 +574,7 @@ def fix_nav_in_cover_file(opftree, tempdir):
     if opftree.xpath('//opf:package', namespaces=OPFNS)[0].get(
         'version'
     ) != '3.0':
-        return oftree
+        return opftree
     reftocs = etree.XPath('//opf:reference[@type="toc"]',
                           namespaces=OPFNS)(opftree)
     refcovers = etree.XPath('//opf:reference[@type="cover"]',
