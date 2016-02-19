@@ -322,7 +322,7 @@ def xml2html_extension(opftree, rootepubdir):
     return opftree, is_xml_ext_fixed
 
 
-def xml2html_fix_references(tree, rootepubdir, ncx):
+def xml2html_fix_references(tree, file_dir, ncx):
     if ncx:
         items = etree.XPath('//ncx:content', namespaces=NCXNS)(tree)
     else:
@@ -343,8 +343,8 @@ def xml2html_fix_references(tree, rootepubdir, ncx):
         else:
             frag_url = ''
         if (
-            not os.path.isfile(os.path.join(rootepubdir, url)) and
-            os.path.isfile(os.path.join(rootepubdir, url[:-4] + '.html')) and
+            not os.path.isfile(os.path.join(file_dir, url)) and
+            os.path.isfile(os.path.join(file_dir, url[:-4] + '.html')) and
             url.lower().endswith('.xml')
         ):
             if u.get('src'):
@@ -1459,7 +1459,8 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
         xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph)
     xhtree = fix_styles(xhtree)
     if is_xml_ext_fixed:
-        xhtree = xml2html_fix_references(xhtree, opf_dir_abs, False)
+        xhtree = xml2html_fix_references(xhtree, os.path.dirname(xhfile),
+                                         False)
     if _resetmargins and not is_reset_css:
         xhtree = append_reset_css(xhtree, xhfile, opf_path, opftree)
     xhtree = modify_problematic_styles(xhtree)
