@@ -407,6 +407,10 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             if not _unbfound and _alltext.find(u'\u00A0') != -1:
                 print(_file_dec + 'U+00A0 non-breaking space found.')
                 _unbfound = True
+        p_is = etree.XPath('//processing-instruction("fragment")')(_xhtmlsoup)
+        for p in p_is:
+            print(_file_dec + 'Useless ' + etree.tostring(p) + ' processing '
+                  'instruction found...')
         _links = etree.XPath('//xhtml:link', namespaces=XHTMLNS)(_xhtmlsoup)
         for _link in _links:
             if not _linkfound and (_link.get('type') is None):

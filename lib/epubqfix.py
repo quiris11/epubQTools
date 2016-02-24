@@ -1478,6 +1478,11 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     for mch in _metacharsets:
         mch.getparent().remove(mch)
 
+    # remove useless <?fragment ?> processing-instructions
+    p_is = etree.XPath('//processing-instruction("fragment")')(xhtree)
+    for p in p_is:
+        remove_node(p)
+
     with open(xhfile, "w") as f:
         f.write(etree.tostring(xhtree, pretty_print=True, xml_declaration=True,
                 standalone=False, encoding="utf-8", doctype=set_dtd(opftree)))
