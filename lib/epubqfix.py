@@ -1267,13 +1267,13 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
         bs = ''
     with open(os.path.join(tempdir, cssdir, 'epubQTools-reset.css'), 'w') as f:
         f.write(bs +
-                '@page { margin: 5pt } \r\n'
-                'body, body.calibre  { margin: 5pt; padding: 0 }\r\n'
-                'p { margin-left: 0; margin-right: 0 }\r\n'
+                '@page { margin: 5pt; } \r\n'
+                'body, body.calibre  { margin: 5pt; padding: 0; }\r\n'
+                'p { margin-left: 0; margin-right: 0; }\r\n'
                 '* { adobe-hyphenate: explicit !important;\r\n'
                 'hyphens: manual !important;\r\n'
                 '-webkit-hyphens: manual !important;\r\n'
-                '-moz-hyphens: manual !important }\r\n')
+                '-moz-hyphens: manual !important; }\r\n')
     newcssmanifest = etree.Element(
         '{http://www.idpf.org/2007/opf}item',
         attrib={'media-type': 'text/css',
