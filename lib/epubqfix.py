@@ -1426,9 +1426,6 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
               '%s' % (os.path.basename(xhfile), e))
         qfixerr = True
         return 1
-    c = re.sub(r'<span class="reset (black|black2|dark-gray|'
-               'dark-gray2)">(.+?)</span>', r'\2', c)
-    # placeholder
     for key in entities.iterkeys():
         c = c.replace(key, entities[key])
     try:
@@ -1455,6 +1452,17 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                   '. NOT well formed: "' + str(e) + '"')
             qfixerr = True
             return 1
+
+    # remove WM reset spans
+    wm_classes = ('black', 'black-fore', 'black2', 'dark-gray', 'dark-gray2')
+    deltag = "epubqtoolsdelme"  # bogus temporary tag
+    for i in wm_classes:
+        wm_spans = etree.XPath("//xhtml:span[contains(@class, 'reset') "
+                               "and contains(@class, '" + i + "')]",
+                               namespaces=XHTMLNS)(xhtree)
+        for w in wm_spans:
+            w.tag = deltag
+    etree.strip_tags(xhtree, deltag)  # strip bogus tags with attributes
     if not skip_hyph and book_lang == 'pl':
         xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph)
     xhtree = fix_styles(xhtree)
