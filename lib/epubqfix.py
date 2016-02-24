@@ -1463,6 +1463,8 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
         for w in wm_spans:
             w.tag = deltag
     etree.strip_tags(xhtree, deltag)  # strip bogus tags with attributes
+    # workaround strange strip tag bug during hyphenation:
+    xhtree = etree.fromstring(etree.tostring(xhtree))
     if not skip_hyph and book_lang == 'pl':
         xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph)
     xhtree = fix_styles(xhtree)
