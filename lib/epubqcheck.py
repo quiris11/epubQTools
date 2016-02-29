@@ -478,6 +478,11 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
     check_dupl_ids_insensitive(opftree)
     check_mime_types(opftree)
 
+    # check for empty tours element
+    for i in opftree.xpath('//opf:tours', namespaces=OPFNS):
+        if len(list(i)) == 0:
+            print(_file_dec + 'Obsolete empty <tours> element found')
+
     if enc_found:
         uid = None
         for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
