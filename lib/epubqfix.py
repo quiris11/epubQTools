@@ -995,6 +995,11 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
     ):
         dcid.getparent().remove(dcid)
 
+    # remove empty tours element
+    for i in soup.xpath('//opf:tours', namespaces=OPFNS):
+        if len(list(i)) == 0:
+            remove_node(i)
+
     # remove OPF remainings in EPUB 3.0 files
     try:
         book_ver = soup.xpath(
