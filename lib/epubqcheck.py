@@ -499,6 +499,12 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
 
 
 def find_opf(epub):
+    if epub.namelist()[0] != 'mimetype':
+        print('* CRITICAL! mimetype file is missing or '
+              'is not the first file in the archive.')
+    elif epub.read('mimetype') != 'application/epub+zip':
+        print('* CRITICAL! mimetype file has defined incorrect '
+              'MIME type: ' + epub.read('mimetype'))
     try:
         cr_tree = etree.fromstring(epub.read('META-INF/container.xml'))
         opf_path = cr_tree.xpath('//cr:rootfile',
@@ -508,7 +514,7 @@ def find_opf(epub):
         for i in epub.namelist():
             if i.endswith('.opf'):
                 print('* CRITICAL! META-INF/container.xml '
-                      'not found or broken.')
+                      'is missing or is broken.')
                 return os.path.dirname(i), i
         print('* CRITICAL! Parsing container.xml failed!'
               'Probably broken EPUB file...')
