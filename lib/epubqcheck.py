@@ -504,8 +504,8 @@ def find_opf(epub):
         opf_path = cr_tree.xpath('//cr:rootfile',
                                  namespaces=CRNS)[0].get('full-path')
     except:
-        print('Parsing container.xml failed. Not an EPUB file?')
-        return 0, 0
+        print('! Parsing container.xml failed! Probably broken EPUB file...')
+        return None, None
     return os.path.dirname(opf_path), opf_path
 
 
@@ -598,6 +598,10 @@ def qcheck(root, _file, alter, mod):
         print('START qcheck for: ' + file_dec)
     epubfile = zipfile.ZipFile(os.path.join(root, _file))
     opf_root, opf_path = find_opf(epubfile)
+    if not opf_path:
+        if not alter:
+            print('FINISH qcheck for: ' + file_dec)
+        return None
     qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec, alter)
     prepnl = []
     for n in epubfile.namelist():
