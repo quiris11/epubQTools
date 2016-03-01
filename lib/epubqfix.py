@@ -1476,6 +1476,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
             i[-1][0].text is None and
             i[-1][0].tail is None
         ):
+            print('* Removing WM remaining <div><span/></div>...')
             remove_node(i[-1])
 
     # remove WM reset spans
