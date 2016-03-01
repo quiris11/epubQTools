@@ -378,10 +378,10 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
                   ' not well formed: "' + str(e) + '"')
             continue
         if _wmfound is False:
-            _watermarks = etree.XPath('//*[starts-with(text(),"==")]',
+            _watermarks = etree.XPath('//*[starts-with(text(),"===")]',
                                       namespaces=XHTMLNS)(_xhtmlsoup)
             if len(_watermarks) > 0:
-                print(_file_dec + 'Potential problematic WM found ("==")...')
+                print(_file_dec + 'Potential problematic WM found ("===")...')
                 _wmfound = True
 
         if metcharfound is False:

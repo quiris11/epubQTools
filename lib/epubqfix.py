@@ -1341,7 +1341,7 @@ def remove_text_from_html_cover(opftree, rootepubdir):
     for i in html_cover_tree.xpath('//xhtml:body/*[text()]',
                                    namespaces=XHTMLNS):
         try:
-            if i.text.startswith('=='):
+            if i.text.startswith("==="):
                 continue
         except:
             continue
@@ -1500,7 +1500,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     if _resetmargins and not is_reset_css:
         xhtree = append_reset_css(xhtree, xhfile, opf_path, opftree)
     xhtree = modify_problematic_styles(xhtree)
-    _wmarks = xhtree.xpath('//xhtml:span[starts-with(text(), "==")]',
+    _wmarks = xhtree.xpath('//xhtml:span[starts-with(text(), "===")]',
                            namespaces=XHTMLNS)
     for wm in _wmarks:
         parent = wm.getparent()
