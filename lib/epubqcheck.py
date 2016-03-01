@@ -504,7 +504,14 @@ def find_opf(epub):
         opf_path = cr_tree.xpath('//cr:rootfile',
                                  namespaces=CRNS)[0].get('full-path')
     except:
-        print('! Parsing container.xml failed! Probably broken EPUB file...')
+        # try to find OPF file other way
+        for i in epub.namelist():
+            if i.endswith('.opf'):
+                print('* CRITICAL! META-INF/container.xml '
+                      'not found or broken.')
+                return os.path.dirname(i), i
+        print('* CRITICAL! Parsing container.xml failed!'
+              'Probably broken EPUB file...')
         return None, None
     return os.path.dirname(opf_path), opf_path
 
