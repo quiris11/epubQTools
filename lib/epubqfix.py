@@ -1340,7 +1340,10 @@ def remove_text_from_html_cover(opftree, rootepubdir):
         return 0
     for i in html_cover_tree.xpath('//xhtml:body/*[text()]',
                                    namespaces=XHTMLNS):
-        if i.text.startswith('=='):
+        try:
+            if i.text.startswith('=='):
+                continue
+        except:
             continue
         print('* Removing text: "%s" from HTML cover...' % i.text)
         i.text = ''
