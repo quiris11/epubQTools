@@ -413,7 +413,10 @@ def unpack_epub(source_epub):
     epubzipfile = zipfile.ZipFile(source_epub)
     tempdir = tempfile.mkdtemp(suffix='', prefix='epubQTools-tmp-')
     epubzipfile.extractall(tempdir)
-    os.remove(os.path.join(tempdir, 'mimetype'))
+    try:
+        os.remove(os.path.join(tempdir, 'mimetype'))
+    except OSError:
+        pass
     for f in epubzipfile.namelist():
         if '../' in f:
             orgf = os.path.join(tempdir, f.replace('../', ''))
@@ -463,6 +466,32 @@ def find_roots(tempdir):
         opf_path = cr_tree.xpath('//cr:rootfile',
                                  namespaces=CRNS)[0].get('full-path')
     except:
+        # try to find OPF file other way and rebuild META-INF/container.xml
+        for r, d, fs in os.walk(tempdir):
+            for f in fs:
+                if f.endswith('.opf'):
+                    cont_file = os.path.join(tempdir, 'META-INF',
+                                             'container.xml')
+                    cr_tree = etree.fromstring(
+                        get_data('lib', 'resources/container.xml')
+                    )
+                    cr_tree.xpath(
+                        '//cr:rootfile',
+                        namespaces=CRNS
+                    )[0].set('full-path', f)
+                    if not os.path.exists(os.path.dirname(cont_file)):
+                        os.makedirs(os.path.dirname(cont_file))
+                    with open(cont_file, 'w') as c:
+                        c.write(
+                            etree.tostring(
+                                cr_tree,
+                                pretty_print=True,
+                                standalone=False,
+                                xml_declaration=True,
+                                encoding='utf-8'
+                            )
+                        )
+                    return os.path.dirname(f), f
         print('* Parsing container.xml failed. Not an EPUB file?')
         qfixerr = True
         return 1
@@ -1433,6 +1462,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
               '%s' % (os.path.basename(xhfile), e))
         qfixerr = True
         return 1
+    # placeholder
     for key in entities.iterkeys():
         c = c.replace(key, entities[key])
     try:
