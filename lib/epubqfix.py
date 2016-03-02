@@ -426,21 +426,21 @@ def unpack_epub(source_epub):
 
 
 def pack_epub(output_filename, source_dir):
-    with zipfile.ZipFile(output_filename, "w") as zip:
-        zip.writestr("mimetype", "application/epub+zip")
+    with zipfile.ZipFile(output_filename, "w") as z:
+        z.writestr("mimetype", "application/epub+zip")
     relroot = source_dir
-    with zipfile.ZipFile(output_filename, "a", zipfile.ZIP_DEFLATED) as zip:
+    with zipfile.ZipFile(output_filename, "a", zipfile.ZIP_DEFLATED) as z:
         for root, dirs, files in os.walk(source_dir):
-            for file in files:
-                filename = os.path.join(root, file)
+            for f in files:
+                filename = os.path.join(root, f)
                 if os.path.isfile(filename):
                     arcname = os.path.join(os.path.relpath(root, relroot),
-                                           file)
+                                           f)
                     if sys.platform == 'darwin':
                         arcname = unicodedata.normalize(
                             'NFC', unicode(arcname, 'utf-8')
                         ).encode('utf-8')
-                    zip.write(filename, arcname.decode(SFENC))
+                    z.write(filename, arcname.decode(SFENC))
 
 
 def clean_temp(sourcedir):
