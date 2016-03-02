@@ -491,11 +491,11 @@ def find_roots(tempdir):
                                 encoding='utf-8'
                             )
                         )
-                    return os.path.dirname(f), f
+                    return os.path.dirname(f), f, True
         print('* Parsing container.xml failed. Not an EPUB file?')
         qfixerr = True
-        return 1
-    return os.path.dirname(opf_path), opf_path
+        return None, None, False
+    return os.path.dirname(opf_path), opf_path, False
 
 
 def find_xhtml_files(rootepubdir, opftree):
@@ -1559,7 +1559,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
                  del_fonts):
     global qfixerr
     qfixerr = False
-    opf_dir, opf_file_path = find_roots(_tempdir)
+    opf_dir, opf_file_path, is_fixed = find_roots(_tempdir)
     opf_dir_abs = os.path.join(_tempdir, opf_dir)
     opf_file_path_abs = os.path.join(_tempdir, opf_file_path)
 
@@ -1729,7 +1729,7 @@ def html_cover_first(opftree):
 
 def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
          skip_hyph, arg_justify, arg_left, irmf, del_colors, del_fonts,
-         fontdir):
+         fontdir, fix_container_only):
     global qfixerr
     qfixerr = False
     newfile = os.path.splitext(f)[0] + '_moh.epub'
@@ -1738,8 +1738,6 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
             print('* Skipping previously generated _moh file: ' +
                   newfile.decode(SFENC))
             return 0
-    print('')
-    print('START qfix for: ' + f.decode(SFENC))
     try:
         _tempdir = unpack_epub(os.path.join(root, f))
     except zipfile.BadZipfile, e:
@@ -1749,13 +1747,28 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
         else:
             _tempdir = unpack_epub(fixed_pth)
             os.unlink(fixed_pth)
-    if skip_hyph:
-        print('* Hyphenating is turned OFF...')
-    process_epub(_tempdir, _replacefonts, _resetmargins, skip_hyph,
-                 arg_justify, arg_left, irmf, fontdir, del_colors, del_fonts)
-    pack_epub(os.path.join(root, newfile), _tempdir)
-    clean_temp(_tempdir)
-    if qfixerr:
-        print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+    if fix_container_only:
+        print('')
+        print('* Checking for missing META-INF/container.xml in '
+              'original file: ' + f.decode(SFENC))
+        opf_dir, opf_file_path, is_fixed = find_roots(_tempdir)
+        if is_fixed:
+            print('* Repairing missing META-INF/container.xml done! '
+                  'Writing changes back to original file...')
+            pack_epub(os.path.join(root, f), _tempdir)
+        else:
+            print('* Repairing not needed...')
     else:
-        print('FINISH qfix for: ' + f.decode(SFENC))
+        print('')
+        print('START qfix for: ' + f.decode(SFENC))
+        if skip_hyph:
+            print('* Hyphenating is turned OFF...')
+        process_epub(_tempdir, _replacefonts, _resetmargins, skip_hyph,
+                     arg_justify, arg_left, irmf, fontdir, del_colors,
+                     del_fonts)
+        pack_epub(os.path.join(root, newfile), _tempdir)
+        if qfixerr:
+            print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+        else:
+            print('FINISH qfix for: ' + f.decode(SFENC))
+    clean_temp(_tempdir)

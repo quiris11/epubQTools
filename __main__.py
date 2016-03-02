@@ -119,6 +119,10 @@ parser.add_argument("-f", "--force",
                     help="overwrite previously generated _moh.epub or "
                     " .mobi files (only with -k or -e)",
                     action="store_true")
+parser.add_argument("--fix-missing-container",
+                    help="Fix missing META-INF/container.xml file "
+                    "in original EPUB file (only with -e)",
+                    action="store_true")
 args = parser.parse_args()
 
 
@@ -344,7 +348,8 @@ def main():
             qfix(ind_root, ind_file, args.force, args.replace_fonts,
                  args.skip_reset_css, args.tools, args.skip_hyphenate,
                  args.skip_justify, args.left, args.myk_fix,
-                 args.remove_colors, args.remove_fonts, args.font_dir)
+                 args.remove_colors, args.remove_fonts, args.font_dir,
+                 args.fix_missing_container)
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
@@ -356,7 +361,8 @@ def main():
                              args.skip_reset_css, args.tools,
                              args.skip_hyphenate, args.skip_justify, args.left,
                              args.myk_fix, args.remove_colors,
-                             args.remove_fonts, args.font_dir)
+                             args.remove_fonts, args.font_dir,
+                             args.fix_missing_container)
         if counter == 0:
             print('')
             print('* NO epub files for fixing found!')
