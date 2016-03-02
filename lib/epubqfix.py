@@ -470,6 +470,9 @@ def find_roots(tempdir):
         for r, d, fs in os.walk(tempdir):
             for f in fs:
                 if f.endswith('.opf'):
+                    reldir = os.path.relpath(r, tempdir)
+                    if reldir == '.':
+                        reldir = ''
                     cont_file = os.path.join(tempdir, 'META-INF',
                                              'container.xml')
                     cr_tree = etree.fromstring(
@@ -478,7 +481,7 @@ def find_roots(tempdir):
                     cr_tree.xpath(
                         '//cr:rootfile',
                         namespaces=CRNS
-                    )[0].set('full-path', f)
+                    )[0].set('full-path', os.path.join(reldir, f))
                     if not os.path.exists(os.path.dirname(cont_file)):
                         os.makedirs(os.path.dirname(cont_file))
                     with open(cont_file, 'w') as c:
