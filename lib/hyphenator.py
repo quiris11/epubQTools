@@ -33,7 +33,6 @@ def hexrepl(matchObj):
 
 
 class parse_alt(object):
-
     """
     Parse nonstandard hyphen pattern alternative.
 
@@ -63,7 +62,6 @@ class parse_alt(object):
 
 
 class dint(int):
-
     """
     Just an int some other data can be stuck to in a data attribute.
 
@@ -80,7 +78,6 @@ class dint(int):
 
 
 class Hyph_dict(object):
-
     """
     Reads a hyph_*.dic file and stores the hyphenation patterns.
 
@@ -160,7 +157,6 @@ class Hyph_dict(object):
 
 
 class Hyphenator(object):
-
     """
     Reads a hyph_*.dic file and stores the hyphenation patterns.
 
