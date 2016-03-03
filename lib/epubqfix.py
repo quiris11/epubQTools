@@ -1189,7 +1189,8 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
     return source_file
 
 
-def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
+def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
+                          html_margin):
 
     def splitkeepsep(s, sep):
         return reduce(lambda acc, elem: acc[:-1] + [acc[-1] + elem]
@@ -1302,6 +1303,10 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts):
                 bs = 'body {font-family: %s }\r\n' % ff
     else:
         bs = ''
+    if html_margin is not None:
+        bs = bs + 'html {margin-left: ' + html_margin + \
+            'px !important; margin-right: ' + html_margin + \
+            'px !important;} \r\n'
     with open(os.path.join(tempdir, cssdir, 'epubQTools-reset.css'), 'w') as f:
         f.write(bs +
                 '@page { margin: 5pt; } \r\n'
@@ -1559,7 +1564,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
                  skip_hyph, arg_justify, arg_left, irmf, fontdir, del_colors,
-                 del_fonts):
+                 del_fonts, html_margin):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path, is_fixed = find_roots(_tempdir)
@@ -1612,8 +1617,9 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         find_and_replace_fonts(opftree, opf_dir_abs, fontdir)
     if _resetmargins:
         print('* Setting custom CSS styles...')
-        opftree, is_reset_css = append_reset_css_file(opftree, opf_dir_abs,
-                                                      irmf, del_fonts)
+        opftree, is_reset_css = append_reset_css_file(
+            opftree, opf_dir_abs, irmf, del_fonts, html_margin
+        )
     else:
         is_reset_css = False
     opftree = remove_jacket(opftree, opf_dir_abs)
@@ -1732,7 +1738,7 @@ def html_cover_first(opftree):
 
 def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
          skip_hyph, arg_justify, arg_left, irmf, del_colors, del_fonts,
-         fontdir, fix_container_only):
+         fontdir, fix_container_only, html_margin):
     global qfixerr
     qfixerr = False
     newfile = os.path.splitext(f)[0] + '_moh.epub'
@@ -1768,7 +1774,7 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
             print('* Hyphenating is turned OFF...')
         process_epub(_tempdir, _replacefonts, _resetmargins, skip_hyph,
                      arg_justify, arg_left, irmf, fontdir, del_colors,
-                     del_fonts)
+                     del_fonts, html_margin)
         pack_epub(os.path.join(root, newfile), _tempdir)
         if qfixerr:
             print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))

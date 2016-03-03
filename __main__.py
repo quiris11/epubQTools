@@ -123,6 +123,8 @@ parser.add_argument("--fix-missing-container",
                     help="Fix missing META-INF/container.xml file "
                     "in original EPUB file (only with -e)",
                     action="store_true")
+parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
+                    help='Add book margin to reset CSS file (only with -e)')
 args = parser.parse_args()
 
 
@@ -349,7 +351,7 @@ def main():
                  args.skip_reset_css, args.tools, args.skip_hyphenate,
                  args.skip_justify, args.left, args.myk_fix,
                  args.remove_colors, args.remove_fonts, args.font_dir,
-                 args.fix_missing_container)
+                 args.fix_missing_container, args.book_margin)
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
@@ -362,7 +364,8 @@ def main():
                              args.skip_hyphenate, args.skip_justify, args.left,
                              args.myk_fix, args.remove_colors,
                              args.remove_fonts, args.font_dir,
-                             args.fix_missing_container)
+                             args.fix_missing_container,
+                             args.book_margin)
         if counter == 0:
             print('')
             print('* NO epub files for fixing found!')
