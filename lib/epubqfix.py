@@ -1650,6 +1650,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         book_lang = ''
     if not skip_hyph and book_lang == 'pl':
         print('* Hyphenating texts...')
+        if dont_hyph_headers:
+            print('* ... except headers...')
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
                            is_reset_css, opf_dir_abs, is_xml_ext_fixed,
