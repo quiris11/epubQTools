@@ -256,8 +256,10 @@ def main():
         if ind_file:
             counter += 1
             if args.mod:
-                ind_file = os.path.splitext(ind_file)[0] + '_moh.epub'
-            qcheck(ind_root, ind_file, args.alter, args.mod)
+                ind_file_m = os.path.splitext(ind_file)[0] + '_moh.epub'
+            else:
+                ind_file_m = ind_file
+            qcheck(ind_root, ind_file_m, args.alter, args.mod)
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
@@ -324,12 +326,10 @@ def main():
 
         if ind_file:
             counter += 1
-            if args.mod:
-                ind_file = os.path.splitext(ind_file)[0] + '_moh.epub'
-            if os.path.exists(os.path.join(ind_root, ind_file)):
-                epubchecker(echp_temp, ind_root, ind_file)
+            if os.path.exists(os.path.join(ind_root, ind_file_m)):
+                epubchecker(echp_temp, ind_root, ind_file_m)
             else:
-                print('File "%s" not found...' % ind_file)
+                print('File "%s" not found...' % ind_file_m)
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
