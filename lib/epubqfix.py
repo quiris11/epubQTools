@@ -520,7 +520,8 @@ def find_xhtml_files(rootepubdir, opftree):
     return xhtml_files, xhtml_file_paths
 
 
-def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph):
+def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
+                                   dont_hyph_headers):
     # set correct xml:lang attribute for html tag
     html_tag = source_file.xpath('//xhtml:html', namespaces=XHTMLNS)[0]
     html_tag.attrib['{http://www.w3.org/XML/1998/namespace}lang'] = MY_LANGUAGE
@@ -534,8 +535,22 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph):
         )(source_file)
     except:
         print('* No texts found...')
+    # Tag list used to ignore hyphenation
+    ignore_list = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'title']
     for t in texts:
         parent = t.getparent()
+        if dont_hyph_headers:
+
+            # define entire list of ancestors of parent tag without namespace
+            # for fixing such problem: <h1><a>text</a></h1>
+            ancestors = [ancestor.xpath(
+                'local-name()'
+            ) for ancestor in parent.iterancestors()]
+
+            # create list with duplicats of ancestor list and ignore list
+            tags = filter(set(ancestors).__contains__, ignore_list)
+            if len(tags) > 0:
+                continue
         lang = parent.get('{http://www.w3.org/XML/1998/namespace}lang')
         if lang is not None and lang != MY_LANGUAGE and lang != MY_LANGUAGE2:
             continue
@@ -1460,7 +1475,8 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
 
 
 def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
-                       is_reset_css, opf_dir_abs, is_xml_ext_fixed, book_lang):
+                       is_reset_css, opf_dir_abs, is_xml_ext_fixed, book_lang,
+                       dont_hyph_headers):
     global qfixerr
     try:
         with open(xhfile, 'r') as content_file:
@@ -1530,7 +1546,8 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     # workaround strange strip tag bug during hyphenation:
     xhtree = etree.fromstring(etree.tostring(xhtree))
     if not skip_hyph and book_lang == 'pl':
-        xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph)
+        xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph,
+                                                dont_hyph_headers)
     xhtree = fix_styles(xhtree)
     if is_xml_ext_fixed:
         xhtree = xml2html_fix_references(xhtree, os.path.dirname(xhfile),
@@ -1564,7 +1581,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
                  skip_hyph, arg_justify, arg_left, irmf, fontdir, del_colors,
-                 del_fonts, html_margin):
+                 del_fonts, html_margin, dont_hyph_headers):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path, is_fixed = find_roots(_tempdir)
@@ -1636,7 +1653,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
                            is_reset_css, opf_dir_abs, is_xml_ext_fixed,
-                           book_lang)
+                           book_lang, dont_hyph_headers)
     opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
     opftree = fix_nav_in_cover_file(opftree, opf_dir_abs)
@@ -1738,7 +1755,7 @@ def html_cover_first(opftree):
 
 def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
          skip_hyph, arg_justify, arg_left, irmf, del_colors, del_fonts,
-         fontdir, fix_container_only, html_margin):
+         fontdir, fix_container_only, html_margin, dont_hyph_headers):
     global qfixerr
     qfixerr = False
     newfile = os.path.splitext(f)[0] + '_moh.epub'
@@ -1774,7 +1791,7 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
             print('* Hyphenating is turned OFF...')
         process_epub(_tempdir, _replacefonts, _resetmargins, skip_hyph,
                      arg_justify, arg_left, irmf, fontdir, del_colors,
-                     del_fonts, html_margin)
+                     del_fonts, html_margin, dont_hyph_headers)
         pack_epub(os.path.join(root, newfile), _tempdir)
         if qfixerr:
             print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))

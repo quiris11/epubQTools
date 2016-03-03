@@ -82,6 +82,10 @@ parser.add_argument("-e", "--epub", help="fix and hyphenate original epub "
 parser.add_argument("--skip-hyphenate",
                     help="do not hyphenate book (only with -e)",
                     action="store_true")
+parser.add_argument("--skip-hyphenate-headers",
+                    help="do not hyphenate headers like h1, h2, h3..."
+                    "(only with -e)",
+                    action="store_true")
 parser.add_argument("--skip-reset-css",
                     help='skip linking a reset CSS file to every xthml file'
                     ' (only with -e)',
@@ -352,7 +356,8 @@ def main():
                  args.skip_reset_css, args.tools, args.skip_hyphenate,
                  args.skip_justify, args.left, args.myk_fix,
                  args.remove_colors, args.remove_fonts, args.font_dir,
-                 args.fix_missing_container, args.book_margin)
+                 args.fix_missing_container, args.book_margin,
+                 args.skip_hyphenate_headers)
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
@@ -366,7 +371,7 @@ def main():
                              args.myk_fix, args.remove_colors,
                              args.remove_fonts, args.font_dir,
                              args.fix_missing_container,
-                             args.book_margin)
+                             args.book_margin, args.skip_hyphenate_headers)
         if counter == 0:
             print('')
             print('* NO epub files for fixing found!')
