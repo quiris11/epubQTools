@@ -124,7 +124,8 @@ parser.add_argument("--fix-missing-container",
                     "in original EPUB file (only with -e)",
                     action="store_true")
 parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
-                    help='Add book margin to reset CSS file (only with -e)')
+                    help='Add left and right book margin to reset CSS file '
+                    '(only with -e)')
 args = parser.parse_args()
 
 
