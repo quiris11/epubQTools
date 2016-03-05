@@ -1390,15 +1390,18 @@ def remove_text_from_html_cover(opftree, rootepubdir):
     except:
         print('* Unable to parse HTML cover file. Giving up...')
         return 0
-    for i in html_cover_tree.xpath('//xhtml:body/*[text()]',
-                                   namespaces=XHTMLNS):
-        try:
-            if i.text.startswith("==="):
-                continue
-        except:
+    cover_texts = html_cover_tree.xpath('//xhtml:body//text()',
+                                        namespaces=XHTMLNS)
+    if len(cover_texts) > 0:
+        print('* Removing needless texts from HTML cover...')
+    for t in cover_texts:
+        parent = t.getparent()
+        if t.startswith('==='):
             continue
-        print('* Removing text: "%s" from HTML cover...' % i.text)
-        i.text = ''
+        if t.is_text:
+            parent.text = ''
+        elif t.is_tail:
+            parent.tail = ''
     with open(html_cover_path, 'w') as f:
         f.write(etree.tostring(
             html_cover_tree,
