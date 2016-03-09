@@ -33,5 +33,5 @@ for rule in sheet:
             if p.name == 'font-style':
                 fitalic = p.value
             if p.name == 'src':
-                furl = p.value
-        print(fname, fbold, fitalic, furl)
+                fsrc = p.value
+        print(fname, fbold, fitalic, fsrc)
