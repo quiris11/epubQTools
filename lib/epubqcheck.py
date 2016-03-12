@@ -360,6 +360,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         '//opf:item[@media-type="application/xhtml+xml"]', namespaces=OPFNS
     )(opftree)
     _linkfound = _unbfound = _ufound = _wmfound = metcharfound = False
+    body_id_list = []
     for _htmlfiletag in _htmlfiletags:
         _htmlfilepath = _htmlfiletag.get('href')
         parser = etree.XMLParser(recover=False)
@@ -377,6 +378,18 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             print(_file_dec + 'XML file: ' + _htmlfilepath +
                   ' not well formed: "' + str(e) + '"')
             continue
+
+        # build list with body tags with id attributes
+        try:
+            body_id = etree.XPath('//xhtml:body[@id]',
+                                  namespaces=XHTMLNS)(_xhtmlsoup)[0]
+        except IndexError:
+            body_id = None
+        if body_id is not None:
+            body_id_list.append(os.path.basename(
+                _htmlfilepath
+            ) + '#' + body_id.get('id'))
+
         if _wmfound is False:
             _watermarks = etree.XPath('//*[starts-with(text(),"===")]',
                                       namespaces=XHTMLNS)(_xhtmlsoup)
@@ -455,6 +468,11 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             seen.add(x)
         else:
             dupl.append(x)
+
+        # check if NCX item links to body with id (kindlegen reports error)
+        if x.split('/')[-1] in body_id_list:
+            print('* Problem: NCX item links to body with id: ' + x)
+
     if len(dupl) > 0:
         print('%sDuplicated content attributes of navPoints: '
               '%s found in NCX file' % (_file_dec, dupl))
