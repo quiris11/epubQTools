@@ -241,6 +241,11 @@ def main():
         if counter == 0:
             print('* NO epub files for renaming found!')
 
+    if args.mod and ind_file:
+        ind_file_m = os.path.splitext(ind_file)[0] + '_moh.epub'
+    else:
+        ind_file_m = ind_file
+
     if args.qcheck:
         print('')
         print('******************************************')
@@ -255,10 +260,6 @@ def main():
         counter = 0
         if ind_file:
             counter += 1
-            if args.mod:
-                ind_file_m = os.path.splitext(ind_file)[0] + '_moh.epub'
-            else:
-                ind_file_m = ind_file
             qcheck(ind_root, ind_file_m, args.alter, args.mod)
         else:
             for root, dirs, files in os.walk(args.directory):
