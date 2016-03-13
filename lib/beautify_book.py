@@ -190,6 +190,17 @@ def rename_cover_img(opftree, ncxtree, epub_dir):
         rename_files(opftree, ncxtree, epub_dir, cover_file, new_name_path)
 
 
+def make_cover_item_first(opftree):
+    print('* Make cover image item first...')
+    meta_cover_id = opftree.xpath('//opf:meta[@name="cover"]',
+                                  namespaces=OPFNS)[0].get('content')
+    cover_item = opftree.xpath('//opf:item[@id="' + meta_cover_id + '"]',
+                               namespaces=OPFNS)[0]
+    manifest = cover_item.getparent()
+    manifest.remove(cover_item)
+    manifest.insert(0, cover_item)
+
+
 def beautify_book(root, f):
     from lib.epubqfix import pack_epub
     from lib.epubqfix import unpack_epub
@@ -213,6 +224,7 @@ def beautify_book(root, f):
     rename_calibre_cover(opftree, ncxtree, epub_dir)
     rename_cover_img(opftree, ncxtree, epub_dir)
     fix_body_id_links(opftree, epub_dir, ncxtree)
+    make_cover_item_first(opftree)
 
     write_file_changes_back(opftree, opf_path)
     write_file_changes_back(ncxtree, ncx_path)
