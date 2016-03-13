@@ -687,10 +687,12 @@ def qcheck(root, _file, alter, mod):
                 shutil.rmtree(temp_font_dir)
         elif singlefile.lower().endswith('.css'):
             check_urls_in_css(singlefile, epubfile, prepnl, _file_dec)
-            is_body_family, is_font_face, ff, sfound = check_body_font_family(
-                singlefile, epubfile, _file_dec,
-                is_body_family, is_font_face, ff, sfound
-            )
+            # TODO: not a real problem with file (make separate check for it)
+            # is_body_family, is_font_face, ff, sfound\
+            #     = check_body_font_family(
+            #         singlefile, epubfile, _file_dec,
+            #         is_body_family, is_font_face, ff, sfound
+            #     )
         else:
             try:
                 sftree = etree.fromstring(epubfile.read(singlefile))
