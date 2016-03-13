@@ -23,6 +23,7 @@ from itertools import cycle
 from lxml import etree
 from lib.htmlconstants import entities
 from lib.hyphenator import Hyphenator
+from lib.beautify_book import beautify_book
 from os.path import expanduser
 
 
@@ -1803,3 +1804,4 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
         else:
             print('FINISH qfix for: ' + f.decode(SFENC))
     clean_temp(_tempdir)
+    beautify_book(root, f)
