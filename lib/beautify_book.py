@@ -54,7 +54,8 @@ def fix_body_id_links(opftree, epub_dir, ncxtree):
 
 
 def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
-
+    # TODO fix possible broken references in CSS file
+    # (after implementing CSS parsing)
     def fix_references_in_xhtml(opftree, epub_dir, old_name_path,
                                 new_name_path):
         xhtml_items = etree.XPath(
