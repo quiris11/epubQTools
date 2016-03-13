@@ -99,35 +99,35 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
                     if u.get('src'):
                         u.set('src', os.path.join(
                             diff_path, u.get('src')
-                        ) + frag_url)
+                        ).replace('\\', '/') + frag_url)
                     elif u.get('href'):
                         u.set('href', os.path.join(
                             diff_path, u.get('href')
-                        ) + frag_url)
+                        ).replace('\\', '/') + frag_url)
                     elif u.get('{http://www.w3.org/1999/xlink}href'):
                         u.set(
                             '{http://www.w3.org/1999/xlink}href',
                             os.path.join(
                                 diff_path,
                                 u.get('{http://www.w3.org/1999/xlink}href')
-                            ) + frag_url
+                            ).replace('\\', '/') + frag_url
                         )
                 if os.path.basename(url) == os.path.basename(old_name_path):
                     if u.get('src'):
                         u.set('src', os.path.relpath(
                             os.path.join(epub_dir, new_name_path), xhtml_dir
-                        ) + frag_url)
+                        ).replace('\\', '/') + frag_url)
                     elif u.get('href'):
                         u.set('href', os.path.relpath(
                             os.path.join(epub_dir, new_name_path), xhtml_dir
-                        ) + frag_url)
+                        ).replace('\\', '/') + frag_url)
                     elif u.get('{http://www.w3.org/1999/xlink}href'):
                         u.set(
                             '{http://www.w3.org/1999/xlink}href',
                             os.path.relpath(
                                 os.path.join(epub_dir, new_name_path),
                                 xhtml_dir
-                            ) + frag_url
+                            ).replace('\\', '/') + frag_url
                         )
             write_file_changes_back(xhtree, os.path.join(epub_dir, xhtml_url))
 
@@ -140,20 +140,20 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
                 return opftree, False
         for i in items:
             if i.get('href') == old_name_path:
-                i.set('href', new_name_path)
+                i.set('href', new_name_path.replace('\\', '/'))
                 break
         references = etree.XPath('//opf:reference[@href]',
                                  namespaces=OPFNS)(opftree)
         for r in references:
             if r.get('href') == old_name_path:
-                r.set('href', new_name_path)
+                r.set('href', new_name_path.replace('\\', '/'))
         return opftree, True
 
     def update_ncx(ncxtree, old_name_path, new_name_path):
         contents = etree.XPath('//ncx:content', namespaces=NCXNS)(ncxtree)
         for c in contents:
             if c.get('src') == old_name_path:
-                c.set('src', new_name_path)
+                c.set('src', new_name_path.replace('\\', '/'))
 
     opftree, is_updated = update_opf(opftree, old_name_path, new_name_path)
     if is_updated:
