@@ -92,7 +92,7 @@ def fix_name_author(root, f, author, title):
     except zipfile.BadZipfile:
         print('Unable to process corrupted file...')
         return 0
-    opfd, opff = find_roots(tempdir)
+    opfd, opff, is_fixed = find_roots(tempdir)
     opff_abs = os.path.join(tempdir, opff)
     parser = etree.XMLParser(remove_blank_text=True)
     opftree = etree.parse(opff_abs, parser)
