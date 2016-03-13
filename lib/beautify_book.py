@@ -15,6 +15,8 @@ SFENC = sys.getfilesystemencoding()
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
 NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
+XLXHTNS = {'xhtml': 'http://www.w3.org/1999/xhtml',
+           'xlink': 'http://www.w3.org/1999/xlink'}
 
 
 def fix_body_id_links(opftree, epub_dir, ncxtree):
@@ -54,7 +56,7 @@ def fix_body_id_links(opftree, epub_dir, ncxtree):
 
 
 def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
-    # TODO fix possible broken references in CSS file
+    # TODO: fix possible broken references in CSS file
     # (after implementing CSS parsing)
     def fix_references_in_xhtml(opftree, epub_dir, old_name_path,
                                 new_name_path):
@@ -67,8 +69,10 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
             xhtml_url = i.get('href')
             xhtree = etree.parse(os.path.join(epub_dir, xhtml_url),
                                  parser=etree.XMLParser(recover=False))
-            urls = etree.XPath('//xhtml:*[@href or @src]',
-                               namespaces=XHTMLNS)(xhtree)
+            urls = etree.XPath('//*[@href or @src or @xlink:href]',
+                               namespaces=XLXHTNS)(xhtree)
+            for x in urls:
+                print(etree.tostring(x))
             exclude_urls = ('http://', 'https://', 'mailto:',
                             'tel:', 'data:', '#')
             xhtml_dir = os.path.dirname(os.path.join(epub_dir, xhtml_url))
@@ -81,6 +85,9 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
                     url = u.get('src')
                 elif u.get('href'):
                     url = u.get('href')
+                elif u.get('{http://www.w3.org/1999/xlink}href'):
+                    print('@@@')
+                    url = u.get('{http://www.w3.org/1999/xlink}href')
                 if url.lower().startswith(exclude_urls):
                     continue
                 url = unquote(url)
@@ -92,6 +99,7 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
                 if os.path.basename(
                     xhtml_url
                 ) == os.path.basename(new_name_path):
+                    print(etree.tostring(u))
                     if u.get('src'):
                         u.set('src', os.path.join(
                             diff_path, u.get('src')
@@ -100,6 +108,14 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
                         u.set('href', os.path.join(
                             diff_path, u.get('href')
                         ) + frag_url)
+                    elif u.get('{http://www.w3.org/1999/xlink}href'):
+                        u.set(
+                            '{http://www.w3.org/1999/xlink}href',
+                            os.path.join(
+                                diff_path,
+                                u.get('{http://www.w3.org/1999/xlink}href')
+                            ) + frag_url
+                        )
                 if os.path.basename(url) == os.path.basename(old_name_path):
                     if u.get('src'):
                         u.set('src', os.path.relpath(
@@ -109,6 +125,14 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
                         u.set('href', os.path.relpath(
                             os.path.join(epub_dir, new_name_path), xhtml_dir
                         ) + frag_url)
+                    elif u.get('{http://www.w3.org/1999/xlink}href'):
+                        u.set(
+                            '{http://www.w3.org/1999/xlink}href',
+                            os.path.relpath(
+                                os.path.join(epub_dir, new_name_path),
+                                xhtml_dir
+                            ) + frag_url
+                        )
             write_file_changes_back(xhtree, os.path.join(epub_dir, xhtml_url))
 
     def update_opf(opftree, old_name_path, new_name_path):
