@@ -71,8 +71,6 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
                                  parser=etree.XMLParser(recover=False))
             urls = etree.XPath('//*[@href or @src or @xlink:href]',
                                namespaces=XLXHTNS)(xhtree)
-            for x in urls:
-                print(etree.tostring(x))
             exclude_urls = ('http://', 'https://', 'mailto:',
                             'tel:', 'data:', '#')
             xhtml_dir = os.path.dirname(os.path.join(epub_dir, xhtml_url))
@@ -86,7 +84,6 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
                 elif u.get('href'):
                     url = u.get('href')
                 elif u.get('{http://www.w3.org/1999/xlink}href'):
-                    print('@@@')
                     url = u.get('{http://www.w3.org/1999/xlink}href')
                 if url.lower().startswith(exclude_urls):
                     continue
@@ -99,7 +96,6 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
                 if os.path.basename(
                     xhtml_url
                 ) == os.path.basename(new_name_path):
-                    print(etree.tostring(u))
                     if u.get('src'):
                         u.set('src', os.path.join(
                             diff_path, u.get('src')
