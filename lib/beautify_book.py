@@ -17,6 +17,42 @@ XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
 NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 
 
+def fix_body_id_links(opftree, epub_dir, ncxtree):
+
+    def get_body_id_list(opftree, epub_dir):
+        # build list with body tags with id attributes
+        xhtml_items = etree.XPath(
+            '//opf:item[@media-type="application/xhtml+xml"]',
+            namespaces=OPFNS
+        )(opftree)
+        body_id_list = []
+        for i in xhtml_items:
+            xhtml_url = i.get('href')
+            xhtree = etree.parse(os.path.join(epub_dir, xhtml_url),
+                                 parser=etree.XMLParser(recover=False))
+            try:
+                body_id = etree.XPath('//xhtml:body[@id]',
+                                      namespaces=XHTMLNS)(xhtree)[0]
+            except IndexError:
+                body_id = None
+            if body_id is not None:
+                body_id_list.append(os.path.basename(
+                    xhtml_url
+                ) + '#' + body_id.get('id'))
+        return body_id_list
+
+    body_id_list = get_body_id_list(opftree, epub_dir)
+    contents = etree.XPath('//ncx:content', namespaces=NCXNS)(ncxtree)
+    content_src_list = []
+    for c in contents:
+        content_src_list.append(c.get('src'))
+    for c in contents:
+        if (c.get('src').split('/')[-1] in body_id_list and
+                c.get('src').split('#')[0] not in content_src_list):
+            print("* Fixing body_id link: " + c.get('src'))
+            c.set('src', c.get('src').split('#')[0])
+
+
 def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
 
     def fix_references_in_xhtml(opftree, epub_dir, old_name_path,
@@ -158,6 +194,7 @@ def beautify_book(root, f):
     ncxtree = etree.parse(ncx_path, parser)
 
     rename_calibre_cover(opftree, ncxtree, epub_dir)
+    fix_body_id_links(opftree, epub_dir, ncxtree)
 
     write_file_changes_back(opftree, opf_path)
     write_file_changes_back(ncxtree, ncx_path)
