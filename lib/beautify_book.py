@@ -115,6 +115,7 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
         for i in items:
             if i.get('href') == new_name_path:
                 # if new_name_path exists unable to continue
+                print("! New file name is already taken by other file...")
                 return opftree, False
         for i in items:
             if i.get('href') == old_name_path:
@@ -173,6 +174,22 @@ def rename_calibre_cover(opftree, ncxtree, epub_dir):
                                                          'cover.html'))
 
 
+def rename_cover_img(opftree, ncxtree, epub_dir):
+    meta_cover_id = opftree.xpath('//opf:meta[@name="cover"]',
+                                  namespaces=OPFNS)[0].get('content')
+    cover_file = opftree.xpath(
+        '//opf:item[@id="' + meta_cover_id + '"]',
+        namespaces=OPFNS
+    )[0].get('href')
+    if os.path.splitext(os.path.basename(cover_file))[0] != 'cover':
+        new_name_path = os.path.join(
+            os.path.dirname(cover_file),
+            'cover' + os.path.splitext(os.path.basename(cover_file))[1]
+        )
+        print("* Renaming cover image to: " + new_name_path)
+        rename_files(opftree, ncxtree, epub_dir, cover_file, new_name_path)
+
+
 def beautify_book(root, f):
     from lib.epubqfix import pack_epub
     from lib.epubqfix import unpack_epub
@@ -194,6 +211,7 @@ def beautify_book(root, f):
     ncxtree = etree.parse(ncx_path, parser)
 
     rename_calibre_cover(opftree, ncxtree, epub_dir)
+    rename_cover_img(opftree, ncxtree, epub_dir)
     fix_body_id_links(opftree, epub_dir, ncxtree)
 
     write_file_changes_back(opftree, opf_path)
