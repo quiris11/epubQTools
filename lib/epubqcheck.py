@@ -12,10 +12,17 @@ import os
 import sys
 import tempfile
 import shutil
+import cssutils
+import logging
 from urllib import unquote
 from lxml import etree
 from lib.htmlconstants import entities
 
+# set up handler for cssutils
+streamhandler = logging.StreamHandler()
+formatter = logging.Formatter('* CSS %(levelname)s! Problem in '
+                              '"%(name)s": %(message)s')
+streamhandler.setFormatter(formatter)
 
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
@@ -686,6 +693,11 @@ def qcheck(root, _file, alter, mod):
             if os.path.isdir(temp_font_dir):
                 shutil.rmtree(temp_font_dir)
         elif singlefile.lower().endswith('.css'):
+            with epubfile.open(singlefile) as f:
+                cssutils.log.setLog(logging.getLogger(singlefile))
+                cssutils.log.addHandler(streamhandler)
+                cssutils.log.setLevel(logging.ERROR)
+                cssutils.parseString(f.read(), validate=True)
             check_urls_in_css(singlefile, epubfile, prepnl, _file_dec)
             # TODO: not a real problem with file (make separate check for it)
             # is_body_family, is_font_face, ff, sfound\
