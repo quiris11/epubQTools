@@ -1797,4 +1797,5 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
         else:
             print('FINISH qfix for: ' + f.decode(SFENC))
     clean_temp(_tempdir)
-    beautify_book(root, f)
+    if not fix_container_only:
+        beautify_book(root, f)
