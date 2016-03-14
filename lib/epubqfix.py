@@ -1510,22 +1510,25 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
     # remove WM remainings
     for i in etree.XPath("//xhtml:body", namespaces=XHTMLNS)(xhtree):
-        if (
-            len(i) > 0 and
-            i[-1].text is None and
-            i[-1].tail is None and
-            i[-1].tag == "{http://www.w3.org/1999/xhtml}div" and
-            i[-1][0].tag == "{http://www.w3.org/1999/xhtml}span" and
-            len(i[-1]) == 1 and
-            i[-1][0].get('style').replace(' ', '').replace(
-                ';', ''
-            ) == 'color:whitefont-size:1px' and
-            len(i[-1][0]) == 0 and
-            i[-1][0].text is None and
-            i[-1][0].tail is None
-        ):
-            print('* Removing WM remaining <div><span/></div>...')
-            remove_node(i[-1])
+        try:
+            if (
+                len(i) > 0 and
+                i[-1].text is None and
+                i[-1].tail is None and
+                i[-1].tag == "{http://www.w3.org/1999/xhtml}div" and
+                i[-1][0].tag == "{http://www.w3.org/1999/xhtml}span" and
+                len(i[-1]) == 1 and
+                i[-1][0].get('style').replace(' ', '').replace(
+                    ';', ''
+                ) == 'color:whitefont-size:1px' and
+                len(i[-1][0]) == 0 and
+                i[-1][0].text is None and
+                i[-1][0].tail is None
+            ):
+                print('* Removing WM remaining <div><span/></div>...')
+                remove_node(i[-1])
+        except:
+            continue
 
     # remove WM reset spans
     wm_classes = ('black', 'black-fore', 'black2', 'dark-gray', 'dark-gray2')
