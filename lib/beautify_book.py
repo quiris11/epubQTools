@@ -8,6 +8,7 @@
 from __future__ import print_function
 import os
 import sys
+import re
 from lxml import etree
 from urllib import unquote
 
@@ -222,6 +223,45 @@ def make_cover_item_first(opftree):
     manifest.insert(0, cover_item)
 
 
+def make_content_src_list(ncxtree):
+    contents = etree.XPath('//ncx:content[@src]', namespaces=NCXNS)(ncxtree)
+    cont_src_list = []
+    for c in contents:
+        cont_src_list.append(c.get('src').split('/')[-1])
+    return cont_src_list
+
+
+def fix_display_none(opftree, epub_dir, cont_src_list):
+    xhtml_items = etree.XPath(
+        '//opf:item[@media-type="application/xhtml+xml"]',
+        namespaces=OPFNS
+    )(opftree)
+    for i in xhtml_items:
+        is_updated = False
+        xhtml_url = i.get('href')
+        xhtree = etree.parse(os.path.join(epub_dir, xhtml_url),
+                             parser=etree.XMLParser(recover=False))
+        styles = etree.XPath('//*[@style]',
+                             namespaces=XHTMLNS)(xhtree)
+        for s in styles:
+            if (
+                (
+                    ('display: none' in s.get('style')) or
+                    ('display:none' in s.get('style'))
+                ) and (os.path.basename(
+                       xhtml_url) + '#' + str(s.get('id'))) in cont_src_list
+            ):
+                print('* Replacing problematic style: none with '
+                      'visibility: hidden...')
+                stylestr = re.sub(r'display\s*:\s*none',
+                                  'visibility: hidden; height: 0',
+                                  s.get('style'))
+                s.set('style', stylestr)
+                is_updated = True
+        if is_updated:
+            write_file_changes_back(xhtree, os.path.join(epub_dir, xhtml_url))
+
+
 def beautify_book(root, f):
     from lib.epubqfix import pack_epub
     from lib.epubqfix import unpack_epub
@@ -246,6 +286,8 @@ def beautify_book(root, f):
     rename_cover_img(opftree, ncxtree, epub_dir)
     fix_body_id_links(opftree, epub_dir, ncxtree)
     make_cover_item_first(opftree)
+    cont_src_list = make_content_src_list(ncxtree)
+    fix_display_none(opftree, epub_dir, cont_src_list)
 
     write_file_changes_back(opftree, opf_path)
     write_file_changes_back(ncxtree, ncx_path)

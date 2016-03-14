@@ -1347,16 +1347,6 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
 
 
 def modify_problematic_styles(source_file):
-    styles = etree.XPath('//*[@style]',
-                         namespaces=XHTMLNS)(source_file)
-    for s in styles:
-        if re.search(r'display\s*:\s*none', s.get('style')):
-            print('* Replacing problematic style: none with visibility: hidden'
-                  '...')
-            stylestr = re.sub(r'display\s*:\s*none',
-                              'visibility: hidden; height: 0',
-                              s.get('style'))
-            s.set('style', stylestr)
     img_styles = etree.XPath('//xhtml:img[@style]',
                              namespaces=XHTMLNS)(source_file)
     for s in img_styles:
