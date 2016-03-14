@@ -64,12 +64,19 @@ def check_wm_info(singf, tree, epub, _file_dec):
         print('%sWM info file found "%s"' % (_file_dec, singf))
 
 
-def check_display_none(singf, tree, epub, _file_dec):
+def check_display_none(singf, tree, epub, _file_dec, cont_src_list):
     styles = etree.XPath('//*[@style]',
                          namespaces=XHTMLNS)(tree)
     for s in styles:
-        if ('display: none' or 'display:none') in s.get('style'):
-            print('%sElement with display:none style found in file "%s"'
+        if (
+            (
+                ('display: none' in s.get('style')) or
+                ('display:none' in s.get('style'))
+            ) and (os.path.basename(
+                   singf) + '#' + str(s.get('id'))) in cont_src_list
+        ):
+            print('%sElement with problematic (for kindlegen) '
+                  'display:none style found in file "%s"'
                   % (_file_dec, singf))
 
 
@@ -444,6 +451,10 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
     ncxtree = etree.fromstring(_epubfile.read(os.path.relpath(
         os.path.join(_folder, ncxfile)
     ).replace('\\', '/')))
+    contents = etree.XPath('//ncx:content[@src]', namespaces=NCXNS)(ncxtree)
+    cont_src_list = []
+    for c in contents:
+        cont_src_list.append(c.get('src').split('/')[-1])
     uniqid = etree.XPath('//opf:package',
                          namespaces=OPFNS)(opftree)[0].get('unique-identifier')
     if uniqid is not None:
@@ -521,6 +532,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
                     break
         if uid is None:
             print(_file_dec + 'UUID identifier in content.opf missing')
+    return cont_src_list
 
 
 def find_opf(epub):
@@ -640,7 +652,8 @@ def qcheck(root, _file, alter, mod):
         if not alter:
             print('FINISH qcheck for: ' + file_dec)
         return None
-    qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec, alter)
+    cont_src_list = qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec,
+                                    alter)
     prepnl = []
     for n in epubfile.namelist():
         if not isinstance(n, unicode):
@@ -713,7 +726,8 @@ def qcheck(root, _file, alter, mod):
             if sftree is not None:
                 check_urls(singlefile, sftree, prepnl, _file_dec)
                 check_wm_info(singlefile, sftree, epubfile, _file_dec)
-                check_display_none(singlefile, sftree, epubfile, _file_dec)
+                check_display_none(singlefile, sftree, epubfile, _file_dec,
+                                   cont_src_list)
     if is_body_family:
         if not mod:
             print('%sfont-family for body: "%s" found in "%s"'
