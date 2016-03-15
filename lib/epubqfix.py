@@ -24,7 +24,6 @@ from lxml import etree
 from lib.htmlconstants import entities
 from lib.hyphenator import Hyphenator
 from lib.beautify_book import beautify_book
-from os.path import expanduser
 
 
 if not hasattr(sys, 'frozen'):
@@ -46,7 +45,7 @@ MY_LANGUAGE = 'pl'
 MY_LANGUAGE2 = 'pl-PL'
 HYPHEN_MARK = u'\u00AD'
 
-HOME = expanduser("~")
+HOME = os.path.expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
        '"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">')
 DTDN = '<!DOCTYPE html>'
