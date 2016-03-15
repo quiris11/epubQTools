@@ -74,6 +74,9 @@ parser.add_argument("-q", "--qcheck", help="validate files with qcheck "
 parser.add_argument("-p", "--epubcheck", help="validate epub files with "
                     " EpubCheck 4 tool",
                     action="store_true")
+parser.add_argument("--list-fonts",
+                    help="list all fonts in EPUB (only with -q)",
+                    action="store_true")
 parser.add_argument("-m", "--mod", help="validate only _moh.epub files "
                     "(works only with -q or -p)",
                     action="store_true")
@@ -260,13 +263,13 @@ def main():
         counter = 0
         if ind_file:
             counter += 1
-            qcheck(ind_root, ind_file_m, args.alter, args.mod)
+            qcheck(ind_root, ind_file_m, args.alter, args.mod, args.list_fonts)
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
                     if f.endswith(fe) and not f.endswith(nfe):
                         counter += 1
-                        qcheck(root, f, args.alter, args.mod)
+                        qcheck(root, f, args.alter, args.mod, args.list_fonts)
         if counter == 0:
             print('')
             print('* NO epub files for checking found!')

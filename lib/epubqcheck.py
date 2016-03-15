@@ -14,6 +14,7 @@ import tempfile
 import shutil
 import cssutils
 import logging
+import lib.fntutls
 from urllib import unquote
 from lxml import etree
 from lib.htmlconstants import entities
@@ -637,7 +638,15 @@ def check_body_font_family(singf, epub, _file_dec, is_body_family,
     return is_body_family, is_font_face, ff, sfound
 
 
-def qcheck(root, _file, alter, mod):
+def list_font_basic_properties(raw_file):
+    font_family = lib.fntutls.get_all_font_names(raw_file)['family_name']
+    italic = lib.fntutls.get_font_characteristics(raw_file)[1]
+    bold = lib.fntutls.get_font_characteristics(raw_file)[2]
+    regular = lib.fntutls.get_font_characteristics(raw_file)[3]
+    return str(font_family), regular, bold, italic
+
+
+def qcheck(root, _file, alter, mod, is_list_fonts):
     file_dec = _file.decode(SFENC)
     if alter:
         _file_dec = file_dec + ': '
@@ -703,6 +712,22 @@ def qcheck(root, _file, alter, mod):
                     print('%sFont file "%s" is probably encrypted.'
                           ' Incorrect signature %r.'
                           % (_file_dec, singlefile, signature))
+                elif is_list_fonts:
+                    with open(os.path.join(temp_font_dir, singlefile)) as f:
+                        c = f.read()
+                        print(
+                            '%sFont info for %s, Family name: %s, '
+                            'isRegular: %s, isBold: %s, isItalic: %s' %
+                            (
+                                _file_dec,
+                                singlefile,
+                                list_font_basic_properties(c)[0],
+                                list_font_basic_properties(c)[1],
+                                list_font_basic_properties(c)[2],
+                                list_font_basic_properties(c)[3]
+                            )
+                        )
+
             if os.path.isdir(temp_font_dir):
                 shutil.rmtree(temp_font_dir)
         elif singlefile.lower().endswith('.css'):
