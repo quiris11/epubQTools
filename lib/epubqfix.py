@@ -541,6 +541,10 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
     for t in texts:
         parent = t.getparent()
         if dont_hyph_headers:
+            # if parent in ignore_list do not hyphenate
+            if (parent.tag.replace('{http://www.w3.org/1999/xhtml}',
+                                   '') in ignore_list):
+                continue
 
             # define entire list of ancestors of parent tag without namespace
             # for fixing such problem: <h1><a>text</a></h1>
@@ -548,7 +552,7 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
                 'local-name()'
             ) for ancestor in parent.iterancestors()]
 
-            # create list with duplicats of ancestor list and ignore list
+            # create list with duplicates of ancestor list and ignore list
             tags = filter(set(ancestors).__contains__, ignore_list)
             if len(tags) > 0:
                 continue
