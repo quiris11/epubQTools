@@ -524,6 +524,14 @@ def find_xhtml_files(rootepubdir, opftree):
 def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
                                    dont_hyph_headers):
     # set correct xml:lang attribute for html tag
+
+    def fix_hanging_single_conjunctions_and_place_back(tel, txt):
+        newt = re.sub(r'(?<=\s\w)\s+', u'\u00A0', txt)
+        if tel.is_text:
+            parent.text = newt
+        elif tel.is_tail:
+            parent.tail = newt
+
     html_tag = source_file.xpath('//xhtml:html', namespaces=XHTMLNS)[0]
     html_tag.attrib['{http://www.w3.org/XML/1998/namespace}lang'] = MY_LANGUAGE
     if 'lang' in html_tag.attrib:
@@ -544,6 +552,7 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
             # if parent in ignore_list do not hyphenate
             if (parent.tag.replace('{http://www.w3.org/1999/xhtml}',
                                    '') in ignore_list):
+                fix_hanging_single_conjunctions_and_place_back(t, t)
                 continue
 
             # define entire list of ancestors of parent tag without namespace
@@ -555,6 +564,7 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
             # create list with duplicates of ancestor list and ignore list
             tags = filter(set(ancestors).__contains__, ignore_list)
             if len(tags) > 0:
+                fix_hanging_single_conjunctions_and_place_back(t, t)
                 continue
         lang = parent.get('{http://www.w3.org/XML/1998/namespace}lang')
         if lang is not None and lang != MY_LANGUAGE and lang != MY_LANGUAGE2:
@@ -563,13 +573,7 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
         wlist = re.compile(r'\w+|[^\w]', re.UNICODE).findall(t)
         for w in wlist:
             newt += hyph.inserted(w, hyphen_mark)
-
-        # fix for hanging single conjunctions
-        newt = re.sub(r'(?<=\s\w)\s+', u'\u00A0', newt)
-        if t.is_text:
-            parent.text = newt
-        elif t.is_tail:
-            parent.tail = newt
+        fix_hanging_single_conjunctions_and_place_back(t, newt)
     return source_file
 
 
