@@ -243,7 +243,8 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
                                     av.type == 'URI' and
                                     av.uri == old_css_path
                                 ):
-                                    p.value = 'url(%s)' % new_css_path
+                                    p.value = p.value.replace(old_css_path,
+                                                              new_css_path)
             with open(os.path.join(epub_dir, c.get('href')), 'w') as f:
                 f.write(sheet.cssText)
 
