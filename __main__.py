@@ -106,8 +106,8 @@ parser.add_argument("--left", help='replace "text-align: justify" '
                     'with "text-align: left" in all CSS files (experimental) '
                     '(only with -e)',
                     action="store_true")
-parser.add_argument("--replace-fonts",
-                    help="replace fonts (experimental) (only with -e)",
+parser.add_argument("--replace-font-files",
+                    help="replace font files (only with -e)",
                     action="store_true")
 parser.add_argument("--myk-fix",
                     help="fix for MYK conversion oddity (experimental) "
@@ -174,7 +174,7 @@ def main():
     if args.skip_hyphenate and not args.epub:
         print('* WARNING! --skip-hyphenate was ignored because it works only '
               'with -e.')
-    if args.replace_fonts and not args.epub:
+    if args.replace_font_files and not args.epub:
         print('* WARNING! -t was ignored because it works only with -e.')
     if not args.skip_justify and not args.epub:
         print('* WARNING! --skip-justify was ignored because it works only '
@@ -360,7 +360,7 @@ def main():
         counter = 0
         if ind_file:
             counter += 1
-            qfix(ind_root, ind_file, args.force, args.replace_fonts,
+            qfix(ind_root, ind_file, args.force, args.replace_font_files,
                  args.skip_reset_css, args.tools, args.skip_hyphenate,
                  args.skip_justify, args.left, args.myk_fix,
                  args.remove_colors, args.remove_fonts, args.font_dir,
@@ -373,7 +373,7 @@ def main():
                             not f.endswith('_moh.epub') and
                             not f.endswith('_org.epub')):
                         counter += 1
-                        qfix(root, f, args.force, args.replace_fonts,
+                        qfix(root, f, args.force, args.replace_font_files,
                              args.skip_reset_css, args.tools,
                              args.skip_hyphenate, args.skip_justify, args.left,
                              args.myk_fix, args.remove_colors,
