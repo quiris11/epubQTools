@@ -229,10 +229,14 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
         for c in css_items:
             sheet = cssutils.parseFile(os.path.join(epub_dir, c.get('href')),
                                        validate=True)
-            old_css_path = os.path.relpath(old_name_path,
-                                           os.path.dirname(c.get('href')))
-            new_css_path = os.path.relpath(new_name_path,
-                                           os.path.dirname(c.get('href')))
+            old_css_path = os.path.relpath(
+                old_name_path,
+                os.path.dirname(c.get('href'))
+            ).replace('\\', '/')
+            new_css_path = os.path.relpath(
+                new_name_path,
+                os.path.dirname(c.get('href'))
+            ).replace('\\', '/')
             for rule in sheet:
                 if rule.type == rule.FONT_FACE_RULE:
                     for p in rule.style:
