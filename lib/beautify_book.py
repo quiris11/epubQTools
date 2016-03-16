@@ -44,8 +44,7 @@ def replace_file(epub_dir, old_path, new_absolute_path):
         ))
 
 
-def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, old_font_family,
-                  new_font_family):
+def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
 
     # TODO: replace also family-name in CSS
 
@@ -81,15 +80,21 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, old_font_family,
                             family_font_list.append([furl] + list(lfp))
         return family_font_list
 
+    if pair_family is not None and user_font_dir is not None:
+        if ',' in pair_family:
+            of = pair_family.split(',')[0]
+            nf = pair_family.split(',')[1]
+            print('* Replacing old font family "%s" with '
+                  'new font family "%s"...' % (of, nf))
     new_font_files = find_new_family_fonts(user_font_dir, epub_dir, opftree,
-                                           new_font_family)
-    old_font_files = find_old_family_fonts(epub_dir, opftree, old_font_family)
+                                           nf)
+    old_font_files = find_old_family_fonts(epub_dir, opftree, of)
     if old_font_files == []:
         print('! No font with family name "%s" was found in EPUB file'
-              '...' % (old_font_family))
+              '...' % (of))
     if new_font_files == []:
         print('! No font with family name "%s" was found in provided '
-              'directory "%s"...' % (new_font_family, user_font_dir))
+              'directory "%s"...' % (nf, user_font_dir))
     for o in old_font_files:
         for n in new_font_files:
             if o[2] == n[2] and o[3] == n[3] and o[4] == n[4]:
@@ -405,15 +410,7 @@ def beautify_book(root, f, user_font_dir, pair_family):
     make_cover_item_first(opftree)
     cont_src_list = make_content_src_list(ncxtree)
     fix_display_none(opftree, epub_dir, cont_src_list)
-
-    if pair_family is not None and user_font_dir is not None:
-        if ',' in pair_family:
-            of = pair_family.split(',')[0]
-            nf = pair_family.split(',')[1]
-            print('* Replacing old font family "%s" with '
-                  'new font family "%s"...' % (of, nf))
-            replace_fonts(user_font_dir, epub_dir, ncxtree, opftree,
-                          of, nf)
+    replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family)
 
     write_file_changes_back(opftree, opf_path)
     write_file_changes_back(ncxtree, ncx_path)
