@@ -19,8 +19,12 @@ from urllib import unquote
 from lxml import etree
 from lib.htmlconstants import entities
 
-# set up handler for cssutils
+# set up additional amzn MEDIA_TYPES and handler for cssutils
+cssutils.stylesheets.MediaQuery.MEDIA_TYPES = \
+    cssutils.stylesheets.MediaQuery.MEDIA_TYPES + \
+    ['amzn-mobi', 'amzn-mobi7', 'amzn-kf8']
 streamhandler = logging.StreamHandler()
+
 formatter = logging.Formatter('* CSS %(levelname)s! Problem in '
                               '"%(name)s": %(message)s')
 streamhandler.setFormatter(formatter)
