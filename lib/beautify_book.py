@@ -86,6 +86,10 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
             nf = pair_family.split(',')[1]
             print('* Replacing old font family "%s" with '
                   'new font family "%s"...' % (of, nf))
+        else:
+            print('! Font replacing FAILED! You should provide pair of font '
+                  'families comma separated: \'old,new\'')
+            return None
     else:
         return None
     new_font_files = find_new_family_fonts(user_font_dir, epub_dir, opftree,
