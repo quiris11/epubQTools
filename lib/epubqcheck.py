@@ -721,7 +721,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
                               'rb') as f:
                         c = f.read()
                         print(
-                            '%sFont info for %s, Family name: %s, '
+                            '%sFont info for %s, Family name: "%s", '
                             'isRegular: %s, isBold: %s, isItalic: %s' %
                             (
                                 _file_dec,
