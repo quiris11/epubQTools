@@ -279,9 +279,32 @@ def main():
             print('* NO epub files for checking found!')
 
     if args.epubcheck:
+
+        def epubchecker(echp_temp, root, f, epubcheckstr, epubcheckjar):
+            epubchecker_path = os.path.join(
+                echp_temp,
+                epubcheckstr, epubcheckjar
+            )
+            jp = subprocess.Popen([
+                'java', '-Djava.awt.headless=true', '-jar',
+                '%s' % epubchecker_path,
+                '%s' % str(os.path.join(root, f))
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            jpout, jperr = jp.communicate()
+            if jperr:
+                print(f.decode(sys.getfilesystemencoding()) +
+                      ': PROBLEMS FOUND...')
+                print('*** Details... ***')
+                print(jperr)
+            else:
+                print(f.decode(sys.getfilesystemencoding()) +
+                      ': OK!')
+                print('')
+
         for e in os.listdir(os.path.join(args.tools)):
             if e.startswith('epubcheck-4.'):
                 epubcheckstr = os.path.splitext(e)[0]
+                break
             else:
                 epubcheckstr = ''
         epubcheckjar = 'epubcheck.jar'
@@ -313,31 +336,11 @@ def main():
             nfe = '_moh.epub'
         counter = 0
 
-        def epubchecker(echp_temp, root, f):
-            epubchecker_path = os.path.join(
-                echp_temp,
-                epubcheckstr, epubcheckjar
-            )
-            jp = subprocess.Popen([
-                'java', '-Djava.awt.headless=true', '-jar',
-                '%s' % epubchecker_path,
-                '%s' % str(os.path.join(root, f))
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            jpout, jperr = jp.communicate()
-            if jperr:
-                print(f.decode(sys.getfilesystemencoding()) +
-                      ': PROBLEMS FOUND...')
-                print('*** Details... ***')
-                print(jperr)
-            else:
-                print(f.decode(sys.getfilesystemencoding()) +
-                      ': OK!')
-                print('')
-
         if ind_file:
             counter += 1
             if os.path.exists(os.path.join(ind_root, ind_file_m)):
-                epubchecker(echp_temp, ind_root, ind_file_m)
+                epubchecker(echp_temp, ind_root, ind_file_m, epubcheckstr,
+                            epubcheckjar)
             else:
                 print('File "%s" not found...' % ind_file_m)
         else:
@@ -345,7 +348,8 @@ def main():
                 for f in files:
                     if f.endswith(fe) and not f.endswith(nfe):
                         counter += 1
-                        epubchecker(echp_temp, root, f)
+                        epubchecker(echp_temp, root, f, epubcheckstr,
+                                    epubcheckjar)
         for p in os.listdir(os.path.join(echp_temp, os.pardir)):
             if 'quiris-tmp-' in p:
                 if os.path.isdir(os.path.join(echp_temp, os.pardir, p)):
