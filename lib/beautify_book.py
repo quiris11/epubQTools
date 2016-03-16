@@ -26,38 +26,25 @@ XLXHTNS = {'xhtml': 'http://www.w3.org/1999/xhtml',
 
 cssutils.log.setLevel(logging.CRITICAL)
 
+# temorarily hardcoded user_font_dir
+user_font_dir = os.path.join(HOME, 'fonts')
 
-def replace_font_file(actual_font_path, fontdir):
-    global qfixerr
-    if sys.platform == 'win32':
-        font_paths = [
-            os.path.abspath(os.path.join(os.environ['WINDIR'], 'Fonts')),
-            fontdir
-        ]
-    else:
-        font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
-                      os.path.join(HOME, 'Library', 'Fonts'),
-                      fontdir]
+
+def replace_file(epub_dir, old_path, new_absolute_path):
     font_replaced = False
-    for font_path in font_paths:
-        if os.path.exists(
-                os.path.join(font_path, os.path.basename(actual_font_path))
-        ):
-            os.remove(actual_font_path)
-            shutil.copyfile(
-                os.path.join(font_path, os.path.basename(actual_font_path)),
-                actual_font_path
-            )
-            font_replaced = True
+    old_absolute_path = os.path.join(epub_dir, old_path)
+    if os.path.exists(old_absolute_path):
+        os.remove(old_absolute_path)
+        shutil.copyfile(new_absolute_path, os.path.join(
+            os.path.dirname(old_absolute_path),
+            os.path.basename(new_absolute_path)
+        ))
+        font_replaced = True
     if font_replaced:
-        print('* Font replaced: ' + os.path.basename(actual_font_path))
-    else:
-        qfixerr = True
-        print('* Font "%s" not replaced. Substitute did NOT found.'
-              % os.path.basename(actual_font_path))
+        print('* File replaced: ' + os.path.basename(new_absolute_path))
 
 
-def replace_fonts(epub_dir, ncxtree, opftree, old_font_family,
+def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, old_font_family,
                   new_font_family):
 
     def find_old_family_fonts(epub_dir, opftree, family_name):
@@ -74,10 +61,8 @@ def replace_fonts(epub_dir, ncxtree, opftree, old_font_family,
                     family_font_list.append([furl] + list(lfp))
         return family_font_list
 
-    def find_new_family_fonts(epub_dir, opftree, family_name):
+    def find_new_family_fonts(user_font_dir, epub_dir, opftree, family_name):
         family_font_list = []
-        # temorarily hardcoded user_font_dir
-        user_font_dir = os.path.join(HOME, 'fonts')
         for root, dirs, files in os.walk(user_font_dir):
             for f in files:
                 furl = os.path.join(root, f)
@@ -95,7 +80,8 @@ def replace_fonts(epub_dir, ncxtree, opftree, old_font_family,
                             family_font_list.append([furl] + list(lfp))
         return family_font_list
 
-    new_font_files = find_new_family_fonts(epub_dir, opftree, new_font_family)
+    new_font_files = find_new_family_fonts(user_font_dir, epub_dir, opftree,
+                                           new_font_family)
     # print(new_font_files)
     old_font_files = find_old_family_fonts(epub_dir, opftree, old_font_family)
     # print(old_font_files)
@@ -107,7 +93,8 @@ def replace_fonts(epub_dir, ncxtree, opftree, old_font_family,
                 nfp = os.path.join(os.path.dirname(o[0]),
                                    os.path.basename(n[0]))
                 print(o[0], nfp)
-                rename_files(opftree, ncxtree, epub_dir, o[0], nfp)
+                rename_replace_files(opftree, ncxtree, epub_dir, o[0], nfp,
+                                     n[0])
 
 
 def fix_body_id_links(opftree, epub_dir, ncxtree):
@@ -146,7 +133,8 @@ def fix_body_id_links(opftree, epub_dir, ncxtree):
             c.set('src', c.get('src').split('#')[0])
 
 
-def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
+def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
+                         new_name_path, new_absolute_path):
 
     def fix_references_in_xhtml(opftree, epub_dir, old_name_path,
                                 new_name_path):
@@ -278,8 +266,11 @@ def rename_files(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
 
     opftree, is_updated = update_opf(opftree, old_name_path, new_name_path)
     if is_updated:
-        os.rename(os.path.join(epub_dir, old_name_path),
-                  os.path.join(epub_dir, new_name_path))
+        if new_absolute_path:
+            replace_file(epub_dir, old_name_path, new_absolute_path)
+        else:
+            os.rename(os.path.join(epub_dir, old_name_path),
+                      os.path.join(epub_dir, new_name_path))
         ncxtree = update_ncx(ncxtree, old_name_path, new_name_path)
         update_css(opftree, epub_dir, old_name_path, new_name_path)
         fix_references_in_xhtml(opftree, epub_dir, old_name_path,
@@ -312,9 +303,10 @@ def rename_calibre_cover(opftree, ncxtree, epub_dir):
                 most_xthml_dir = most_common(xhtml_dirs)
                 if most_xthml_dir != '':
                     pass
-                rename_files(opftree, ncxtree, epub_dir,
-                             r.get('href'), os.path.join(most_xthml_dir,
-                                                         'cover.html'))
+                rename_replace_files(
+                    opftree, ncxtree, epub_dir, r.get('href'),
+                    os.path.join(most_xthml_dir, 'cover.html'), False
+                )
 
 
 def rename_cover_img(opftree, ncxtree, epub_dir):
@@ -330,7 +322,8 @@ def rename_cover_img(opftree, ncxtree, epub_dir):
             'cover' + os.path.splitext(os.path.basename(cover_file))[1]
         )
         print("* Renaming cover image to: " + new_name_path)
-        rename_files(opftree, ncxtree, epub_dir, cover_file, new_name_path)
+        rename_replace_files(opftree, ncxtree, epub_dir, cover_file,
+                             new_name_path, False)
 
 
 def make_cover_item_first(opftree):
