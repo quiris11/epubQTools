@@ -383,6 +383,8 @@ def fix_ncx(opftree, rootepubdir):
 
 def replace_font(actual_font_path, fontdir):
     global qfixerr
+    if fontdir is None:
+        fontdir = ''
     if sys.platform == 'win32':
         font_paths = [
             os.path.abspath(os.path.join(os.environ['WINDIR'], 'Fonts')),
