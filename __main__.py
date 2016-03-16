@@ -282,6 +282,8 @@ def main():
         for e in os.listdir(os.path.join(args.tools)):
             if e.startswith('epubcheck-4.'):
                 epubcheckstr = os.path.splitext(e)[0]
+            else:
+                epubcheckstr = ''
         epubcheckjar = 'epubcheck.jar'
 
         print('')
@@ -299,8 +301,8 @@ def main():
             echpzipfile = zipfile.ZipFile(os.path.join(args.tools,
                                           epubcheckstr + '.zip'))
         except:
-            sys.exit(epubcheckstr + '.zip not found in directory: "' +
-                     args.tools + '" Giving up...')
+            sys.exit(epubcheckstr + 'EpubCheck 4.x ZIP file not found '
+                     'in directory: "' + args.tools + '" Giving up...')
         echp_temp = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
         echpzipfile.extractall(echp_temp)
         if args.mod:
