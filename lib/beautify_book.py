@@ -26,9 +26,6 @@ XLXHTNS = {'xhtml': 'http://www.w3.org/1999/xhtml',
 
 cssutils.log.setLevel(logging.CRITICAL)
 
-# temorarily hardcoded user_font_dir
-user_font_dir = os.path.join(HOME, 'fonts')
-
 
 def replace_file(epub_dir, old_path, new_absolute_path):
     font_replaced = False
@@ -41,11 +38,16 @@ def replace_file(epub_dir, old_path, new_absolute_path):
         ))
         font_replaced = True
     if font_replaced:
-        print('* File replaced: ' + os.path.basename(new_absolute_path))
+        print('* File "%s" was replaced with "%s"...' % (
+            os.path.basename(old_absolute_path),
+            os.path.basename(new_absolute_path)
+        ))
 
 
 def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, old_font_family,
                   new_font_family):
+
+    # TODO: replace also family-name in CSS
 
     def find_old_family_fonts(epub_dir, opftree, family_name):
         font_items = etree.XPath(
@@ -70,29 +72,29 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, old_font_family,
                     furl.lower().endswith('.ttf') or
                     furl.lower().endswith('.otf')
                 ):
-                    with open(os.path.join(epub_dir, furl)) as f:
+                    with open(os.path.join(furl)) as f:
                         try:
                             lfp = list_font_basic_properties(f.read())
                         except:
                             continue
-                        # print(lfp)
                         if lfp[0] == family_name:
                             family_font_list.append([furl] + list(lfp))
         return family_font_list
 
     new_font_files = find_new_family_fonts(user_font_dir, epub_dir, opftree,
                                            new_font_family)
-    # print(new_font_files)
     old_font_files = find_old_family_fonts(epub_dir, opftree, old_font_family)
-    # print(old_font_files)
+    if old_font_files == []:
+        print('! No font with family name "%s" was found in EPUB file'
+              '...' % (old_font_family))
+    if new_font_files == []:
+        print('! No font with family name "%s" was found in provided '
+              'directory "%s"...' % (new_font_family, user_font_dir))
     for o in old_font_files:
         for n in new_font_files:
-            # print(o[0], n[0])
             if o[2] == n[2] and o[3] == n[3] and o[4] == n[4]:
-                # print(o[0], n[0])
                 nfp = os.path.join(os.path.dirname(o[0]),
                                    os.path.basename(n[0]))
-                print(o[0], nfp)
                 rename_replace_files(opftree, ncxtree, epub_dir, o[0], nfp,
                                      n[0])
 
@@ -377,7 +379,7 @@ def fix_display_none(opftree, epub_dir, cont_src_list):
             write_file_changes_back(xhtree, os.path.join(epub_dir, xhtml_url))
 
 
-def beautify_book(root, f):
+def beautify_book(root, f, user_font_dir, pair_family):
     from lib.epubqfix import pack_epub
     from lib.epubqfix import unpack_epub
     from lib.epubqfix import clean_temp
@@ -404,7 +406,15 @@ def beautify_book(root, f):
     cont_src_list = make_content_src_list(ncxtree)
     fix_display_none(opftree, epub_dir, cont_src_list)
 
-    # replace_fonts(epub_dir, ncxtree, opftree, 'TeXGyreSchola', 'Bookerly')
+    if pair_family is not None and user_font_dir is not None:
+        if ',' in pair_family:
+            of = pair_family.split(',')[0]
+            nf = pair_family.split(',')[1]
+            print('* Replacing old font family "%s" with '
+                  'new font family "%s"...' % (of, nf))
+            replace_fonts(user_font_dir, epub_dir, ncxtree, opftree,
+                          of, nf)
+
     write_file_changes_back(opftree, opf_path)
     write_file_changes_back(ncxtree, ncx_path)
     pack_epub(os.path.join(root, f), tempdir)

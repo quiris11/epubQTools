@@ -264,6 +264,8 @@ def decrypt_font(path, key, method, fontdir):
     if not is_font and not ('.ttc' in path):
         print('* Starting replace procedure for encrypted file "%s" with font'
               ' from system directory...' % os.path.basename(path), end=' ')
+        if fontdir is None:
+            fontdir = ''
         if sys.platform == 'win32':
             font_paths = [
                 os.path.abspath(os.path.join(os.environ['WINDIR'], 'Fonts')),
@@ -1761,7 +1763,8 @@ def html_cover_first(opftree):
 
 def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
          skip_hyph, arg_justify, arg_left, irmf, del_colors, del_fonts,
-         fontdir, fix_container_only, html_margin, dont_hyph_headers):
+         fontdir, fix_container_only, html_margin, dont_hyph_headers,
+         pair_family):
     global qfixerr
     qfixerr = False
     newfile = os.path.splitext(f)[0] + '_moh.epub'
@@ -1805,4 +1808,4 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
             print('FINISH qfix for: ' + f.decode(SFENC))
     clean_temp(_tempdir)
     if not fix_container_only:
-        beautify_book(root, f)
+        beautify_book(root, f, fontdir, pair_family)

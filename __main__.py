@@ -61,8 +61,12 @@ parser.add_argument('--author', nargs='?', metavar='Surname, First Name',
 parser.add_argument('--title', nargs='?', metavar='Title',
                     const='no_title',
                     help='set new book title (only with -i')
-parser.add_argument('-o', '--font-dir', nargs='?', metavar='DIR', default='',
+parser.add_argument('--font-dir', nargs='?', metavar='DIR', default=None,
                     help='path to directory with user fonts stored')
+parser.add_argument('--replace-font-family', nargs='?', metavar='old,new',
+                    default=None,
+                    help="pair of 'old_font_family,new_font_family'"
+                    "(only with -e and with --font-dir)")
 parser.add_argument("-a", "--alter", help="alternative output display",
                     action="store_true")
 parser.add_argument("-n", "--rename", help="rename .epub files to "
@@ -361,7 +365,7 @@ def main():
                  args.skip_justify, args.left, args.myk_fix,
                  args.remove_colors, args.remove_fonts, args.font_dir,
                  args.fix_missing_container, args.book_margin,
-                 args.skip_hyphenate_headers)
+                 args.skip_hyphenate_headers, args.replace_font_family)
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
@@ -375,7 +379,8 @@ def main():
                              args.myk_fix, args.remove_colors,
                              args.remove_fonts, args.font_dir,
                              args.fix_missing_container,
-                             args.book_margin, args.skip_hyphenate_headers)
+                             args.book_margin, args.skip_hyphenate_headers,
+                             args.replace_font_family)
         if counter == 0:
             print('')
             print('* NO epub files for fixing found!')
