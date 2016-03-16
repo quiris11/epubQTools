@@ -329,14 +329,15 @@ def rename_cover_img(opftree, ncxtree, epub_dir):
 
 
 def make_cover_item_first(opftree):
-    print('* Make cover image item first...')
     meta_cover_id = opftree.xpath('//opf:meta[@name="cover"]',
                                   namespaces=OPFNS)[0].get('content')
     cover_item = opftree.xpath('//opf:item[@id="' + meta_cover_id + '"]',
                                namespaces=OPFNS)[0]
     manifest = cover_item.getparent()
-    manifest.remove(cover_item)
-    manifest.insert(0, cover_item)
+    if manifest[0] != cover_item:
+        print('* Make cover image item first...')
+        manifest.remove(cover_item)
+        manifest.insert(0, cover_item)
 
 
 def make_content_src_list(ncxtree):
