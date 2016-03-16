@@ -62,7 +62,8 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
                     family_font_list.append([furl] + list(lfp))
         return family_font_list
 
-    def find_new_family_fonts(user_font_dir, epub_dir, opftree, family_name):
+    def find_new_family_fonts(user_font_dir, epub_dir, opftree, family_name,
+                              is_all):
         family_font_list = []
         for root, dirs, files in os.walk(user_font_dir):
             for f in files:
@@ -76,7 +77,9 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
                             lfp = list_font_basic_properties(f.read())
                         except:
                             continue
-                        if lfp[0] == family_name:
+                        if is_all:
+                            family_font_list.append([furl] + list(lfp))
+                        elif lfp[0] == family_name:
                             family_font_list.append([furl] + list(lfp))
         return family_font_list
 
@@ -93,7 +96,7 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
     else:
         return None
     new_font_files = find_new_family_fonts(user_font_dir, epub_dir, opftree,
-                                           nf)
+                                           nf, False)
     old_font_files = find_old_family_fonts(epub_dir, opftree, of)
     if old_font_files == []:
         print('! No font with family name "%s" was found in EPUB file'
@@ -101,6 +104,16 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
     if new_font_files == []:
         print('! No font with family name "%s" was found in provided '
               'directory "%s"...' % (nf, user_font_dir))
+        print('* Choose from the below list of font family names:')
+        for i in find_new_family_fonts(user_font_dir, epub_dir, opftree,
+                                       nf, True):
+            print(
+                '* Font info for %s, Family name: "%s", '
+                'isRegular: %s, isBold: %s, isItalic: %s' %
+                (
+                    os.path.basename(i[0]), i[1], i[2], i[3], i[4]
+                )
+            )
     for o in old_font_files:
         for n in new_font_files:
             if o[2] == n[2] and o[3] == n[3] and o[4] == n[4]:
