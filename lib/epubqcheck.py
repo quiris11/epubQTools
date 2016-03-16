@@ -713,7 +713,8 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
                           ' Incorrect signature %r.'
                           % (_file_dec, singlefile, signature))
                 elif is_list_fonts:
-                    with open(os.path.join(temp_font_dir, singlefile)) as f:
+                    with open(os.path.join(temp_font_dir, singlefile),
+                              'rb') as f:
                         c = f.read()
                         print(
                             '%sFont info for %s, Family name: %s, '
