@@ -56,7 +56,7 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
         family_font_list = []
         for f in font_items:
             furl = f.get('href')
-            with open(os.path.join(epub_dir, furl)) as f:
+            with open(os.path.join(epub_dir, furl), 'rb') as f:
                 lfp = list_font_basic_properties(f.read())
                 if lfp[0] == family_name:
                     family_font_list.append([furl] + list(lfp))
@@ -71,7 +71,7 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
                     furl.lower().endswith('.ttf') or
                     furl.lower().endswith('.otf')
                 ):
-                    with open(os.path.join(furl)) as f:
+                    with open(os.path.join(furl), 'rb') as f:
                         try:
                             lfp = list_font_basic_properties(f.read())
                         except:
