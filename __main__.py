@@ -65,7 +65,7 @@ parser.add_argument('--font-dir', nargs='?', metavar='DIR', default=None,
                     help='path to directory with user fonts stored')
 parser.add_argument('--replace-font-family', nargs='?', metavar='old,new',
                     default=None,
-                    help="pair of 'old_font_family,new_font_family'"
+                    help="pair of \"old_font_family,new_font_family\""
                     "(only with -e and with --font-dir)")
 parser.add_argument("-a", "--alter", help="alternative output display",
                     action="store_true")
