@@ -60,6 +60,11 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
                 lfp = list_font_basic_properties(f.read())
                 if lfp[0] == family_name:
                     family_font_list.append([furl] + list(lfp))
+                elif 'subset of' in lfp[0]:
+                    lfp = list(lfp)
+                    lfp[0] = re.sub(r'\w+?\s-\ssubset\sof\s',
+                                    '', lfp[0])
+                    family_font_list.append([furl] + lfp)
         return family_font_list
 
     def find_new_family_fonts(user_font_dir, epub_dir, opftree, family_name,
