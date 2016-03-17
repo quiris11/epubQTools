@@ -85,13 +85,13 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
 
     if pair_family is not None and user_font_dir is not None:
         if ',' in pair_family:
-            of = pair_family.split(',')[0]
-            nf = pair_family.split(',')[1]
+            of = pair_family.split(',')[0].strip("'")
+            nf = pair_family.split(',')[1].strip("'")
             print('* Replacing old font family "%s" with '
                   'new font family "%s"...' % (of, nf))
         else:
             print('! Font replacing FAILED! You should provide pair of font '
-                  'families comma separated: \'old,new\'')
+                  'families comma separated: "old,new"')
             return None
     else:
         return None
