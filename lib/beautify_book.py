@@ -27,6 +27,53 @@ XLXHTNS = {'xhtml': 'http://www.w3.org/1999/xhtml',
 cssutils.log.setLevel(logging.CRITICAL)
 
 
+def change_font_family_value(cssvalue, new_name):
+    cssvalue.value = new_name
+    cssvalue._type = 'STRING'
+
+
+def fix_property(prop, old_name, new_name, is_url):
+    changed = False
+    ff = prop.propertyValue
+    for i in xrange(ff.length):
+        val = ff.item(i)
+        if (hasattr(val.value, 'lower') and
+                val.value.lower() == old_name.lower()):
+            if is_url:
+                val.value = new_name
+            else:
+                change_font_family_value(val, new_name)
+            changed = True
+    return changed
+
+
+def fix_declaration(style, old_name, new_name, is_url):
+    changed = False
+    if is_url:
+        prop_list = ('src',)
+    else:
+        prop_list = ('font-family', 'font')
+    for x in prop_list:
+        prop = style.getProperty(x)
+        if prop is not None:
+            changed |= fix_property(prop, old_name, new_name, is_url)
+    return changed
+
+
+def fix_sheet(sheet, old_name, new_name, is_url):
+    changed = False
+    if is_url:
+        rules_list = (cssutils.css.CSSRule.FONT_FACE_RULE,)
+    else:
+        rules_list = (cssutils.css.CSSRule.FONT_FACE_RULE,
+                      cssutils.css.CSSRule.STYLE_RULE)
+    for rule in sheet.cssRules:
+        if rule.type in rules_list:
+            if fix_declaration(rule.style, old_name, new_name, is_url):
+                changed = True
+    return changed
+
+
 def replace_file(epub_dir, old_path, new_absolute_path):
     font_replaced = False
     old_absolute_path = os.path.join(epub_dir, old_path)
@@ -254,18 +301,9 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
                 new_name_path,
                 os.path.dirname(c.get('href'))
             ).replace('\\', '/')
-            for rule in sheet:
-                if rule.type == rule.FONT_FACE_RULE:
-                    for p in rule.style:
-                        if p.name == 'src':
-                            values = cssutils.css.PropertyValue(p.value)
-                            for av in values:
-                                if (
-                                    av.type == 'URI' and
-                                    av.uri == old_css_path
-                                ):
-                                    p.value = p.value.replace(old_css_path,
-                                                              new_css_path)
+
+            fix_sheet(sheet, old_css_path, new_css_path, True)
+
             with open(os.path.join(epub_dir, c.get('href')), 'w') as f:
                 f.write(sheet.cssText)
 
