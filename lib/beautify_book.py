@@ -25,6 +25,7 @@ XLXHTNS = {'xhtml': 'http://www.w3.org/1999/xhtml',
            'xlink': 'http://www.w3.org/1999/xlink'}
 
 cssutils.log.setLevel(logging.CRITICAL)
+cssutils.ser.prefs.omitLastSemicolon = False
 
 
 def fix_property(prop, old_name, new_name):
