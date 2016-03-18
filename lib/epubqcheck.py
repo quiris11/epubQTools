@@ -697,7 +697,12 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
     if not alter:
         print('')
         print('START qcheck for: ' + file_dec)
-    epubfile = zipfile.ZipFile(os.path.join(root, _file))
+    try:
+        epubfile = zipfile.ZipFile(os.path.join(root, _file))
+    except zipfile.BadZipfile, e:
+        print('%sCRITICAL! "%s" is invalid: "%s"' % (
+              _file_dec, _file, str(e)))
+        return None
     opf_root, opf_path = find_opf(epubfile)
     if not opf_path:
         if not alter:
