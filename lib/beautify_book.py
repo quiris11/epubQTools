@@ -28,14 +28,22 @@ cssutils.log.setLevel(logging.CRITICAL)
 cssutils.ser.prefs.omitLastSemicolon = False
 
 
-def fix_property(prop, old_name, new_name):
+def change_font_family_value(cssvalue, new_name):
+    cssvalue.value = new_name
+    cssvalue._type = 'STRING'
+
+
+def fix_property(prop, old_name, new_name, is_url):
     changed = False
     ff = prop.propertyValue
     for i in xrange(ff.length):
         val = ff.item(i)
         if (hasattr(val.value, 'lower') and
                 val.value.lower() == old_name.lower()):
-            val.value = new_name
+            if is_url:
+                val.value = new_name
+            else:
+                change_font_family_value(val, new_name)
             changed = True
     return changed
 
@@ -49,7 +57,7 @@ def fix_declaration(style, old_name, new_name, is_url):
     for x in prop_list:
         prop = style.getProperty(x)
         if prop is not None:
-            changed |= fix_property(prop, old_name, new_name)
+            changed |= fix_property(prop, old_name, new_name, is_url)
     return changed
 
 
