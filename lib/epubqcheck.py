@@ -467,9 +467,16 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
     # Check dtb:uid - should be identical go dc:identifier
     ncxfile = etree.XPath('//opf:item[@media-type="application/x-dtbncx+xml"]',
                           namespaces=OPFNS)(opftree)[0].get('href')
-    ncxtree = etree.fromstring(_epubfile.read(os.path.relpath(
-        os.path.join(_folder, ncxfile)
-    ).replace('\\', '/')))
+    try:
+        ncxtree = etree.fromstring(_epubfile.read(os.path.relpath(
+            os.path.join(_folder, ncxfile)
+        ).replace('\\', '/')))
+    except etree.XMLSyntaxError, e:
+        print('%sCRITICAL! XML file "%s" is not well '
+              'formed: "%s"' % (_file_dec, ncxfile, str(e)))
+        ncxtree = etree.fromstring(
+            '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" />'
+        )
     contents = etree.XPath('//ncx:content[@src]', namespaces=NCXNS)(ncxtree)
     cont_src_list = []
     for c in contents:
