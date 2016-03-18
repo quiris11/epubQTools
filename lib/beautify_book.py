@@ -526,7 +526,9 @@ def beautify_book(root, f, user_font_dir, pair_family):
     cont_src_list = make_content_src_list(ncxtree)
     fix_display_none(opftree, epub_dir, cont_src_list)
     replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family)
-    update_css_font_families(epub_dir, opftree)
+
+    # temprorary disabled due critical problems
+    # update_css_font_families(epub_dir, opftree)
 
     write_file_changes_back(opftree, opf_path)
     write_file_changes_back(ncxtree, ncx_path)
