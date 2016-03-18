@@ -474,10 +474,16 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
                       'without type attribute defined')
 
     # Check dtb:uid - should be identical go dc:identifier
-    ncxfile = etree.XPath('//opf:item[@media-type="application/x-dtbncx+xml"]',
-                          namespaces=OPFNS)(opftree)[0].get('href')
-    ncxstr = _epubfile.read(os.path.relpath(os.path.join(_folder,
-                            ncxfile)).replace('\\', '/'))
+    try:
+        ncxfile = etree.XPath(
+            '//opf:item[@media-type="application/x-dtbncx+xml"]',
+            namespaces=OPFNS
+        )(opftree)[0].get('href')
+        ncxstr = _epubfile.read(os.path.relpath(os.path.join(_folder,
+                                ncxfile)).replace('\\', '/'))
+    except IndexError:
+        print('%sCRITICAL! NCX file is missing...' % (_file_dec))
+        ncxstr = '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" />'
     try:
         ncxtree = etree.fromstring(ncxstr)
     except etree.XMLSyntaxError, e:
