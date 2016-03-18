@@ -84,6 +84,60 @@ def replace_file(epub_dir, old_path, new_absolute_path):
         ))
 
 
+def update_css_font_families(epub_dir, opftree):
+
+    def find_css_font_file_families(epub_dir, opftree):
+        font_families = []
+        css_items = etree.XPath(
+            '//opf:item[@media-type="text/css"]',
+            namespaces=OPFNS
+        )(opftree)
+        for c in css_items:
+            css_file_path = os.path.join(epub_dir, c.get('href'))
+            sheet = cssutils.parseFile(css_file_path,
+                                       validate=True)
+            for rule in sheet:
+                if rule.type == rule.FONT_FACE_RULE:
+                    css_font_family = None
+                    font_file_family = None
+                    for p in rule.style:
+                        if p.name == 'font-family' and css_font_family is None:
+                            ff = rule.style.getProperty(p.name).propertyValue
+                            css_font_family = ff.item(0).value
+                            continue
+                        if p.name == 'src' and font_file_family is None:
+                            ffs = rule.style.getProperty(p.name).propertyValue
+                            ff_url = ffs.item(0).value
+                            with open(os.path.join(
+                                os.path.dirname(css_file_path), ff_url
+                            ), 'rb') as f:
+                                lfp = list_font_basic_properties(f.read())
+                                lfp = list(lfp)
+                                if 'subset of' in lfp[0]:
+                                    lfp[0] = re.sub(
+                                        r'\w+?\s-\ssubset\sof\s', '',
+                                        lfp[0]
+                                    )
+                                font_file_family = lfp[0]
+                                continue
+                    font_families.append([css_font_family, font_file_family])
+            return font_families
+
+    print('* Updating font-family in all CSS files...')
+    ff_list = find_css_font_file_families(epub_dir, opftree)
+    css_items = etree.XPath('//opf:item[@media-type="text/css"]',
+                            namespaces=OPFNS)(opftree)
+    for c in css_items:
+        css_file_path = os.path.join(epub_dir, c.get('href'))
+        sheet = cssutils.parseFile(css_file_path, validate=True)
+
+        for ff in ff_list:
+            fix_sheet(sheet, ff[0], ff[1], False)
+
+        with open(os.path.join(epub_dir, c.get('href')), 'w') as f:
+            f.write(sheet.cssText)
+
+
 def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
 
     # TODO: replace also family-name in CSS
@@ -464,6 +518,7 @@ def beautify_book(root, f, user_font_dir, pair_family):
     cont_src_list = make_content_src_list(ncxtree)
     fix_display_none(opftree, epub_dir, cont_src_list)
     replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family)
+    update_css_font_families(epub_dir, opftree)
 
     write_file_changes_back(opftree, opf_path)
     write_file_changes_back(ncxtree, ncx_path)
