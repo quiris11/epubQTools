@@ -494,8 +494,12 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
     cont_src_list = []
     for c in contents:
         cont_src_list.append(c.get('src').split('/')[-1])
-    uniqid = etree.XPath('//opf:package',
-                         namespaces=OPFNS)(opftree)[0].get('unique-identifier')
+    try:
+        uniqid = etree.XPath(
+            '//opf:package',
+            namespaces=OPFNS)(opftree)[0].get('unique-identifier')
+    except IndexError:
+        uniqid = None
     if uniqid is not None:
         try:
             dc_identifier = etree.XPath('//dc:identifier[@id="' + uniqid +
@@ -754,18 +758,24 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
                     with open(os.path.join(temp_font_dir, singlefile),
                               'rb') as f:
                         c = f.read()
-                        print(
-                            '%sFont info for %s, Family name: "%s", '
-                            'isRegular: %s, isBold: %s, isItalic: %s' %
-                            (
-                                _file_dec,
-                                singlefile,
-                                list_font_basic_properties(c)[0],
-                                list_font_basic_properties(c)[1],
-                                list_font_basic_properties(c)[2],
-                                list_font_basic_properties(c)[3]
+                        try:
+                            print(
+                                '%sFont info for %s, Family name: "%s", '
+                                'isRegular: %s, isBold: %s, isItalic: %s' %
+                                (
+                                    _file_dec,
+                                    singlefile,
+                                    list_font_basic_properties(c)[0],
+                                    list_font_basic_properties(c)[1],
+                                    list_font_basic_properties(c)[2],
+                                    list_font_basic_properties(c)[3]
+                                )
                             )
-                        )
+                        except lib.fntutls.UnsupportedFont, e:
+                            print(
+                                '%sERROR! Problem with font file "%s": %s' %
+                                (_file_dec, singlefile, e)
+                            )
 
             if os.path.isdir(temp_font_dir):
                 shutil.rmtree(temp_font_dir)
