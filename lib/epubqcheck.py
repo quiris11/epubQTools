@@ -15,11 +15,14 @@ import shutil
 import cssutils
 import logging
 import lib.fntutls
+import StringIO
 from urllib import unquote
 from lxml import etree
 from lib.htmlconstants import entities
 from cssutils.profiles import Profiles, properties, macros
 
+# set up recover parser for malformed XML
+recover_parser = etree.XMLParser(encoding='utf-8', recover=True)
 
 # add the most common used non-standard properties for cssutils
 properties[Profiles.CSS_LEVEL_2]['oeb-column-number'] = r'{num}'
@@ -299,7 +302,13 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         _folder = ''
     else:
         _folder = opf_root + '/'
-    opftree = etree.fromstring(_epubfile.read(opf_path))
+    try:
+        opftree = etree.fromstring(_epubfile.read(opf_path))
+    except etree.XMLSyntaxError, e:
+        print('%sCRITICAL! XML file "%s" is not well '
+              'formed: "%s"' % (_file_dec, os.path.basename(opf_path), str(e)))
+        opftree = etree.parse(StringIO.StringIO(_epubfile.read(opf_path)),
+                              recover_parser)
     opftree = unquote_urls(opftree)
     try:
         book_ver = opftree.xpath('//opf:package',
