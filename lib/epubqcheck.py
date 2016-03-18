@@ -18,6 +18,20 @@ import lib.fntutls
 from urllib import unquote
 from lxml import etree
 from lib.htmlconstants import entities
+from cssutils.profiles import Profiles, properties, macros
+
+
+# add the most common used non-standard properties for cssutils
+properties[Profiles.CSS_LEVEL_2]['oeb-column-number'] = r'{num}'
+properties[Profiles.CSS_LEVEL_2]['hyphens'] = r'none|manual|auto|all'
+properties[Profiles.CSS_LEVEL_2]['-epub-hyphens'] = r'none|manual|auto|all'
+properties[Profiles.CSS_LEVEL_2]['-webkit-hyphens'] = r'none|manual|auto|all'
+properties[Profiles.CSS_LEVEL_2]['-moz-hyphens'] = r'none|manual|auto|all'
+properties[Profiles.CSS_LEVEL_2]['adobe-hyphenate'] = r'none|explicit|auto'
+cssutils.profile.addProfiles([(
+    Profiles.CSS_LEVEL_2, properties[Profiles.CSS_LEVEL_2],
+    macros[Profiles.CSS_LEVEL_2]
+)])
 
 # set up additional amzn MEDIA_TYPES and handler for cssutils
 cssutils.stylesheets.MediaQuery.MEDIA_TYPES = \
