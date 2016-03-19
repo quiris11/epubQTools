@@ -120,7 +120,6 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
     nfname = "".join(x for x in nfname if (
         x.isalnum() or x.isspace() or x in ('_', '-', '.')
     ))
-    nfname = nfname.encode(SFENC)
     is_renamed = False
     counter = 1
     while True:
@@ -135,7 +134,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
             os.rename(os.path.join(_root, _filename),
                       os.path.join(_root, nfname + '.epub'))
             print('* Renamed file "%s" to "%s.epub".' % (
-                _file_dec, nfname.decode(SFENC)
+                _file_dec, nfname
             ))
             is_renamed = True
             break
@@ -146,7 +145,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
                       os.path.join(_root, nfname + ' (' + str(counter) +
                                    ').epub'))
             print('* Renamed file "%s" to "%s (%s).epub"' % (
-                _file_dec, nfname.decode(SFENC), str(counter)
+                _file_dec, nfname, str(counter)
             ))
             is_renamed = True
             break
@@ -1511,11 +1510,11 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
         xhtree = etree.fromstring(c, parser=etree.XMLParser(recover=False))
     except etree.XMLSyntaxError, e:
         if ('XML declaration allowed only at the start of the '
-                'document' in str(e)):
+                'document' in str(e).decode(SFENC)):
             xhtree = etree.fromstring(c[c.find('<?xml'):],
                                       parser=etree.XMLParser(recover=False))
         elif re.search('Opening and ending tag mismatch: body line \d+ and '
-                       'html', str(e)):
+                       'html', str(e).decode(SFENC)):
             try:
                 xhtree = etree.fromstring(
                     c.replace('</html>', '</body></html>'),
@@ -1523,12 +1522,12 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                 )
             except:
                 print('* File skipped: ' + os.path.basename(xhfile) +
-                      '. NOT well formed: "' + str(e) + '"')
+                      '. NOT well formed: "' + str(e).decode(SFENC) + '"')
                 qfixerr = True
                 return 1
         else:
             print('* File skipped: ' + os.path.basename(xhfile) +
-                  '. NOT well formed: "' + str(e) + '"')
+                  '. NOT well formed: "' + str(e).decode(SFENC) + '"')
             qfixerr = True
             return 1
 
@@ -1699,12 +1698,12 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
 def process_corrupted_zip(e, root, f, zipbinf):
     if sys.platform == 'win32':
         print('* Corrupted EPUB file. Unable to fix it...')
-        print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+        print('FINISH (with PROBLEMS) qfix for: ' + f)
         return 1
     print('* EPUB file "%s" is corrupted! Trying to fix it...'
-          % f.decode(SFENC), end=' ')
+          % f, end=' ')
     zipbinpath = 'zip'
-    if 'differ' in str(e):
+    if 'differ' in str(e).decode(SFENC):
         zipp = subprocess.Popen([
             zipbinpath, '-FF', '%s' % str(os.path.join(root, f)), '--out',
             '%s' % str(os.path.join(root, 'fixed_' + f))
@@ -1712,21 +1711,21 @@ def process_corrupted_zip(e, root, f, zipbinf):
         zippout, zipperr = zipp.communicate()
         print('FIXED')
         return os.path.join(root, 'fixed_' + f)
-    elif 'Bad CRC-32 for file' in str(e):
+    elif 'Bad CRC-32 for file' in str(e).decode(SFENC):
         zipp = subprocess.Popen([
             zipbinpath, '-d', '%s' % str(os.path.join(root, f)),
-            str(e).split("'")[1],
+            str(e).decode(SFENC).split("'")[1],
             '--out', '%s' % str(os.path.join(root, 'fixed_' + f))
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         zippout, zipperr = zipp.communicate()
         print('FIXED (with WARNING!)')
         print ('WARNING! Corrupted file "%s" was removed from EPUB file' %
-               str(e).split("'")[1])
+               str(e).decode(SFENC).split("'")[1])
         return os.path.join(root, 'fixed_' + f)
     else:
         print('NOT FIXED')
-        print('* ' + str(e))
-        print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+        print('* ' + str(e).decode(SFENC))
+        print('FINISH (with PROBLEMS) qfix for: ' + f)
         return 1
 
 
@@ -1786,7 +1785,7 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
     if not _forced:
         if os.path.isfile(os.path.join(root, newfile)):
             print('* Skipping previously generated _moh file: ' +
-                  newfile.decode(SFENC))
+                  newfile)
             return 0
     try:
         _tempdir = unpack_epub(os.path.join(root, f))
@@ -1800,7 +1799,7 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
     if fix_container_only:
         print('')
         print('* Checking for missing META-INF/container.xml in '
-              'original file: ' + f.decode(SFENC))
+              'original file: ' + f)
         opf_dir, opf_file_path, is_fixed = find_roots(_tempdir)
         if is_fixed:
             print('* Repairing missing META-INF/container.xml done! '
@@ -1810,7 +1809,7 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
             print('* Repairing not needed...')
     else:
         print('')
-        print('START qfix for: ' + f.decode(SFENC))
+        print('START qfix for: ' + f)
         if skip_hyph:
             print('* Hyphenating is turned OFF...')
         process_epub(_tempdir, _replacefonts, _resetmargins, skip_hyph,
@@ -1818,9 +1817,9 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
                      del_fonts, html_margin, dont_hyph_headers)
         pack_epub(os.path.join(root, newfile), _tempdir)
         if qfixerr:
-            print('FINISH (with PROBLEMS) qfix for: ' + f.decode(SFENC))
+            print('FINISH (with PROBLEMS) qfix for: ' + f)
         else:
-            print('FINISH qfix for: ' + f.decode(SFENC))
+            print('FINISH qfix for: ' + f)
     clean_temp(_tempdir)
     if not fix_container_only:
         beautify_book(root, f, fontdir, pair_family)
