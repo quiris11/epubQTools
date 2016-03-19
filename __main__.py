@@ -30,6 +30,9 @@ from lib.epubqfix import qfix
 from lib.epubqfix import rename_files
 from lib.fix_name_author import fix_name_author
 
+if sys.platform == "win32":
+    import lib.win_utf8_console  # noqa
+
 SFENC = sys.getfilesystemencoding()
 
 if not hasattr(sys, 'frozen'):
@@ -138,6 +141,7 @@ parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
                     help='Add left and right book margin to reset CSS file '
                     '(only with -e)')
 args = parser.parse_args()
+uni_dir = args.directory.decode('utf-8')
 
 
 class Logger(object):
@@ -183,7 +187,7 @@ def main():
         print('* WARNING! --left was ignored because it works only with -e.')
     if args.log == '1':
         st = datetime.now().strftime('%Y%m%d%H%M%S')
-        sys.stdout = Logger(os.path.join(args.directory, 'eQT-' + st +
+        sys.stdout = Logger(os.path.join(uni_dir, 'eQT-' + st +
                                          '.log'))
     elif args.log != '1' and args.log is not None:
         st = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -197,7 +201,7 @@ def main():
         print('**********************************************')
         print('')
         counter = 0
-        for root, dirs, files in os.walk(args.directory):
+        for root, dirs, files in os.walk(uni_dir):
             for f in files:
                 if f.lower().endswith('.epub') and not f.lower().endswith(
                         '_moh.epub'):
@@ -206,7 +210,7 @@ def main():
         return 0
     elif args.individual != 'nonr' and args.individual is not None:
         counter = 0
-        for root, dirs, files in os.walk(args.directory):
+        for root, dirs, files in os.walk(uni_dir):
             for f in files:
                 if f.lower().endswith('.epub') and not f.lower().endswith(
                         '_moh.epub'):
@@ -239,7 +243,7 @@ def main():
             opf_root, opf_path = find_opf(epbzf)
             rename_files(opf_path, ind_root, epbzf, ind_file, fdec)
         else:
-            for root, dirs, files in os.walk(args.directory):
+            for root, dirs, files in os.walk(uni_dir):
                 for f in files:
                     fdec = f.decode(SFENC)
                     if f.lower().endswith('.epub') and not f.lower().endswith(
@@ -272,7 +276,7 @@ def main():
             counter += 1
             qcheck(ind_root, ind_file_m, args.alter, args.mod, args.list_fonts)
         else:
-            for root, dirs, files in os.walk(args.directory):
+            for root, dirs, files in os.walk(uni_dir.decode('utf-8')):
                 for f in files:
                     if f.lower().endswith(fe) and not f.lower().endswith(nfe):
                         counter += 1
@@ -347,7 +351,7 @@ def main():
             else:
                 print('File "%s" not found...' % ind_file_m)
         else:
-            for root, dirs, files in os.walk(args.directory):
+            for root, dirs, files in os.walk(uni_dir):
                 for f in files:
                     if f.lower().endswith(fe) and not f.lower().endswith(nfe):
                         counter += 1
@@ -376,7 +380,7 @@ def main():
                  args.fix_missing_container, args.book_margin,
                  args.skip_hyphenate_headers, args.replace_font_family)
         else:
-            for root, dirs, files in os.walk(args.directory):
+            for root, dirs, files in os.walk(uni_dir):
                 for f in files:
                     if (f.lower().endswith('.epub') and
                             not f.lower().endswith('_moh.epub') and
@@ -458,7 +462,7 @@ def main():
             to_mobi(ind_root, os.path.splitext(ind_file)[0] + '_moh.epub',
                     cover_html_found, error_found)
         else:
-            for root, dirs, files in os.walk(args.directory):
+            for root, dirs, files in os.walk(uni_dir):
                 for f in files:
                     cover_html_found = error_found = False
                     if f.lower().endswith('_moh.epub'):
