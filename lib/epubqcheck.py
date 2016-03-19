@@ -308,8 +308,11 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
     except etree.XMLSyntaxError, e:
         print('%sCRITICAL! XML file "%s" is not well '
               'formed: "%s"' % (_file_dec, os.path.basename(opf_path), str(e)))
-        opftree = etree.parse(StringIO.StringIO(_epubfile.read(opf_path)),
-                              recover_parser)
+        opfstring = StringIO.StringIO(_epubfile.read(opf_path))
+        try:
+            opftree = etree.parse(opfstring, recover_parser)
+        except etree.XMLSyntaxError:
+            return None
     opftree = unquote_urls(opftree)
     try:
         book_ver = opftree.xpath('//opf:package',
@@ -414,7 +417,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             for key in entities.iterkeys():
                 html_str = html_str.replace(key, entities[key])
             _xhtmlsoup = etree.fromstring(html_str, parser)
-        except KeyError, e:
+        except (KeyError, zipfile.BadZipfile) as e:
             print(_file_dec + 'Problem with a file: ' + str(e))
             continue
         except etree.XMLSyntaxError, e:
