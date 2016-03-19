@@ -681,7 +681,11 @@ def check_body_font_family(singf, epub, _file_dec, is_body_family,
 
 
 def list_font_basic_properties(raw_file):
-    font_family = lib.fntutls.get_all_font_names(raw_file)['family_name']
+    try:
+        font_family = lib.fntutls.get_all_font_names(
+            raw_file)['family_name']
+    except KeyError:
+        font_family = 'NOT DEFINED'
     italic = lib.fntutls.get_font_characteristics(raw_file)[1]
     bold = lib.fntutls.get_font_characteristics(raw_file)[2]
     regular = lib.fntutls.get_font_characteristics(raw_file)[3]
