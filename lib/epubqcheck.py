@@ -636,9 +636,14 @@ def check_urls(singf, tree, prepnl, _file_dec):
 def check_url(url, singf, nlist, _file_dec):
     if not isinstance(url, unicode):
         url = url.decode('utf-8')
-    relp = os.path.relpath(
-        os.path.join("/".join(singf.split("/")[:-1]), url)
-    ).replace('\\', '/')
+    try:
+        relp = os.path.relpath(
+            os.path.join("/".join(singf.split("/")[:-1]), url)
+        ).replace('\\', '/')
+    except ValueError:
+        print('%sLinked resource "%s" in "%s" does NOT exist'
+              % (_file_dec, url, singf))
+        return None
     found_proper_url = False
     for n in nlist:
         if n == relp:
