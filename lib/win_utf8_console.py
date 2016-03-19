@@ -9,15 +9,19 @@ from ctypes.wintypes import BOOL, HANDLE, DWORD, LPWSTR, LPCWSTR, LPVOID
 
 original_stderr = sys.stderr
 
-# If any exception occurs in this code, we'll probably try to print it on stderr,
-# which makes for frustrating debugging if stderr is directed to our wrapper.
-# So be paranoid about catching errors and reporting them to original_stderr,
-# so that we can at least see them.
+# If any exception occurs in this code, we'll probably try to print it on
+# stderr, which makes for frustrating debugging if stderr is directed to our
+# wrapper. So be paranoid about catching errors and reporting them
+# to original_stderr, so that we can at least see them.
+
+
 def _complain(message):
-    print >>original_stderr, message if isinstance(message, str) else repr(message)
+    print >>original_stderr, message if isinstance(
+        message, str) else repr(message)
 
 # Work around <http://bugs.python.org/issue6058>.
-codecs.register(lambda name: codecs.lookup('utf-8') if name == 'cp65001' else None)
+codecs.register(lambda name: codecs.lookup(
+    'utf-8') if name == 'cp65001' else None)
 
 # Make Unicode console output work independently of the current code page.
 # This also fixes <http://bugs.python.org/issue1602>.
@@ -35,20 +39,22 @@ try:
     # <http://msdn.microsoft.com/en-us/library/ms683167(VS.85).aspx>
     # BOOL WINAPI GetConsoleMode(HANDLE hConsole, LPDWORD lpMode);
 
-    GetStdHandle = WINFUNCTYPE(HANDLE, DWORD)(("GetStdHandle", windll.kernel32))
+    GetStdHandle = WINFUNCTYPE(HANDLE, DWORD)((
+        "GetStdHandle", windll.kernel32))
     STD_OUTPUT_HANDLE = DWORD(-11)
     STD_ERROR_HANDLE = DWORD(-12)
     GetFileType = WINFUNCTYPE(DWORD, DWORD)(("GetFileType", windll.kernel32))
     FILE_TYPE_CHAR = 0x0002
     FILE_TYPE_REMOTE = 0x8000
-    GetConsoleMode = WINFUNCTYPE(BOOL, HANDLE, POINTER(DWORD))(("GetConsoleMode", windll.kernel32))
+    GetConsoleMode = WINFUNCTYPE(BOOL, HANDLE, POINTER(DWORD))((
+        "GetConsoleMode", windll.kernel32))
     INVALID_HANDLE_VALUE = DWORD(-1).value
 
     def not_a_console(handle):
         if handle == INVALID_HANDLE_VALUE or handle is None:
             return True
-        return ((GetFileType(handle) & ~FILE_TYPE_REMOTE) != FILE_TYPE_CHAR
-                or GetConsoleMode(handle, byref(DWORD())) == 0)
+        return ((GetFileType(handle) & ~FILE_TYPE_REMOTE) != FILE_TYPE_CHAR or
+                GetConsoleMode(handle, byref(DWORD())) == 0)
 
     old_stdout_fileno = None
     old_stderr_fileno = None
@@ -73,10 +79,13 @@ try:
             real_stderr = False
 
     if real_stdout or real_stderr:
-        # BOOL WINAPI WriteConsoleW(HANDLE hOutput, LPWSTR lpBuffer, DWORD nChars,
-        #                           LPDWORD lpCharsWritten, LPVOID lpReserved);
+        # BOOL WINAPI WriteConsoleW(
+        #   HANDLE hOutput, LPWSTR lpBuffer, DWORD nChars,
+        #   LPDWORD lpCharsWritten, LPVOID lpReserved);
 
-        WriteConsoleW = WINFUNCTYPE(BOOL, HANDLE, LPWSTR, DWORD, POINTER(DWORD), LPVOID)(("WriteConsoleW", windll.kernel32))
+        WriteConsoleW = WINFUNCTYPE(
+            BOOL, HANDLE, LPWSTR, DWORD, POINTER(DWORD), LPVOID
+        )(("WriteConsoleW", windll.kernel32))
 
         class UnicodeOutput:
             def __init__(self, hConsole, stream, fileno, name):
@@ -105,7 +114,8 @@ try:
                     try:
                         self._stream.flush()
                     except Exception as e:
-                        _complain("%s.flush: %r from %r" % (self.name, e, self._stream))
+                        _complain("%s.flush: %r from %r" % (
+                            self.name, e, self._stream))
                         raise
 
             def write(self, text):
@@ -120,12 +130,16 @@ try:
                         remaining = len(text)
                         while remaining:
                             n = DWORD(0)
-                            # There is a shorter-than-documented limitation on the
-                            # length of the string passed to WriteConsoleW (see
+                            # There is a shorter-than-documented limitation on
+                            # the length of the string passed to WriteConsoleW
+                            # (see:
                             # <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1232>.
-                            retval = WriteConsoleW(self._hConsole, text, min(remaining, 10000), byref(n), None)
+                            retval = WriteConsoleW(self._hConsole, text, min(
+                                remaining, 10000), byref(n), None)
                             if retval == 0 or n.value == 0:
-                                raise IOError("WriteConsoleW returned %r, n.value = %r" % (retval, n.value))
+                                raise IOError(
+                                    "WriteConsoleW returned %r, n.value "
+                                    "= %r" % (retval, n.value))
                             remaining -= n.value
                             if not remaining:
                                 break
@@ -143,14 +157,20 @@ try:
                     raise
 
         if real_stdout:
-            sys.stdout = UnicodeOutput(hStdout, None, STDOUT_FILENO, '<Unicode console stdout>')
+            sys.stdout = UnicodeOutput(
+                hStdout, None, STDOUT_FILENO, '<Unicode console stdout>')
         else:
-            sys.stdout = UnicodeOutput(None, sys.stdout, old_stdout_fileno, '<Unicode redirected stdout>')
+            sys.stdout = UnicodeOutput(
+                None, sys.stdout, old_stdout_fileno,
+                '<Unicode redirected stdout>')
 
         if real_stderr:
-            sys.stderr = UnicodeOutput(hStderr, None, STDERR_FILENO, '<Unicode console stderr>')
+            sys.stderr = UnicodeOutput(
+                hStderr, None, STDERR_FILENO, '<Unicode console stderr>')
         else:
-            sys.stderr = UnicodeOutput(None, sys.stderr, old_stderr_fileno, '<Unicode redirected stderr>')
+            sys.stderr = UnicodeOutput(
+                None, sys.stderr, old_stderr_fileno,
+                '<Unicode redirected stderr>')
 except Exception as e:
     _complain("exception %r while fixing up sys.stdout and sys.stderr" % (e,))
 
@@ -159,7 +179,9 @@ except Exception as e:
 
 # This works around <http://bugs.python.org/issue2128>.
 GetCommandLineW = WINFUNCTYPE(LPWSTR)(("GetCommandLineW", windll.kernel32))
-CommandLineToArgvW = WINFUNCTYPE(POINTER(LPWSTR), LPCWSTR, POINTER(c_int))(("CommandLineToArgvW", windll.shell32))
+CommandLineToArgvW = WINFUNCTYPE(
+    POINTER(LPWSTR), LPCWSTR, POINTER(c_int)
+)(("CommandLineToArgvW", windll.shell32))
 
 argc = c_int(0)
 argv_unicode = CommandLineToArgvW(GetCommandLineW(), byref(argc))
@@ -179,8 +201,8 @@ if not hasattr(sys, 'frozen'):
             break
         argv = argv[1:]
         if arg == u'-m':
-            # sys.argv[0] should really be the absolute path of the module source,
-            # but never mind
+            # sys.argv[0] should really be the absolute path of the module
+            # source, but never mind
             break
         if arg == u'-c':
             argv[0] = u'-c'
