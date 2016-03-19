@@ -481,7 +481,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         )(opftree)[0].get('href')
         ncxstr = _epubfile.read(os.path.relpath(os.path.join(_folder,
                                 ncxfile)).replace('\\', '/'))
-    except IndexError:
+    except (IndexError, KeyError):
         print('%sCRITICAL! NCX file is missing...' % (_file_dec))
         ncxstr = '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" />'
     try:
@@ -745,12 +745,17 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
                       ' is corrupted!')
                 continue
             is_empty = False
-            if os.path.getsize(
-                    os.path.join(temp_font_dir, singlefile)
-            ) == 0:
-                print('%sFont file "%s" is EMPTY!'
-                      % (_file_dec, singlefile))
-                is_empty = True
+            try:
+                if os.path.getsize(
+                        os.path.join(temp_font_dir, singlefile)
+                ) == 0:
+                    print('%sERROR! Font file "%s" is EMPTY!'
+                          % (_file_dec, singlefile))
+                    is_empty = True
+            except (OSError, IOError) as e:
+                    is_empty = True
+                    print('%sERROR! Problem with file "%s": %s'
+                          % (_file_dec, os.path.basename(singlefile), str(e)))
             if not is_empty:
                 is_font, signature = check_font(
                     os.path.join(temp_font_dir, singlefile)
