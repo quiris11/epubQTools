@@ -199,7 +199,8 @@ def main():
         counter = 0
         for root, dirs, files in os.walk(args.directory):
             for f in files:
-                if f.endswith('.epub') and not f.endswith('_moh.epub'):
+                if f.lower().endswith('.epub') and not f.lower().endswith(
+                        '_moh.epub'):
                     print(counter, os.path.join(root, f))
                     counter += 1
         return 0
@@ -207,7 +208,8 @@ def main():
         counter = 0
         for root, dirs, files in os.walk(args.directory):
             for f in files:
-                if f.endswith('.epub') and not f.endswith('_moh.epub'):
+                if f.lower().endswith('.epub') and not f.lower().endswith(
+                        '_moh.epub'):
                     if counter == int(args.individual):
                         ind_file = f
                         ind_root = root
@@ -240,7 +242,8 @@ def main():
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
                     fdec = f.decode(SFENC)
-                    if f.endswith('.epub') and not f.endswith('_moh.epub'):
+                    if f.lower().endswith('.epub') and not f.lower().endswith(
+                            '_moh.epub'):
                         counter += 1
                         epbzf = zipfile.ZipFile(os.path.join(root, f))
                         opf_root, opf_path = find_opf(epbzf)
@@ -271,7 +274,7 @@ def main():
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
-                    if f.endswith(fe) and not f.endswith(nfe):
+                    if f.lower().endswith(fe) and not f.lower().endswith(nfe):
                         counter += 1
                         qcheck(root, f, args.alter, args.mod, args.list_fonts)
         if counter == 0:
@@ -346,7 +349,7 @@ def main():
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
-                    if f.endswith(fe) and not f.endswith(nfe):
+                    if f.lower().endswith(fe) and not f.lower().endswith(nfe):
                         counter += 1
                         epubchecker(echp_temp, root, f, epubcheckstr,
                                     epubcheckjar)
@@ -375,9 +378,9 @@ def main():
         else:
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
-                    if (f.endswith('.epub') and
-                            not f.endswith('_moh.epub') and
-                            not f.endswith('_org.epub')):
+                    if (f.lower().endswith('.epub') and
+                            not f.lower().endswith('_moh.epub') and
+                            not f.lower().endswith('_org.epub')):
                         counter += 1
                         qfix(root, f, args.force, args.replace_font_files,
                              args.skip_reset_css, args.tools,
@@ -458,7 +461,7 @@ def main():
             for root, dirs, files in os.walk(args.directory):
                 for f in files:
                     cover_html_found = error_found = False
-                    if f.endswith('_moh.epub'):
+                    if f.lower().endswith('_moh.epub'):
                         counter += 1
                         to_mobi(root, f, cover_html_found, error_found)
         if counter == 0:
