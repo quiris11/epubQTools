@@ -16,6 +16,7 @@ import cssutils
 import logging
 import lib.fntutls
 import StringIO
+import struct
 from urllib import unquote
 from lxml import etree
 from lib.htmlconstants import entities
@@ -785,7 +786,8 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
                                     list_font_basic_properties(c)[3]
                                 )
                             )
-                        except lib.fntutls.UnsupportedFont, e:
+                        except (lib.fntutls.UnsupportedFont,
+                                struct.error) as e:
                             print(
                                 '%sERROR! Problem with font file "%s": %s' %
                                 (_file_dec, singlefile, e)
