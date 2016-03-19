@@ -9,7 +9,6 @@ from __future__ import print_function
 import zipfile
 import re
 import os
-import sys
 import tempfile
 import shutil
 import cssutils
@@ -53,7 +52,6 @@ DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
-SFENC = sys.getfilesystemencoding()
 
 
 def check_font(path):
@@ -254,7 +252,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
                     break
             if not found:
                 print('%sORPHAN file "%s" is NOT defined in OPF file'
-                      % (_file_dec, n.encode('utf-8').decode(SFENC)))
+                      % (_file_dec, n.encode('utf-8')))
         return enc_found
 
     def check_dupl_ids_insensitive(tree):
@@ -697,7 +695,7 @@ def list_font_basic_properties(raw_file):
 
 
 def qcheck(root, _file, alter, mod, is_list_fonts):
-    file_dec = _file.decode(SFENC)
+    file_dec = _file
     if alter:
         _file_dec = file_dec + ': '
     else:
@@ -728,7 +726,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
     for singlefile in epubfile.namelist():
         if '../' in singlefile:
             print(_file_dec + 'CRITICAL! Problematic path found'
-                  ' in ePUB archive: ' + singlefile.decode(SFENC))
+                  ' in ePUB archive: ' + singlefile)
         if 'META-INF/encryption.xml' in singlefile:
             print('%sEncryption.xml file found: "%s" '
                   % (_file_dec, singlefile))
