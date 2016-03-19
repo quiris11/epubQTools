@@ -29,6 +29,7 @@ from lib.epubqcheck import find_opf
 from lib.epubqfix import qfix
 from lib.epubqfix import rename_files
 from lib.fix_name_author import fix_name_author
+SFENC = sys.getfilesystemencoding()
 
 if sys.platform == "win32":
     import lib.win_utf8_console  # noqa
@@ -247,7 +248,11 @@ def main():
                     if f.lower().endswith('.epub') and not f.lower().endswith(
                             '_moh.epub'):
                         counter += 1
-                        epbzf = zipfile.ZipFile(os.path.join(root, f))
+                        try:
+                            epbzf = zipfile.ZipFile(os.path.join(root, f))
+                        except zipfile.BadZipfile, e:
+                            print('! CRITICAL! Problem with file "%s": %s' % (
+                                f, str(e).decode(SFENC)))
                         opf_root, opf_path = find_opf(epbzf)
                         rename_files(opf_path, root, epbzf, f, fdec)
         if counter == 0:
