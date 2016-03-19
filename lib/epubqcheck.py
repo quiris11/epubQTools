@@ -689,7 +689,7 @@ def list_font_basic_properties(raw_file):
     italic = lib.fntutls.get_font_characteristics(raw_file)[1]
     bold = lib.fntutls.get_font_characteristics(raw_file)[2]
     regular = lib.fntutls.get_font_characteristics(raw_file)[3]
-    return str(font_family), regular, bold, italic
+    return font_family, regular, bold, italic
 
 
 def qcheck(root, _file, alter, mod, is_list_fonts):
