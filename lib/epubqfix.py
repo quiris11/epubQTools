@@ -16,6 +16,7 @@ import sys
 import zipfile
 import uuid
 import unicodedata
+import StringIO
 
 from pkgutil import get_data
 from urllib import unquote
@@ -25,6 +26,8 @@ from lib.htmlconstants import entities
 from lib.hyphenator import Hyphenator
 from lib.beautify_book import beautify_book
 
+# set up recover parser for malformed XML
+recover_parser = etree.XMLParser(encoding='utf-8', recover=True)
 
 if not hasattr(sys, 'frozen'):
     dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='epubQTools-tmp-')
@@ -79,7 +82,17 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
 
     if _filename.endswith('_moh.epub'):
         return 0
-    opftree = etree.fromstring(_epubfile.read(opf_path))
+    try:
+        opftree = etree.fromstring(_epubfile.read(opf_path))
+    except etree.XMLSyntaxError, e:
+        print('! CRITICAL! XML file "%s" is not well '
+              'formed: "%s"' % (os.path.basename(opf_path),
+                                str(e).decode(SFENC)))
+        opfstring = StringIO.StringIO(_epubfile.read(opf_path))
+        try:
+            opftree = etree.parse(opfstring, recover_parser)
+        except etree.XMLSyntaxError:
+            return None
     try:
         tit = etree.XPath('//dc:title/text()', namespaces=DCNS)(opftree)[0]
     except:
