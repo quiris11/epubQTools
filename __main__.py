@@ -33,8 +33,6 @@ from lib.fix_name_author import fix_name_author
 if sys.platform == "win32":
     import lib.win_utf8_console  # noqa
 
-SFENC = sys.getfilesystemencoding()
-
 if not hasattr(sys, 'frozen'):
     q_cwd = os.path.join(os.getcwd(), os.path.dirname(__file__))
     if q_cwd.endswith('.zip'):
@@ -157,13 +155,13 @@ class Logger(object):
 
 
 def main():
-    try:
-        os.getcwd().decode('ascii')
-    except UnicodeDecodeError:
-        sys.exit('ERROR! Current working directory "%s" contains non-ascii '
-                 'marks. '
-                 'The application is not reliable in this case. Giving up...'
-                 % os.getcwd().decode(SFENC))
+    # try:
+    #     os.getcwd().decode('ascii')
+    # except UnicodeDecodeError:
+    #     sys.exit('ERROR! Current working directory "%s" contains non-ascii '
+    #              'marks. '
+    #              'The application is not reliable in this case. Giving up...'
+    #              % os.getcwd())
     if args.alter and not args.qcheck:
         print('* WARNING! -a was ignored because it works only with -q.')
     if args.huffdic and not args.kindlegen:
@@ -238,14 +236,14 @@ def main():
         counter = 0
         if ind_file:
             counter += 1
-            fdec = ind_file.decode(SFENC)
+            fdec = ind_file
             epbzf = zipfile.ZipFile(os.path.join(ind_root, ind_file))
             opf_root, opf_path = find_opf(epbzf)
             rename_files(opf_path, ind_root, epbzf, ind_file, fdec)
         else:
             for root, dirs, files in os.walk(uni_dir):
                 for f in files:
-                    fdec = f.decode(SFENC)
+                    fdec = f
                     if f.lower().endswith('.epub') and not f.lower().endswith(
                             '_moh.epub'):
                         counter += 1
