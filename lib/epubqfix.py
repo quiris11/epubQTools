@@ -716,7 +716,10 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                     ncx_contents[0].get('src')
                 ) for x in ncx_contents
             ):
-                textdir = os.path.dirname(ncx_contents[0].get('src'))
+                try:
+                    textdir = os.path.dirname(ncx_contents[0].get('src'))
+                except IndexError:
+                    textdir = ''
                 anchs = result.xpath('//xhtml:a', namespaces=XHTMLNS)
                 for a in anchs:
                     a.set('href', os.path.basename(a.get('href')))
@@ -1626,7 +1629,14 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     except OSError:
         pass
     parser = etree.XMLParser(remove_blank_text=True)
-    opftree = etree.parse(opf_file_path_abs, parser)
+    try:
+        opftree = etree.parse(opf_file_path_abs, parser)
+    except etree.XMLSyntaxError, e:
+        print('! CRITICAL! XML file "%s" is not well '
+              'formed: "%s"' % (os.path.basename(opf_file_path_abs),
+                                str(e).decode(SFENC)))
+        print('! Unable to proceed...')
+        return True
     opftree = unquote_urls(opftree)
 
     opftree, is_xml_ext_fixed = xml2html_extension(opftree, opf_dir_abs)
@@ -1693,6 +1703,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     with open(opf_file_path_abs, 'w') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
                 standalone=False, xml_declaration=True, encoding='utf-8'))
+    return False
 
 
 def process_corrupted_zip(e, root, f, zipbinf):
@@ -1812,14 +1823,18 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
         print('START qfix for: ' + f)
         if skip_hyph:
             print('* Hyphenating is turned OFF...')
-        process_epub(_tempdir, _replacefonts, _resetmargins, skip_hyph,
-                     arg_justify, arg_left, irmf, fontdir, del_colors,
-                     del_fonts, html_margin, dont_hyph_headers)
-        pack_epub(os.path.join(root, newfile), _tempdir)
+        is_failed = process_epub(
+            _tempdir, _replacefonts, _resetmargins, skip_hyph,
+            arg_justify, arg_left, irmf, fontdir, del_colors,
+            del_fonts, html_margin, dont_hyph_headers)
+        if not is_failed:
+            pack_epub(os.path.join(root, newfile), _tempdir)
+        else:
+            qfixerr = True
         if qfixerr:
             print('FINISH (with PROBLEMS) qfix for: ' + f)
         else:
             print('FINISH qfix for: ' + f)
     clean_temp(_tempdir)
-    if not fix_container_only:
+    if not fix_container_only and not is_failed:
         beautify_book(root, f, fontdir, pair_family)
