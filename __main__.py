@@ -279,7 +279,7 @@ def main():
             counter += 1
             qcheck(ind_root, ind_file_m, args.alter, args.mod, args.list_fonts)
         else:
-            for root, dirs, files in os.walk(uni_dir.decode('utf-8')):
+            for root, dirs, files in os.walk(uni_dir):
                 for f in files:
                     if f.lower().endswith(fe) and not f.lower().endswith(nfe):
                         counter += 1
