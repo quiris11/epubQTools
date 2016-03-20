@@ -296,13 +296,11 @@ def main():
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             jpout, jperr = jp.communicate()
             if jperr:
-                print(f.decode(SFENC) +
-                      ': PROBLEMS FOUND...')
+                print(f + ': PROBLEMS FOUND...')
                 print('*** Details... ***')
                 print(jperr)
             else:
-                print(f.decode(SFENC) +
-                      ': OK!')
+                print(f + ': OK!')
                 print('')
 
         for e in os.listdir(os.path.join(args.tools)):
@@ -405,14 +403,11 @@ def main():
             newmobifile = os.path.splitext(f)[0] + '.mobi'
             if not args.force:
                 if os.path.isfile(os.path.join(root, newmobifile)):
-                    print(
-                        '* Skipping previously generated _moh file: ' +
-                        newmobifile.decode(SFENC)
-                    )
+                    print('* Skipping previously generated _moh file: ' +
+                          newmobifile)
                     return 0
             print('')
-            print('* Kindlegen: Converting file: ' +
-                  f.decode(SFENC))
+            print('* Kindlegen: Converting file: ' + f)
             if sys.platform == 'win32':
                 kgapp = 'kindlegen.exe'
             else:
@@ -445,11 +440,8 @@ def main():
                     cover_html_found = True
             if not cover_html_found and not error_found:
                 print('')
-                print(
-                    '* WARNING: Probably duplicated covers '
-                    'generated in file: ' +
-                    newmobifile.decode(SFENC)
-                )
+                print('* WARNING: Probably duplicated covers generated '
+                      'in file: ' + newmobifile)
 
         compression = '-c2' if args.huffdic else '-c1'
         counter = 0
