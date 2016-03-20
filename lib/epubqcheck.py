@@ -704,14 +704,13 @@ def list_font_basic_properties(raw_file):
 
 
 def qcheck(root, _file, alter, mod, is_list_fonts):
-    file_dec = _file
     if alter:
-        _file_dec = file_dec + ': '
+        _file_dec = _file + ': '
     else:
         _file_dec = '* '
     if not alter:
         print('')
-        print('START qcheck for: ' + file_dec)
+        print('START qcheck for: ' + _file)
     try:
         epubfile = zipfile.ZipFile(os.path.join(root, _file))
     except zipfile.BadZipfile, e:
@@ -721,7 +720,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
     opf_root, opf_path = find_opf(epubfile)
     if not opf_path:
         if not alter:
-            print('FINISH qcheck for: ' + file_dec)
+            print('FINISH qcheck for: ' + _file)
         return None
     cont_src_list = qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec,
                                     alter)
@@ -836,4 +835,4 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
     elif is_font_face:
         print('%sWarning! Potential "stripping font" problem!' % (_file_dec))
     if not alter:
-        print('FINISH qcheck for: ' + file_dec)
+        print('FINISH qcheck for: ' + _file)
