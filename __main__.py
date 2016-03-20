@@ -302,12 +302,12 @@ def main():
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             jpout, jperr = jp.communicate()
             if jperr:
-                print(f.decode(sys.getfilesystemencoding()) +
+                print(f.decode(SFENC) +
                       ': PROBLEMS FOUND...')
                 print('*** Details... ***')
                 print(jperr)
             else:
-                print(f.decode(sys.getfilesystemencoding()) +
+                print(f.decode(SFENC) +
                       ': OK!')
                 print('')
 
@@ -413,12 +413,12 @@ def main():
                 if os.path.isfile(os.path.join(root, newmobifile)):
                     print(
                         '* Skipping previously generated _moh file: ' +
-                        newmobifile.decode(sys.getfilesystemencoding())
+                        newmobifile.decode(SFENC)
                     )
                     return 0
             print('')
             print('* Kindlegen: Converting file: ' +
-                  f.decode(sys.getfilesystemencoding()))
+                  f.decode(SFENC))
             if sys.platform == 'win32':
                 kgapp = 'kindlegen.exe'
             else:
@@ -454,7 +454,7 @@ def main():
                 print(
                     '* WARNING: Probably duplicated covers '
                     'generated in file: ' +
-                    newmobifile.decode(sys.getfilesystemencoding())
+                    newmobifile.decode(SFENC)
                 )
 
         compression = '-c2' if args.huffdic else '-c1'
