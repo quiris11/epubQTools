@@ -32,7 +32,8 @@ from lib.fix_name_author import fix_name_author
 SFENC = sys.getfilesystemencoding()
 
 if sys.platform == "win32":
-    import lib.win_utf8_console  # noqa
+    from lib.win_utf8_console import fix_broken_win_console
+    fix_broken_win_console()
 
 if not hasattr(sys, 'frozen'):
     q_cwd = os.path.join(os.getcwd(), os.path.dirname(__file__))
