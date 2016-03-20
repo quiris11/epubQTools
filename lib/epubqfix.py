@@ -120,6 +120,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
     nfname = "".join(x for x in nfname if (
         x.isalnum() or x.isspace() or x in ('_', '-', '.')
     ))
+    nfname = nfname.replace('\r', '').replace('\n', '')
     is_renamed = False
     counter = 1
     while True:
