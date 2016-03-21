@@ -96,12 +96,12 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
     try:
         tit = etree.XPath('//dc:title/text()', namespaces=DCNS)(opftree)[0]
     except:
-        print('! Renaming file "%s" failed! ERROR: dc:title (book title) '
+        print('! ERROR! Renaming file "%s" failed - dc:title (book title) '
               'not found.' % _file_dec)
         return 0
     crs = etree.XPath('//dc:creator/text()', namespaces=DCNS)(opftree)
     if len(crs) == 0:
-        print('! Renaming file "%s" failed! ERROR: dc:creator (book author) '
+        print('! ERROR! Renaming file "%s" failed - dc:creator (book author) '
               'not found.' % _file_dec)
         return 0
     else:
@@ -113,6 +113,16 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         tit = tit.title()
     if cr.isupper():
         cr = cr.title()
+    tit = tit.replace('\n', ' ').replace('\r', ' ').strip()
+    cr = cr.replace('\n', ' ').replace('\r', ' ').strip()
+    if cr == '':
+        print('! ERROR! Renaming file "%s" failed - dc:creator (book author) '
+              'is empty.' % _file_dec)
+        return 0
+    if tit == '':
+        print('! ERROR! Renaming file "%s" failed - dc:title (book title) '
+              'is empty.' % _file_dec)
+        return 0
     nfname = strip_accents(unicode(cr + ' - ' + tit))
     nfname = nfname.replace(u'\u2013', '-').replace('/', '_')\
                    .replace(':', '_').replace(u'\u0142', 'l')\
@@ -120,7 +130,6 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
     nfname = "".join(x for x in nfname if (
         x.isalnum() or x.isspace() or x in ('_', '-', '.')
     ))
-    nfname = nfname.replace('\r', '').replace('\n', '')
     is_renamed = False
     counter = 1
     while True:
