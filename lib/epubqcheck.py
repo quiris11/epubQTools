@@ -332,9 +332,12 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
               'defined in OPF file...')
     else:
         for c in creators:
-            if c.text is None:
+            if c.text is None or c.text.strip() == '':
                 print(_file_dec + 'CRITICAL! dc:creator (book author) is '
                       'empty...')
+            elif '\n' in c.text or '\r' in c.text:
+                print(_file_dec + 'CRITICAL! dc:creator (book author) contains'
+                      ' problematic marks "\r" or "\n"...')
             elif c.text is not None:
                 if c.text.isupper():
                     print(_file_dec + 'dc:creator (book author) UPPERCASED: '
@@ -348,9 +351,12 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             print(_file_dec + 'Warning! Multiple dc:title (book title) '
                   'elements defined in OPF file may be problematic...')
         for t in titles:
-            if t.text is None:
+            if t.text is None or c.text.strip() == '':
                 print(_file_dec + 'CRITICAL! dc:title (book title) is '
                       'empty...')
+            elif '\n' in c.text or '\r' in c.text:
+                print(_file_dec + 'CRITICAL! dc:title (book title) contains'
+                      ' problematic marks "\r" or "\n"...')
             elif t.text is not None:
                 if t.text.isupper():
                     print(_file_dec + 'dc:title (book title) UPPERCASED: '
