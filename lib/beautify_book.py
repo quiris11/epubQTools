@@ -18,6 +18,7 @@ from urllib import unquote
 
 HOME = os.path.expanduser("~")
 SFENC = sys.getfilesystemencoding()
+DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
 NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
@@ -26,6 +27,24 @@ XLXHTNS = {'xhtml': 'http://www.w3.org/1999/xhtml',
 
 cssutils.log.setLevel(logging.CRITICAL)
 cssutils.ser.prefs.omitLastSemicolon = False
+
+
+def clean_meta_tags(opftree):
+
+    def clean_meta_tag(meta):
+        from HTMLParser import HTMLParser
+        h = HTMLParser()
+        meta.text = meta.text.replace('\r', ' ').replace('\n', ' ').strip()
+        meta.text = h.unescape(meta.text)
+        tree = etree.HTML(meta.text)
+        clean_text = etree.tostring(tree, method="text", encoding="utf-8")
+        meta.text = clean_text.decode('utf-8')
+
+    tags = ['creator', 'title', 'description']
+    for t in tags:
+        dcs = opftree.xpath('//dc:' + t, namespaces=DCNS)
+        for dc in dcs:
+            clean_meta_tag(dc)
 
 
 def change_font_family_value(cssvalue, new_name):
@@ -526,7 +545,7 @@ def beautify_book(root, f, user_font_dir, pair_family):
     cont_src_list = make_content_src_list(ncxtree)
     fix_display_none(opftree, epub_dir, cont_src_list)
     replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family)
-
+    clean_meta_tags(opftree)
     # temprorary disabled due critical problems
     # update_css_font_families(epub_dir, opftree)
 
