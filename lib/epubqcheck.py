@@ -354,7 +354,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             if t.text is None or t.text.strip() == '':
                 print(_file_dec + 'CRITICAL! dc:title (book title) is '
                       'empty...')
-            elif '\n' in c.text or '\r' in c.text:
+            elif '\n' in t.text or '\r' in t.text:
                 print(_file_dec + 'CRITICAL! dc:title (book title) contains'
                       ' problematic marks "\r" or "\n"...')
             elif t.text is not None:
