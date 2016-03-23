@@ -1651,6 +1651,11 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
                                 str(e).decode(SFENC)))
         print('! Unable to proceed...')
         return True
+    titles = opftree.xpath('//dc:title', namespaces=DCNS)
+    if len(titles) == 0:
+        print('! CRITICAL! dc:title (book title) element is NOT '
+              'defined in OPF file. Unable to proceed...')
+        return True
     opftree = unquote_urls(opftree)
 
     opftree, is_xml_ext_fixed = xml2html_extension(opftree, opf_dir_abs)
