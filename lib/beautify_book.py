@@ -133,8 +133,11 @@ def update_css_font_families(epub_dir, opftree):
                     font_file_family = None
                     for p in rule.style:
                         if p.name == 'font-family' and css_font_family is None:
-                            ff = rule.style.getProperty(p.name).propertyValue
-                            css_font_family = ff.item(0).value
+                            try:
+                                css_font_family = p.value.split(
+                                    ',')[0].strip().strip('"').strip("'")
+                            except:
+                                continue
                             continue
                         if p.name == 'src' and font_file_family is None:
                             ffs = rule.style.getProperty(p.name).propertyValue
