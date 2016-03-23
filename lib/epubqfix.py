@@ -1012,10 +1012,13 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             namespaces=OPFNS
         )(soup)
         print('* Defining cover guide element...')
-        itemcoverhref = os.path.basename(itemcovers[0].get('href'))
-        soup = set_cover_guide_ref(
-            xhtml_files, itemcoverhref, xhtml_file_paths, soup
-        )
+        try:
+            itemcoverhref = os.path.basename(itemcovers[0].get('href'))
+            soup = set_cover_guide_ref(
+                xhtml_files, itemcoverhref, xhtml_file_paths, soup
+            )
+        except IndexError:
+            print('* No cover images found...')
     elif len(metacovers) == 0 and len(refcovers) == 1:
         # set missing cover meta element
         cover_image = None

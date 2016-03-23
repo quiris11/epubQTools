@@ -495,12 +495,12 @@ def make_cover_item_first(opftree):
     try:
         meta_cover_id = opftree.xpath('//opf:meta[@name="cover"]',
                                       namespaces=OPFNS)[0].get('content')
+        cover_item = opftree.xpath('//opf:item[@id="' + meta_cover_id + '"]',
+                                   namespaces=OPFNS)[0]
     except IndexError:
         print('! ERROR! Unable to make cover item first. '
               'Cover is not properly defined...')
         return None
-    cover_item = opftree.xpath('//opf:item[@id="' + meta_cover_id + '"]',
-                               namespaces=OPFNS)[0]
     manifest = cover_item.getparent()
     if manifest[0] != cover_item:
         print('* Make cover image item first...')
