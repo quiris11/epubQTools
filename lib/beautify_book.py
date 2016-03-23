@@ -467,18 +467,28 @@ def rename_cover_img(opftree, ncxtree, epub_dir):
         print('! ERROR! Unable to rename cover file. '
               'Cover file is not properly defined...')
         return None
-    cover_file = opftree.xpath(
-        '//opf:item[@id="' + meta_cover_id + '"]',
-        namespaces=OPFNS
-    )[0].get('href')
+    try:
+        cover_item = opftree.xpath('//opf:item[@id="' + meta_cover_id + '"]',
+                                   namespaces=OPFNS)[0]
+    except IndexError:
+        print('! ERROR! Unable to rename cover file. '
+              'Cover is not properly defined...')
+        return None
+    cover_file = cover_item.get('href')
+    cover_mime = cover_item.get('media-type')
+
     if os.path.splitext(os.path.basename(cover_file))[0] != 'cover':
-        new_name_path = os.path.join(
-            os.path.dirname(cover_file),
-            'cover' + os.path.splitext(os.path.basename(cover_file))[1]
-        )
-        print("* Renaming cover image to: " + new_name_path)
-        rename_replace_files(opftree, ncxtree, epub_dir, cover_file,
-                             new_name_path, False)
+        extensions = [os.path.splitext(os.path.basename(cover_file))[1]]
+        if cover_mime == 'image/jpeg':
+            extensions += ['.jpg', '.jpeg', '.jpe']
+        for e in extensions:
+            new_name_path = os.path.join(os.path.dirname(cover_file),
+                                         'cover' + e)
+            if not os.path.isfile(os.path.join(epub_dir, new_name_path)):
+                print("* Renaming cover image to: " + new_name_path)
+                rename_replace_files(opftree, ncxtree, epub_dir, cover_file,
+                                     new_name_path, False)
+                break
 
 
 def make_cover_item_first(opftree):
