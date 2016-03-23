@@ -347,7 +347,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
                     print(_file_dec + 'dc:creator (book author) UPPERCASED: '
                           '"%s". Consider changing...' % c.text)
     titles = opftree.xpath('//dc:title', namespaces=DCNS)
-    if titles is None:
+    if len(titles) == 0:
         print(_file_dec + 'CRITICAL! dc:title (book title) element is NOT '
               'defined in OPF file...')
     else:
