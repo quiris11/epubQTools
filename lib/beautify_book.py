@@ -38,6 +38,8 @@ def clean_meta_tags(opftree):
     def clean_meta_tag(meta):
         from HTMLParser import HTMLParser
         h = HTMLParser()
+        if meta.text is None:
+            return None
         meta.text = meta.text.replace('\r', ' ').replace('\n', ' ').strip()
         meta.text = h.unescape(meta.text)
         tree = etree.HTML(meta.text)
