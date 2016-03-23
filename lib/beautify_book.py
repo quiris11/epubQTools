@@ -458,8 +458,13 @@ def rename_calibre_cover(opftree, ncxtree, epub_dir):
 
 
 def rename_cover_img(opftree, ncxtree, epub_dir):
-    meta_cover_id = opftree.xpath('//opf:meta[@name="cover"]',
-                                  namespaces=OPFNS)[0].get('content')
+    try:
+        meta_cover_id = opftree.xpath('//opf:meta[@name="cover"]',
+                                      namespaces=OPFNS)[0].get('content')
+    except IndexError:
+        print('! ERROR! Unable to rename cover file. '
+              'Cover file is not properly defined...')
+        return None
     cover_file = opftree.xpath(
         '//opf:item[@id="' + meta_cover_id + '"]',
         namespaces=OPFNS
@@ -475,8 +480,13 @@ def rename_cover_img(opftree, ncxtree, epub_dir):
 
 
 def make_cover_item_first(opftree):
-    meta_cover_id = opftree.xpath('//opf:meta[@name="cover"]',
-                                  namespaces=OPFNS)[0].get('content')
+    try:
+        meta_cover_id = opftree.xpath('//opf:meta[@name="cover"]',
+                                      namespaces=OPFNS)[0].get('content')
+    except IndexError:
+        print('! ERROR! Unable to make cover item first. '
+              'Cover is not properly defined...')
+        return None
     cover_item = opftree.xpath('//opf:item[@id="' + meta_cover_id + '"]',
                                namespaces=OPFNS)[0]
     manifest = cover_item.getparent()
