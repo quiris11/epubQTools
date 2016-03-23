@@ -291,14 +291,14 @@ def main():
             )
             jp = subprocess.Popen([
                 'java', '-Djava.awt.headless=true', '-jar',
-                '%s' % epubchecker_path,
-                '%s' % str(os.path.join(root, f))
+                '%s' % epubchecker_path.encode(SFENC),
+                '%s' % os.path.join(root, f).encode(SFENC)
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             jpout, jperr = jp.communicate()
             if jperr:
                 print(f + ': PROBLEMS FOUND...')
                 print('*** Details... ***')
-                print(jperr)
+                print(jperr.decode(SFENC))
             else:
                 print(f + ': OK!')
                 print('')
@@ -414,18 +414,18 @@ def main():
                 kgapp = 'kindlegen'
             try:
                 proc = subprocess.Popen([
-                    os.path.join(args.tools, kgapp),
+                    os.path.join(args.tools, kgapp).encode(SFENC),
                     '-dont_append_source',
                     compression,
-                    os.path.join(root, f)
+                    os.path.join(root, f).encode(SFENC)
                 ], stdout=subprocess.PIPE).communicate()[0]
             except OSError:
                 try:
                     proc = subprocess.Popen([
-                        os.path.join(kgapp),
+                        os.path.join(kgapp).encode(SFENC),
                         '-dont_append_source',
                         compression,
-                        os.path.join(root, f)
+                        os.path.join(root, f).encode(SFENC)
                     ], stdout=subprocess.PIPE).communicate()[0]
                 except:
                     sys.exit('ERROR! Kindlegen not found in directory: "' +
