@@ -21,10 +21,14 @@ import StringIO
 from pkgutil import get_data
 from urllib import unquote
 from itertools import cycle
-from lxml import etree
 from lib.htmlconstants import entities
 from lib.hyphenator import Hyphenator
 from lib.beautify_book import beautify_book
+
+try:
+    from lxml import etree
+except ImportError as e:
+    sys.exit('! CRITICAL! ' + str(e).decode(SFENC))
 
 # set up recover parser for malformed XML
 recover_parser = etree.XMLParser(encoding='utf-8', recover=True)

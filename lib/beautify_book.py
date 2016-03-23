@@ -10,14 +10,18 @@ import os
 import sys
 import re
 import shutil
-import cssutils
 import logging
 from lib.epubqcheck import list_font_basic_properties
-from lxml import etree
 from urllib import unquote
 
-HOME = os.path.expanduser("~")
 SFENC = sys.getfilesystemencoding()
+try:
+    from lxml import etree
+    import cssutils
+except ImportError as e:
+    sys.exit('! CRITICAL! ' + str(e).decode(SFENC))
+
+HOME = os.path.expanduser("~")
 DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
