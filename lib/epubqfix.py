@@ -731,7 +731,11 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 )(soup)[0].get('href')
             except IndexError:
                 return soup
-            ncxtree = etree.parse(os.path.join(tempdir, toc_ncx_file), parser)
+            try:
+                ncxtree = etree.parse(os.path.join(tempdir, toc_ncx_file),
+                                      parser)
+            except:
+                return soup
             result = transform(ncxtree)
             ncx_contents = ncxtree.xpath('//ncx:content', namespaces=NCXNS)
             if all(
@@ -1169,8 +1173,10 @@ def fix_ncx_dtd_uid(opftree, tempdir):
         )(opftree)[0].get('href')
     except IndexError:
         return opftree
-    ncxtree = etree.parse(os.path.join(tempdir, ncxfile))
-
+    try:
+        ncxtree = etree.parse(os.path.join(tempdir, ncxfile))
+    except:
+        return opftree
     # remove empty dc:identifiers
     for i in opftree.xpath('//dc:identifier', namespaces=DCNS):
         if i.text is None:
@@ -1436,8 +1442,11 @@ def remove_text_from_html_cover(opftree, rootepubdir):
     except:
         print('* Unable to parse HTML cover file. Giving up...')
         return 0
-    cover_texts = html_cover_tree.xpath('//xhtml:body//text()',
-                                        namespaces=XHTMLNS)
+    try:
+        cover_texts = html_cover_tree.xpath('//xhtml:body//text()',
+                                            namespaces=XHTMLNS)
+    except:
+        return None
     if len(cover_texts) > 0:
         print('* Removing needless texts from HTML cover...')
     for t in cover_texts:
@@ -1663,7 +1672,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     parser = etree.XMLParser(remove_blank_text=True)
     try:
         opftree = etree.parse(opf_file_path_abs, parser)
-    except etree.XMLSyntaxError, e:
+    except (etree.XMLSyntaxError, IOError) as e:
         print('! CRITICAL! XML file "%s" is not well '
               'formed: "%s"' % (os.path.basename(opf_file_path_abs),
                                 str(e).decode(SFENC)))

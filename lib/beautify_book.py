@@ -425,8 +425,13 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
         if new_absolute_path:
             replace_file(epub_dir, old_name_path, new_absolute_path)
         else:
-            os.rename(os.path.join(epub_dir, old_name_path),
-                      os.path.join(epub_dir, new_name_path))
+            try:
+                os.rename(os.path.join(epub_dir, old_name_path),
+                          os.path.join(epub_dir, new_name_path))
+            except WindowsError:
+                os.unlink(os.path.join(epub_dir, new_name_path))
+                os.rename(os.path.join(epub_dir, old_name_path),
+                          os.path.join(epub_dir, new_name_path))
         ncxtree = update_ncx(ncxtree, old_name_path, new_name_path)
         update_css(opftree, epub_dir, old_name_path, new_name_path)
         fix_references_in_xhtml(opftree, epub_dir, old_name_path,
