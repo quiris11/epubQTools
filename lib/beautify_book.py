@@ -559,7 +559,7 @@ def beautify_book(root, f, user_font_dir, pair_family):
     from lib.epubqfix import clean_temp
     from lib.epubqfix import find_roots
     f = f.replace('.epub', '_moh.epub')
-    print('START beautify for: ' + f.decode(SFENC))
+    print('START beautify for: ' + f)
     tempdir = unpack_epub(os.path.join(root, f))
     opf_dir, opf_file, is_fixed = find_roots(tempdir)
     epub_dir = os.path.join(tempdir, opf_dir)
@@ -588,4 +588,4 @@ def beautify_book(root, f, user_font_dir, pair_family):
     write_file_changes_back(ncxtree, ncx_path)
     pack_epub(os.path.join(root, f), tempdir)
     clean_temp(tempdir)
-    print('FINISH beautify for: ' + f.decode(SFENC))
+    print('FINISH beautify for: ' + f)
