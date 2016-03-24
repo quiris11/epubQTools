@@ -42,7 +42,10 @@ def clean_meta_tags(opftree):
             return None
         meta.text = meta.text.replace('\r', ' ').replace('\n', ' ').strip()
         meta.text = h.unescape(meta.text)
-        tree = etree.HTML(meta.text)
+        try:
+            tree = etree.HTML(meta.text)
+        except etree.XMLSyntaxError:
+            return None
         clean_text = etree.tostring(tree, method="text", encoding="utf-8")
         meta.text = clean_text.decode('utf-8')
 
