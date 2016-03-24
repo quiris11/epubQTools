@@ -691,8 +691,11 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
     if len(reftocs) == 0:
         html_toc = None
         for xhtml_file in xhtml_files:
-            xhtmltree = etree.parse(xhtml_file,
-                                    parser=etree.XMLParser(recover=True))
+            try:
+                xhtmltree = etree.parse(xhtml_file,
+                                        parser=etree.XMLParser(recover=True))
+            except (etree.XMLSyntaxError, IOError):
+                continue
             alltexts = etree.XPath('//text()', namespaces=XHTMLNS)(xhtmltree)
             alltext = ' '.join(alltexts)
             if alltext.find(u'Spis treści') != -1:

@@ -307,8 +307,11 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
 
         for i in xhtml_items:
             xhtml_url = i.get('href')
-            xhtree = etree.parse(os.path.join(epub_dir, xhtml_url),
-                                 parser=etree.XMLParser(recover=False))
+            try:
+                xhtree = etree.parse(os.path.join(epub_dir, xhtml_url),
+                                     parser=etree.XMLParser(recover=False))
+            except (etree.XMLSyntaxError, IOError):
+                continue
             urls = etree.XPath('//*[@href or @src or @xlink:href]',
                                namespaces=XLXHTNS)(xhtree)
             exclude_urls = ('http://', 'https://', 'mailto:',
