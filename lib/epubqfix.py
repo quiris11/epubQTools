@@ -383,10 +383,13 @@ def xml2html_fix_references(tree, file_dir, ncx):
 
 
 def fix_ncx(opftree, rootepubdir):
-    toc_ncx_file = etree.XPath(
-        '//opf:item[@media-type="application/x-dtbncx+xml"]',
-        namespaces=OPFNS
-    )(opftree)[0].get('href')
+    try:
+        toc_ncx_file = etree.XPath(
+            '//opf:item[@media-type="application/x-dtbncx+xml"]',
+            namespaces=OPFNS
+        )(opftree)[0].get('href')
+    except IndexError:
+        return None
     ncxtree = etree.parse(
         os.path.join(rootepubdir, toc_ncx_file),
         parser=etree.XMLParser(recover=True)
@@ -721,10 +724,13 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                     os.path.dirname(sys.executable), 'resources',
                     'ncx2end-0.2.xsl'
                 )))
-            toc_ncx_file = etree.XPath(
-                '//opf:item[@media-type="application/x-dtbncx+xml"]',
-                namespaces=OPFNS
-            )(soup)[0].get('href')
+            try:
+                toc_ncx_file = etree.XPath(
+                    '//opf:item[@media-type="application/x-dtbncx+xml"]',
+                    namespaces=OPFNS
+                )(soup)[0].get('href')
+            except IndexError:
+                return soup
             ncxtree = etree.parse(os.path.join(tempdir, toc_ncx_file), parser)
             result = transform(ncxtree)
             ncx_contents = ncxtree.xpath('//ncx:content', namespaces=NCXNS)
@@ -1156,10 +1162,13 @@ def fix_meta_cover_order(soup):
 
 
 def fix_ncx_dtd_uid(opftree, tempdir):
-    ncxfile = etree.XPath(
-        '//opf:item[@media-type="application/x-dtbncx+xml"]',
-        namespaces=OPFNS
-    )(opftree)[0].get('href')
+    try:
+        ncxfile = etree.XPath(
+            '//opf:item[@media-type="application/x-dtbncx+xml"]',
+            namespaces=OPFNS
+        )(opftree)[0].get('href')
+    except IndexError:
+        return opftree
     ncxtree = etree.parse(os.path.join(tempdir, ncxfile))
 
     # remove empty dc:identifiers
@@ -1451,10 +1460,13 @@ def remove_text_from_html_cover(opftree, rootepubdir):
 
 
 def convert_dl_to_ul(opftree, rootepubdir):
-    html_toc_path = os.path.join(rootepubdir, opftree.xpath(
-        '//opf:reference[@type="toc"]',
-        namespaces=OPFNS
-    )[0].get('href').split('#')[0])
+    try:
+        html_toc_path = os.path.join(rootepubdir, opftree.xpath(
+            '//opf:reference[@type="toc"]',
+            namespaces=OPFNS
+        )[0].get('href').split('#')[0])
+    except IndexError:
+        return None
     with open(html_toc_path, 'r') as f:
         raw = f.read()
     if '<dl>' in raw:
@@ -1661,6 +1673,13 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if len(titles) == 0:
         print('! CRITICAL! dc:title (book title) element is NOT '
               'defined in OPF file. Unable to proceed...')
+        return True
+    try:
+        etree.XPath('//opf:item[@media-type="application/x-dtbncx+xml"]',
+                    namespaces=OPFNS)(opftree)[0].get('href')
+    except IndexError:
+        print('! CRITICAL! NCX file element is NOT defined in OPF file. '
+              'Unable to proceed...')
         return True
     opftree = unquote_urls(opftree)
 
