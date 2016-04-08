@@ -189,9 +189,9 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
     for svgimg in allsvgimgs:
         if (
                 len(allsvgimgs) == 1 and
-                svgimg.get('{http://www.w3.org/1999/xlink}href').find(
-                    meta_cover_path
-                ) == -1
+                svgimg.get(
+                    '{http://www.w3.org/1999/xlink}href'
+                ).split('/')[-1].find(meta_cover_path.split('/')[-1]) == -1
         ):
             print(_file_dec + 'Meta cover and HTML cover mismatched.')
 
