@@ -1621,6 +1621,15 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     xhtree = modify_problematic_styles(xhtree)
     _wmarks = xhtree.xpath('//xhtml:span[starts-with(text(), "===")]',
                            namespaces=XHTMLNS)
+    wm2s = xhtree.xpath(
+        '//xhtml:div[@style="padding:0;border:0;text-indent:0;'
+        'line-height:normal;margin:0 1cm 0.5cm 1cm;font-size:0pt;'
+        'color:#FFFFFF;text-decoration:none;text-align:left;'
+        'background:none;display:none;"]',
+        namespaces=XHTMLNS
+    )
+    for wm in wm2s:
+        remove_node(wm)
     for wm in _wmarks:
         parent = wm.getparent()
         remove_node(wm)
