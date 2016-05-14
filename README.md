@@ -1,7 +1,7 @@
 epubQTools
 ==========
 
-Tools for checking, correcting and hyphenating epub files.
+Tools for checking, correcting and hyphenating EPUB files.
 
 #### External apps used by this tool available for download:
 * **kindlegen** (only unpacked binary is needed): http://www.amazon.com/kindleformat/kindlegen
@@ -11,10 +11,12 @@ Tools for checking, correcting and hyphenating epub files.
 ```
 usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]]
                   [--author [Surname, First Name]] [--title [Title]]
-                  [-o [DIR]] [-a] [-n] [-q] [-p] [-m] [-e] [--skip-hyphenate]
-                  [--skip-reset-css] [--skip-justify] [--left]
-                  [--replace-fonts] [--myk-fix] [--remove-colors]
-                  [--remove-fonts] [-k] [-d] [-f]
+                  [--font-dir [DIR]] [--replace-font-family [old,new]] [-a]
+                  [-n] [-q] [-p] [--list-fonts] [-m] [-e] [--skip-hyphenate]
+                  [--skip-hyphenate-headers] [--skip-reset-css]
+                  [--skip-justify] [--left] [--replace-font-files] [--myk-fix]
+                  [--remove-colors] [--remove-fonts] [-k] [-d] [-f]
+                  [--fix-missing-container] [--book-margin [NUMBER]]
                   directory
 
 positional arguments:
@@ -32,24 +34,30 @@ optional arguments:
   --author [Surname, First Name]
                         set new author name (only with -i)
   --title [Title]       set new book title (only with -i
-  -o [DIR], --font-dir [DIR]
-                        path to directory with user fonts stored
+  --font-dir [DIR]      path to directory with user fonts stored
+  --replace-font-family [old,new]
+                        pair of "old_font_family,new_font_family"(only with -e
+                        and with --font-dir)
   -a, --alter           alternative output display
   -n, --rename          rename .epub files to 'author - title.epub'
   -q, --qcheck          validate files with qcheck internal tool
   -p, --epubcheck       validate epub files with EpubCheck 4 tool
+  --list-fonts          list all fonts in EPUB (only with -q)
   -m, --mod             validate only _moh.epub files (works only with -q or
                         -p)
   -e, --epub            fix and hyphenate original epub files to _moh.epub
                         files
   --skip-hyphenate      do not hyphenate book (only with -e)
+  --skip-hyphenate-headers
+                        do not hyphenate headers like h1, h2, h3...(only with
+                        -e)
   --skip-reset-css      skip linking a reset CSS file to every xthml file
                         (only with -e)
   --skip-justify        skip replacing "text-align: left" with "text-align:
                         justify" in all CSS files (only with -e)
   --left                replace "text-align: justify" with "text-align: left"
                         in all CSS files (experimental) (only with -e)
-  --replace-fonts       replace fonts (experimental) (only with -e)
+  --replace-font-files  replace font files (only with -e)
   --myk-fix             fix for MYK conversion oddity (experimental) (only
                         with -e)
   --remove-colors       remove all color definitions from CSS files (only with
@@ -60,6 +68,12 @@ optional arguments:
                         conversion) (only with -k)
   -f, --force           overwrite previously generated _moh.epub or .mobi
                         files (only with -k or -e)
+  --fix-missing-container
+                        Fix missing META-INF/container.xml file in original
+                        EPUB file (only with -e)
+  --book-margin [NUMBER]
+                        Add left and right book margin to reset CSS file (only
+                        with -e)
 ```
 
 #### Additional requirements:
