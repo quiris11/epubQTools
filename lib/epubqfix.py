@@ -1714,8 +1714,6 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
 
     opftree = fix_mismatched_covers(opftree, opf_dir_abs)
 
-    remove_text_from_html_cover(opftree, opf_dir_abs)
-
     # parse encryption.xml file
     enc_file = os.path.join(_tempdir, 'META-INF', 'encryption.xml')
     if os.path.exists(enc_file):
@@ -1751,6 +1749,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
     opftree = fix_nav_in_cover_file(opftree, opf_dir_abs)
+    remove_text_from_html_cover(opftree, opf_dir_abs)
     if del_fonts:
         opftree = remove_fonts(opftree, opf_dir_abs)
     if arg_justify:
