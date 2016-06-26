@@ -28,7 +28,7 @@ from lib.beautify_book import beautify_book
 try:
     from lxml import etree
 except ImportError as e:
-    sys.exit('! CRITICAL! ' + str(e).decode(SFENC))
+    sys.exit('! CRITICAL! ' + str(e).decode(sys.getfilesystemencoding()))
 
 # set up recover parser for malformed XML
 recover_parser = etree.XMLParser(encoding='utf-8', recover=True)
@@ -1678,6 +1678,26 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         os.remove(os.path.join(_tempdir, 'msg.txt'))
     except OSError:
         pass
+
+    # append com.apple.ibooks.display-options.xml file
+    ibooks_file = os.path.join(_tempdir, 'META-INF',
+                               'com.apple.ibooks.display-options.xml')
+    if not os.path.exists(ibooks_file) and not del_fonts:
+        print('* Adding com.apple.ibooks.display-options.xml '
+              'file...')
+        with open(ibooks_file, 'wb') as f:
+            data = get_data('lib',
+                            'resources/com.apple.ibooks.display-options.xml')
+            f.write(data)
+    elif os.path.exists(ibooks_file) and del_fonts:
+        print('* Removing needless com.apple.ibooks.display-options.xml '
+              'file...')
+        try:
+            os.remove(os.path.join(_tempdir, 'META-INF',
+                                   'com.apple.ibooks.display-options.xml'))
+        except OSError:
+            pass
+
     parser = etree.XMLParser(remove_blank_text=True)
     try:
         opftree = etree.parse(opf_file_path_abs, parser)
