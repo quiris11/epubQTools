@@ -830,7 +830,10 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
             #     )
         else:
             try:
-                sftree = etree.fromstring(epubfile.read(singlefile))
+                c = epubfile.read(singlefile)
+                for key in entities.iterkeys():
+                    c = c.replace(key, entities[key])
+                sftree = etree.fromstring(c)
             except:
                 sftree = None
             if sftree is not None:
