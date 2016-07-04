@@ -21,6 +21,12 @@ from lib.htmlconstants import entities
 
 SFENC = sys.getfilesystemencoding()
 try:
+    from tidylib import tidy_document
+    is_tidy = True
+except ImportError as e:
+    is_tidy = False
+
+try:
     from lxml import etree
     import cssutils
     from cssutils.profiles import Profiles, properties, macros
@@ -428,6 +434,14 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             )).replace('\\', '/'))
             for key in entities.iterkeys():
                 html_str = html_str.replace(key, entities[key])
+            if is_tidy:
+                document, errors = tidy_document(html_str)
+                if errors != '':
+                    print(_file_dec + 'HTML Tidy problems '
+                          'for: ' + _htmlfilepath)
+                    for i in errors.split('\n'):
+                        if i != '':
+                            print('  ' + i)
             _xhtmlsoup = etree.fromstring(html_str, parser)
         except (KeyError, zipfile.BadZipfile) as e:
             print(_file_dec + 'Problem with a file: ' + str(e).decode(SFENC))
