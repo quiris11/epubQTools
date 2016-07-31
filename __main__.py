@@ -22,6 +22,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+import unicodedata
 
 from datetime import datetime
 from lib.epubqcheck import qcheck
@@ -126,6 +127,8 @@ parser.add_argument("--remove-fonts",
                     action="store_true")
 parser.add_argument("-k", "--kindlegen", help="convert _moh.epub files to"
                     " .mobi with kindlegen", action="store_true")
+parser.add_argument("-z", "--azk", help="convert _moh.mobi files to"
+                    " .azk with azkcreator", action="store_true")
 parser.add_argument("-d", "--huffdic", help="tell kindlegen to use huffdic "
                     "compression (slow conversion) (only with -k)",
                     action="store_true")
@@ -161,7 +164,7 @@ def main():
         print('* WARNING! -a was ignored because it works only with -q.')
     if args.huffdic and not args.kindlegen:
         print('* WARNING! -d was ignored because it works only with -k.')
-    if args.force and not (args.epub or args.kindlegen):
+    if args.force and not (args.epub or args.kindlegen or args.azk):
         print('* WARNING! -f was ignored because it works only with -e or -k.')
     if args.mod and not (args.qcheck or args.epubcheck):
         print('* WARNING! -m was ignored because it works only with -q or -p.')
@@ -460,6 +463,84 @@ def main():
         if counter == 0:
             print('')
             print('* NO *_moh.epub files for converting found!')
+
+    if args.azk:
+        print('')
+        print('******************************************')
+        print('*** Converting with AZKcreator tool... ***')
+        print('******************************************')
+
+        def to_azk(root, f):
+            mobisourcefile = os.path.splitext(f)[0] + '.mobi'
+            newazkfile = os.path.splitext(f)[0] + '.azk'
+            azktempdir = tempfile.mkdtemp(suffix='', prefix='quiris-azk-')
+            if not args.force:
+                if os.path.isfile(os.path.join(root, newazkfile)):
+                    print('* Skipping previously generated _moh file: ' +
+                          newazkfile)
+                    return 0
+            print('')
+            print('* AZKcreator: Converting file: ' + os.path.splitext(
+                f
+            )[0] + '.mobi')
+            if sys.platform == 'win32':
+                sys.exit()
+            else:
+                azkapp = '/Applications/Kindle Previewer 3.app/Contents/'\
+                    'MacOS/lib/azkcreator'
+            if not os.path.isfile(os.path.join(
+                root, mobisourcefile
+            ).encode(SFENC)):
+                sys.exit('* MOBI file does not exist. Giving up...')
+            proc = subprocess.Popen([
+                os.path.join(args.tools, azkapp).encode(SFENC),
+                '--no-validation', '--source',
+                os.path.join(root, mobisourcefile).encode(SFENC),
+                '--target', azktempdir
+            ], stdout=subprocess.PIPE).communicate()[0]
+            for ln in proc.splitlines():
+                if ln != '':
+                    print(' ', ln)
+            source_dir = os.path.join(
+                azktempdir, os.listdir(azktempdir)[0], 'x', 'y', 'book'
+            )
+            relroot = source_dir
+            with zipfile.ZipFile(os.path.join(
+                root, newazkfile
+            ), "w", zipfile.ZIP_DEFLATED) as z:
+                for root, dirs, files in os.walk(source_dir):
+                    for f in files:
+                        filename = os.path.join(root, f)
+                        if os.path.isfile(filename):
+                            arcname = os.path.join(
+                                os.path.relpath(root, relroot),
+                                f)
+                            if sys.platform == 'darwin':
+                                arcname = unicodedata.normalize(
+                                    'NFC', unicode(arcname, 'utf-8')
+                                ).encode('utf-8')
+                            z.write(filename, arcname.decode(SFENC))
+            # clean up temp files
+            for p in os.listdir(os.path.join(azktempdir, os.pardir)):
+                if 'quiris-azk-' in p:
+                    if os.path.isdir(os.path.join(azktempdir, os.pardir, p)):
+                        shutil.rmtree(os.path.join(azktempdir, os.pardir, p))
+
+        counter = 0
+        cover_html_found = error_found = False
+        if ind_file:
+            counter += 1
+            to_azk(ind_root, os.path.splitext(ind_file)[0] + '_moh.epub')
+        else:
+            for root, dirs, files in os.walk(uni_dir):
+                for f in files:
+                    if f.lower().endswith('_moh.epub'):
+                        counter += 1
+                        to_azk(root, f)
+        if counter == 0:
+            print('')
+            print('* NO *_moh.epub files for converting found!')
+
     if len(sys.argv) == 2:
         parser.print_help()
         print("* * *")
