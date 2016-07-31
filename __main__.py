@@ -22,7 +22,6 @@ import subprocess
 import sys
 import tempfile
 import zipfile
-import unicodedata
 
 from datetime import datetime
 from lib.epubqcheck import qcheck
@@ -504,27 +503,10 @@ def main():
             source_dir = os.path.join(
                 azktempdir, os.listdir(azktempdir)[0], 'x', 'y', 'book'
             )
-            relroot = source_dir
-            with zipfile.ZipFile(os.path.join(
-                root, newazkfile
-            ), "w", zipfile.ZIP_DEFLATED) as z:
-                for root, dirs, files in os.walk(source_dir):
-                    for f in files:
-                        filename = os.path.join(root, f)
-                        if os.path.isfile(filename):
-                            arcname = os.path.join(
-                                os.path.relpath(root, relroot),
-                                f)
-                            if sys.platform == 'darwin':
-                                arcname = unicodedata.normalize(
-                                    'NFC', unicode(arcname, 'utf-8')
-                                ).encode('utf-8')
-                            z.write(filename, arcname.decode(SFENC))
-            # clean up temp files
-            for p in os.listdir(os.path.join(azktempdir, os.pardir)):
-                if 'quiris-azk-' in p:
-                    if os.path.isdir(os.path.join(azktempdir, os.pardir, p)):
-                        shutil.rmtree(os.path.join(azktempdir, os.pardir, p))
+            shutil.make_archive(os.path.join(root, newazkfile),
+                                'zip', source_dir)
+            os.rename(os.path.join(root, newazkfile + '.zip'),
+                      os.path.join(root, newazkfile))
 
         counter = 0
         cover_html_found = error_found = False
