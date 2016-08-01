@@ -469,6 +469,16 @@ def main():
         print('*** Converting with AZKcreator tool... ***')
         print('******************************************')
 
+        def write_meta(metaf):
+            with open(metaf, 'r+') as f:
+                fs = f.read()
+                fs = fs.replace('"title":""', '"title":"test"')
+                fs = fs.replace('"authorList":null',
+                                '"authorList":["test, test"]')
+                f.seek(0)
+                f.truncate()
+                f.write(fs)
+
         def to_azk(root, f):
             mobisourcefile = os.path.splitext(f)[0] + '.mobi'
             newazkfile = os.path.splitext(f)[0] + '.azk'
@@ -500,6 +510,10 @@ def main():
             for ln in proc.splitlines():
                 if ln != '':
                     print(' ', ln)
+            write_meta(os.path.join(
+                azktempdir, os.listdir(azktempdir)[0], 'x', 'y', 'book',
+                'metadata.jsonp'
+            ))
             source_dir = os.path.join(
                 azktempdir, os.listdir(azktempdir)[0], 'x', 'y', 'book'
             )
@@ -507,9 +521,13 @@ def main():
                                 'zip', source_dir)
             os.rename(os.path.join(root, newazkfile + '.zip'),
                       os.path.join(root, newazkfile))
-
+            # clean up temp files
+            print(azktempdir)
+            # for p in os.listdir(os.path.join(azktempdir, os.pardir)):
+            #     if 'quiris-azk-' in p:
+            #         if os.path.isdir(os.path.join(azktempdir, os.pardir, p)):
+            #             shutil.rmtree(os.path.join(azktempdir, os.pardir, p))
         counter = 0
-        cover_html_found = error_found = False
         if ind_file:
             counter += 1
             to_azk(ind_root, os.path.splitext(ind_file)[0] + '_moh.epub')
