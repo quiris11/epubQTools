@@ -29,6 +29,8 @@ from lib.epubqcheck import find_opf
 from lib.epubqfix import qfix
 from lib.epubqfix import rename_files
 from lib.fix_name_author import fix_name_author
+from lib.azkfix import to_azk
+
 SFENC = sys.getfilesystemencoding()
 
 if sys.platform == "win32":
@@ -465,81 +467,24 @@ def main():
 
     if args.azk:
         print('')
-        print('******************************************')
-        print('*** Converting with AZKcreator tool... ***')
-        print('******************************************')
+        print('***********************************************')
+        print('*** Converting MOBI with AZKcreator tool... ***')
+        print('***********************************************')
 
-        def write_meta(metaf):
-            with open(metaf, 'r+') as f:
-                fs = f.read()
-                fs = fs.replace('"title":""', '"title":"test"')
-                fs = fs.replace('"authorList":null',
-                                '"authorList":["test, test"]')
-                f.seek(0)
-                f.truncate()
-                f.write(fs)
-
-        def to_azk(root, f):
-            mobisourcefile = os.path.splitext(f)[0] + '.mobi'
-            newazkfile = os.path.splitext(f)[0] + '.azk'
-            azktempdir = tempfile.mkdtemp(suffix='', prefix='quiris-azk-')
-            if not args.force:
-                if os.path.isfile(os.path.join(root, newazkfile)):
-                    print('* Skipping previously generated _moh file: ' +
-                          newazkfile)
-                    return 0
-            print('')
-            print('* AZKcreator: Converting file: ' + os.path.splitext(
-                f
-            )[0] + '.mobi')
-            if sys.platform == 'win32':
-                sys.exit()
-            else:
-                azkapp = '/Applications/Kindle Previewer 3.app/Contents/'\
-                    'MacOS/lib/azkcreator'
-            if not os.path.isfile(os.path.join(
-                root, mobisourcefile
-            ).encode(SFENC)):
-                sys.exit('* MOBI file does not exist. Giving up...')
-            proc = subprocess.Popen([
-                os.path.join(args.tools, azkapp).encode(SFENC),
-                '--no-validation', '--source',
-                os.path.join(root, mobisourcefile).encode(SFENC),
-                '--target', azktempdir
-            ], stdout=subprocess.PIPE).communicate()[0]
-            for ln in proc.splitlines():
-                if ln != '':
-                    print(' ', ln)
-            write_meta(os.path.join(
-                azktempdir, os.listdir(azktempdir)[0], 'x', 'y', 'book',
-                'metadata.jsonp'
-            ))
-            source_dir = os.path.join(
-                azktempdir, os.listdir(azktempdir)[0], 'x', 'y', 'book'
-            )
-            shutil.make_archive(os.path.join(root, newazkfile),
-                                'zip', source_dir)
-            os.rename(os.path.join(root, newazkfile + '.zip'),
-                      os.path.join(root, newazkfile))
-            # clean up temp files
-            print(azktempdir)
-            # for p in os.listdir(os.path.join(azktempdir, os.pardir)):
-            #     if 'quiris-azk-' in p:
-            #         if os.path.isdir(os.path.join(azktempdir, os.pardir, p)):
-            #             shutil.rmtree(os.path.join(azktempdir, os.pardir, p))
         counter = 0
         if ind_file:
             counter += 1
-            to_azk(ind_root, os.path.splitext(ind_file)[0] + '_moh.epub')
+            to_azk(ind_root, os.path.splitext(ind_file)[0] + '_moh.mobi',
+                   args.force)
         else:
             for root, dirs, files in os.walk(uni_dir):
                 for f in files:
-                    if f.lower().endswith('_moh.epub'):
+                    if f.lower().endswith('_moh.mobi'):
                         counter += 1
-                        to_azk(root, f)
+                        to_azk(root, f, args.force)
         if counter == 0:
             print('')
-            print('* NO *_moh.epub files for converting found!')
+            print('* NO *_moh.mobi files for converting found!')
 
     if len(sys.argv) == 2:
         parser.print_help()
