@@ -582,9 +582,12 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
         parent = t.getparent()
         if dont_hyph_headers:
             # if parent in ignore_list do not hyphenate
-            if (parent.tag.replace('{http://www.w3.org/1999/xhtml}',
-                                   '') in ignore_list):
-                fix_hanging_single_conjunctions_and_place_back(t, t)
+            try:
+                if (parent.tag.replace('{http://www.w3.org/1999/xhtml}',
+                                       '') in ignore_list):
+                    fix_hanging_single_conjunctions_and_place_back(t, t)
+                    continue
+            except AttributeError:
                 continue
 
             # define entire list of ancestors of parent tag without namespace
