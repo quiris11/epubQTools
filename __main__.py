@@ -91,10 +91,10 @@ parser.add_argument("-m", "--mod", help="validate only _moh.epub files "
                     action="store_true")
 parser.add_argument("-e", "--epub", help="fix and hyphenate original epub "
                     "files to _moh.epub files", action="store_true")
-parser.add_argument("--skip-hyphenate",
+parser.add_argument("-s", "--skip-hyphenate",
                     help="do not hyphenate book (only with -e)",
                     action="store_true")
-parser.add_argument("--skip-hyphenate-headers",
+parser.add_argument("-r", "--skip-hyphenate-headers",
                     help="do not hyphenate headers like h1, h2, h3..."
                     "(only with -e)",
                     action="store_true")
@@ -114,7 +114,7 @@ parser.add_argument("--left", help='replace "text-align: justify" '
 parser.add_argument("--replace-font-files",
                     help="replace font files (only with -e)",
                     action="store_true")
-parser.add_argument("--myk-fix",
+parser.add_argument("-x", "--myk-fix",
                     help="fix for MYK conversion oddity (experimental) "
                     "(only with -e)",
                     action="store_true")
