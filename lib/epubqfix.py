@@ -1270,7 +1270,7 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
 
 
 def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
-                          html_margin):
+                          html_margin, skip_hyph):
 
     def splitkeepsep(s, sep):
         return reduce(lambda acc, elem: acc[:-1] + [acc[-1] + elem]
@@ -1383,6 +1383,18 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
                 bs = 'body {font-family: %s }\r\n' % ff
     else:
         bs = ''
+    if skip_hyph:
+        hyphen_properties = '* { adobe-hyphenate: auto !important;\r\n' +\
+        'hyphens: auto !important;\r\n' +\
+        '-epub-hyphens: auto !important;\r\n' +\
+        '-webkit-hyphens: auto !important;\r\n' +\
+        '-moz-hyphens: auto !important; }'
+    else:
+        hyphen_properties = '* { adobe-hyphenate: explicit !important;\r\n' +\
+        'hyphens: manual !important;\r\n' +\
+        '-epub-hyphens: manual !important;\r\n' +\
+        '-webkit-hyphens: manual !important;\r\n' +\
+        '-moz-hyphens: manual !important; }'
     if html_margin is not None:
         bs = bs + 'html {margin-left: ' + html_margin + \
             'px !important; margin-right: ' + html_margin + \
@@ -1391,11 +1403,8 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
         f.write(bs +
                 '@page { margin: 5pt; } \r\n'
                 'body, body.calibre  { margin: 5pt; padding: 0; }\r\n'
-                'p { margin-left: 0; margin-right: 0; }\r\n'
-                '* { adobe-hyphenate: explicit !important;\r\n'
-                'hyphens: manual !important;\r\n'
-                '-webkit-hyphens: manual !important;\r\n'
-                '-moz-hyphens: manual !important; }\r\n')
+                'p { margin-left: 0; margin-right: 0; }\r\n' +
+                hyphen_properties)
     newcssmanifest = etree.Element(
         '{http://www.idpf.org/2007/opf}item',
         attrib={'media-type': 'text/css',
@@ -1748,7 +1757,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if _resetmargins:
         print('* Setting custom CSS styles...')
         opftree, is_reset_css = append_reset_css_file(
-            opftree, opf_dir_abs, irmf, del_fonts, html_margin
+            opftree, opf_dir_abs, irmf, del_fonts, html_margin, skip_hyph
         )
     else:
         is_reset_css = False
