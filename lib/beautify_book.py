@@ -464,10 +464,13 @@ def rename_calibre_cover(opftree, ncxtree, epub_dir):
                 most_xthml_dir = most_common(xhtml_dirs)
                 if most_xthml_dir != '':
                     pass
-                rename_replace_files(
-                    opftree, ncxtree, epub_dir, r.get('href'),
-                    os.path.join(most_xthml_dir, 'cover.html'), False
-                )
+                try:
+                    rename_replace_files(
+                        opftree, ncxtree, epub_dir, r.get('href'),
+                        os.path.join(most_xthml_dir, 'cover.html'), False
+                    )
+                except WindowsError:
+                    pass
 
 
 def rename_cover_img(opftree, ncxtree, epub_dir):
