@@ -542,12 +542,12 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         dc_identifier = ''
         print(_file_dec + 'no unique-identifier found')
     try:
-        metadtd = etree.XPath('//ncx:meta[@name="dtb:uid"]',
+        metadtb = etree.XPath('//ncx:meta[@name="dtb:uid"]',
                               namespaces=NCXNS)(ncxtree)[0]
-        if metadtd.get('content') != dc_identifier:
-            print(_file_dec + 'dtd:uid and dc:identifier mismatched')
+        if metadtb.get('content') != dc_identifier:
+            print(_file_dec + 'dtb:uid and dc:identifier mismatched')
     except IndexError:
-        print(_file_dec + 'dtd:uid not properly defined')
+        print(_file_dec + 'dtb:uid not properly defined')
 
     # Check for duplicated content attribute of navPoints in NCX file
     srcs = etree.XPath('//ncx:content/@src',
