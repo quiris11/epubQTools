@@ -5,14 +5,14 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-from __future__ import print_function
+
 
 __license__ = 'GNU Affero GPL v3'
 __copyright__ = '2014, Robert Błaut listy@blaut.biz'
-__appname__ = u'epubQTools'
+__appname__ = 'epubQTools'
 numeric_version = (0, 8)
-__version__ = u'.'.join(map(unicode, numeric_version))
-__author__ = u'Robert Błaut <listy@blaut.biz>'
+__version__ = '.'.join(map(str, numeric_version))
+__author__ = 'Robert Błaut <listy@blaut.biz>'
 
 import argparse
 import codecs
@@ -248,7 +248,7 @@ def main():
                         counter += 1
                         try:
                             epbzf = zipfile.ZipFile(os.path.join(root, f))
-                        except zipfile.BadZipfile, e:
+                        except zipfile.BadZipfile as e:
                             print('! CRITICAL! Problem with file "%s": %s' % (
                                 f, str(e).decode(SFENC)))
                         opf_root, opf_path = find_opf(epbzf)

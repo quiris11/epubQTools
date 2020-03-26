@@ -5,7 +5,7 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-from __future__ import print_function
+
 import zipfile
 import re
 import os
@@ -14,9 +14,9 @@ import tempfile
 import shutil
 import logging
 import lib.fntutls
-import StringIO
+import io
 import struct
-from urllib import unquote
+from urllib.parse import unquote
 from lib.htmlconstants import entities
 
 SFENC = sys.getfilesystemencoding()
@@ -77,7 +77,7 @@ def check_font(path):
 def unquote_urls(tree):
     def get_href(item):
         raw = unquote(item.get('href', ''))
-        if not isinstance(raw, unicode):
+        if not isinstance(raw, str):
             raw = raw.decode('utf-8')
         return raw
     for item in tree.xpath('//opf:item', namespaces=OPFNS):
@@ -91,7 +91,7 @@ def check_wm_info(singf, tree, epub, _file_dec):
     alltexts = etree.XPath('//xhtml:body//text()',
                            namespaces=XHTMLNS)(tree)
     alltext = ' '.join(alltexts)
-    alltext = alltext.replace(u'\u00AD', '').strip()
+    alltext = alltext.replace('\u00AD', '').strip()
     if (alltext == 'Plik jest zabezpieczony znakiem wodnym' or
             'Ten ebook jest chroniony znakiem wodnym' in alltext):
         print('%sWM info file found "%s"' % (_file_dec, singf))
@@ -155,7 +155,7 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
             )).replace('\\', '/')),
             parser
         )
-    except KeyError, e:
+    except KeyError as e:
         print(_file_dec + 'Problem with parsing HTML cover: ' + str(
             e).decode(SFENC))
         html_cover_tree = None
@@ -166,7 +166,7 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
             namespaces=XHTMLNS
         )(html_cover_tree)
         cover_texts = ' '.join(cover_texts)
-        if u'\xa0' in cover_texts:
+        if '\xa0' in cover_texts:
             print(_file_dec + 'HTML cover should not contain any text...')
         else:
             cover_texts = cover_texts.strip()
@@ -245,7 +245,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         for n in epub.namelist():
             if 'META-INF/encryption.xml' in n:
                 enc_found = True
-            if not isinstance(n, unicode):
+            if not isinstance(n, str):
                 n = n.decode('utf-8')
             if not is_exluded(n):
                 nlist.append(os.path.relpath(n))
@@ -253,7 +253,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         hlist = []
         for i in opftree.xpath('//*[@href]'):
             h = i.get('href')
-            if not isinstance(h, unicode):
+            if not isinstance(h, str):
                 h = h.decode('utf-8')
             hlist.append(os.path.relpath(os.path.join(root, h)))
 
@@ -316,11 +316,11 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         _folder = opf_root + '/'
     try:
         opftree = etree.fromstring(_epubfile.read(opf_path))
-    except etree.XMLSyntaxError, e:
+    except etree.XMLSyntaxError as e:
         print('%sCRITICAL! XML file "%s" is not well '
               'formed: "%s"' % (_file_dec, os.path.basename(opf_path),
                                 str(e).decode(SFENC)))
-        opfstring = StringIO.StringIO(_epubfile.read(opf_path))
+        opfstring = io.StringIO(_epubfile.read(opf_path))
         try:
             opftree = etree.parse(opfstring, recover_parser)
         except etree.XMLSyntaxError:
@@ -432,7 +432,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             html_str = _epubfile.read(os.path.relpath(os.path.join(
                 _folder, _htmlfilepath
             )).replace('\\', '/'))
-            for key in entities.iterkeys():
+            for key in entities.keys():
                 html_str = html_str.replace(key, entities[key])
             if is_tidy:
                 document, errors = tidy_document(html_str)
@@ -446,7 +446,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         except (KeyError, zipfile.BadZipfile) as e:
             print(_file_dec + 'Problem with a file: ' + str(e).decode(SFENC))
             continue
-        except etree.XMLSyntaxError, e:
+        except etree.XMLSyntaxError as e:
             print(_file_dec + 'XML file: ' + _htmlfilepath +
                   ' not well formed: "' + str(e).decode(SFENC) + '"')
             continue
@@ -481,15 +481,15 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
                                 namespaces=XHTMLNS)(_xhtmlsoup)
         _alltext = ' '.join(_alltexts)
 
-        if _reftoccount == 0 and _alltext.find(u'Spis treści') != -1:
+        if _reftoccount == 0 and _alltext.find('Spis treści') != -1:
                 print(_file_dec + 'Html TOC candidate found: ' +
                       _htmlfilepath)
         check_hyphs = False
         if check_hyphs:
-            if not _ufound and _alltext.find(u'\u00AD') != -1:
+            if not _ufound and _alltext.find('\u00AD') != -1:
                 print(_file_dec + 'U+00AD hyphenate marks found.')
                 _ufound = True
-            if not _unbfound and _alltext.find(u'\u00A0') != -1:
+            if not _unbfound and _alltext.find('\u00A0') != -1:
                 print(_file_dec + 'U+00A0 non-breaking space found.')
                 _unbfound = True
         p_is = etree.XPath('//processing-instruction("fragment")')(_xhtmlsoup)
@@ -516,10 +516,10 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         ncxstr = '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" />'
     try:
         ncxtree = etree.fromstring(ncxstr)
-    except etree.XMLSyntaxError, e:
+    except etree.XMLSyntaxError as e:
         print('%sCRITICAL! XML file "%s" is not well '
               'formed: "%s"' % (_file_dec, ncxfile, str(e).decode(SFENC)))
-        ncxtree = etree.parse(StringIO.StringIO(ncxstr), recover_parser)
+        ncxtree = etree.parse(io.StringIO(ncxstr), recover_parser)
     contents = etree.XPath('//ncx:content[@src]', namespaces=NCXNS)(ncxtree)
     cont_src_list = []
     for c in contents:
@@ -658,7 +658,7 @@ def check_urls(singf, tree, prepnl, _file_dec):
 
 
 def check_url(url, singf, nlist, _file_dec):
-    if not isinstance(url, unicode):
+    if not isinstance(url, str):
         url = url.decode('utf-8')
     try:
         relp = os.path.relpath(
@@ -737,7 +737,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
         print('START qcheck for: ' + _file)
     try:
         epubfile = zipfile.ZipFile(os.path.join(root, _file))
-    except zipfile.BadZipfile, e:
+    except zipfile.BadZipfile as e:
         print('%sCRITICAL! "%s" is invalid: "%s"' % (
               _file_dec, _file, str(e).decode(SFENC)))
         return None
@@ -750,7 +750,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
                                     alter)
     prepnl = []
     for n in epubfile.namelist():
-        if not isinstance(n, unicode):
+        if not isinstance(n, str):
             n = n.decode('utf-8')
         prepnl.append(os.path.relpath(n).replace('\\', '/'))
     is_body_family = is_font_face = False
@@ -845,7 +845,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
         else:
             try:
                 c = epubfile.read(singlefile)
-                for key in entities.iterkeys():
+                for key in entities.keys():
                     c = c.replace(key, entities[key])
                 sftree = etree.fromstring(c)
             except:

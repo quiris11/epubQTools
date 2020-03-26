@@ -5,14 +5,14 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-from __future__ import print_function
+
 import os
 import sys
 import re
 import shutil
 import logging
 from lib.epubqcheck import list_font_basic_properties
-from urllib import unquote
+from urllib.parse import unquote
 
 SFENC = sys.getfilesystemencoding()
 try:
@@ -36,7 +36,7 @@ cssutils.ser.prefs.omitLastSemicolon = False
 def clean_meta_tags(opftree):
 
     def clean_meta_tag(meta):
-        from HTMLParser import HTMLParser
+        from html.parser import HTMLParser
         h = HTMLParser()
         if meta.text is None:
             return None
@@ -64,7 +64,7 @@ def change_font_family_value(cssvalue, new_name):
 def fix_property(prop, old_name, new_name, is_url):
     changed = False
     ff = prop.propertyValue
-    for i in xrange(ff.length):
+    for i in range(ff.length):
         val = ff.item(i)
         if (hasattr(val.value, 'lower') and
                 val.value.lower() == old_name.lower()):

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # vim:fileencoding=UTF-8:ts=4:sw=4:sta:et:sts=4:fdm=marker:ai
 from __future__ import (unicode_literals, division, absolute_import,
                         print_function)
@@ -16,7 +16,7 @@ class UnsupportedFont(ValueError):
 
 def get_printable_characters(text):
     import unicodedata
-    return u''.join(x for x in unicodedata.normalize('NFC', text)
+    return ''.join(x for x in unicodedata.normalize('NFC', text)
             if unicodedata.category(x)[0] not in {'C', 'Z', 'M'})
 
 def is_truetype_font(raw):
@@ -26,7 +26,7 @@ def is_truetype_font(raw):
 def get_tables(raw):
     num_tables = struct.unpack_from(b'>H', raw, 4)[0]
     offset = 4*3  # start of the table record entries
-    for i in xrange(num_tables):
+    for i in range(num_tables):
         table_tag, table_checksum, table_offset, table_length = struct.unpack_from(
                     b'>4s3L', raw, offset)
         yield (table_tag, raw[table_offset:table_offset+table_length], offset,
@@ -156,7 +156,7 @@ def decode_name_record(recs):
         return mac_names[0]
 
     # Use unicode names
-    for val in unicode_names.itervalues():
+    for val in unicode_names.values():
         return val
 
     return None
@@ -172,7 +172,7 @@ def _get_font_names(raw, raw_is_table=False):
 
     records = defaultdict(list)
 
-    for i in xrange(count):
+    for i in range(count):
         try:
             platform_id, encoding_id, language_id, name_id, length, offset = \
                     struct.unpack_from(b'>6H', table, 6+i*12)
@@ -215,7 +215,7 @@ def get_all_font_names(raw, raw_is_table=False):
 
     for name, num in {'family_name':1, 'subfamily_name':2, 'full_name':4,
             'preferred_family_name':16, 'preferred_subfamily_name':17,
-            'wws_family_name':21, 'wws_subfamily_name':22}.iteritems():
+            'wws_family_name':21, 'wws_subfamily_name':22}.items():
         try:
             ans[name] = decode_name_record(records[num])
         except (IndexError, KeyError, ValueError):
@@ -356,7 +356,7 @@ def get_bmp_glyph_ids(table, bmp, codes):
             yield 0
 
 def get_glyph_ids(raw, text, raw_is_table=False):
-    if not isinstance(text, unicode):
+    if not isinstance(text, str):
         raise TypeError('%r is not a unicode object'%text)
     if raw_is_table:
         table = raw
@@ -366,7 +366,7 @@ def get_glyph_ids(raw, text, raw_is_table=False):
             raise UnsupportedFont('Not a supported font, has no cmap table')
     version, num_tables = struct.unpack_from(b'>HH', table)
     bmp_table = None
-    for i in xrange(num_tables):
+    for i in range(num_tables):
         platform_id, encoding_id, offset = struct.unpack_from(b'>HHL', table,
                 4 + (i*8))
         if platform_id == 3 and encoding_id == 1:
@@ -377,11 +377,11 @@ def get_glyph_ids(raw, text, raw_is_table=False):
     if bmp_table is None:
         raise UnsupportedFont('Not a supported font, has no format 4 cmap table')
 
-    for glyph_id in get_bmp_glyph_ids(table, bmp_table, map(ord, text)):
+    for glyph_id in get_bmp_glyph_ids(table, bmp_table, list(map(ord, text))):
         yield glyph_id
 
 def supports_text(raw, text, has_only_printable_chars=False):
-    if not isinstance(text, unicode):
+    if not isinstance(text, str):
         raise TypeError('%r is not a unicode object'%text)
     if not has_only_printable_chars:
         text = get_printable_characters(text)
@@ -410,7 +410,7 @@ def test_glyph_ids():
     data = P('fonts/liberation/LiberationSerif-Regular.ttf', data=True)
     ft = FreeType()
     font = ft.load_font(data)
-    text = u'诶йab'
+    text = '诶йab'
     ft_glyphs = tuple(font.glyph_ids(text))
     glyphs = tuple(get_glyph_ids(data, text))
     if ft_glyphs != glyphs:
@@ -427,10 +427,10 @@ def test_find_font():
     from calibre.utils.fonts.scanner import font_scanner
     abcd = '诶比西迪'
     family = font_scanner.find_font_for_text(abcd)[0]
-    print ('Family for Chinese text:', family)
+    print(('Family for Chinese text:', family))
     family = font_scanner.find_font_for_text(abcd)[0]
     abcd = 'لوحة المفاتيح العربية'
-    print ('Family for Arabic text:', family)
+    print(('Family for Arabic text:', family))
 
 
 def test():
@@ -441,12 +441,12 @@ def test():
 def main():
     import sys, os
     for f in sys.argv[1:]:
-        print (os.path.basename(f))
+        print((os.path.basename(f)))
         raw = open(f, 'rb').read()
-        print (get_font_names(raw))
+        print((get_font_names(raw)))
         characs = get_font_characteristics(raw)
         print (characs)
-        print (panose_to_css_generic_family(characs[5]))
+        print((panose_to_css_generic_family(characs[5])))
         verify_checksums(raw)
         remove_embed_restriction(raw)
 

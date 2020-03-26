@@ -5,7 +5,7 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-from __future__ import print_function
+
 import hashlib
 import os
 import re
@@ -16,14 +16,15 @@ import sys
 import zipfile
 import uuid
 import unicodedata
-import StringIO
+import io
 
 from pkgutil import get_data
-from urllib import unquote
+from urllib.parse import unquote
 from itertools import cycle
 from lib.htmlconstants import entities
 from lib.hyphenator import Hyphenator
 from lib.beautify_book import beautify_book
+from functools import reduce
 
 try:
     from lxml import etree
@@ -50,7 +51,7 @@ else:
     ))
 MY_LANGUAGE = 'pl'
 MY_LANGUAGE2 = 'pl-PL'
-HYPHEN_MARK = u'\u00AD'
+HYPHEN_MARK = '\u00AD'
 
 HOME = os.path.expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
@@ -88,11 +89,11 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         return 0
     try:
         opftree = etree.fromstring(_epubfile.read(opf_path))
-    except etree.XMLSyntaxError, e:
+    except etree.XMLSyntaxError as e:
         print('! CRITICAL! XML file "%s" is not well '
               'formed: "%s"' % (os.path.basename(opf_path),
                                 str(e).decode(SFENC)))
-        opfstring = StringIO.StringIO(_epubfile.read(opf_path))
+        opfstring = io.StringIO(_epubfile.read(opf_path))
         try:
             opftree = etree.parse(opfstring, recover_parser)
         except etree.XMLSyntaxError:
@@ -127,10 +128,10 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         print('! ERROR! Renaming file "%s" failed - dc:title (book title) '
               'is empty.' % _file_dec)
         return 0
-    nfname = strip_accents(unicode(cr + ' - ' + tit))
-    nfname = nfname.replace(u'\u2013', '-').replace('/', '_')\
-                   .replace(':', '_').replace(u'\u0142', 'l')\
-                   .replace(u'\u0141', 'L')
+    nfname = strip_accents(str(cr + ' - ' + tit))
+    nfname = nfname.replace('\u2013', '-').replace('/', '_')\
+                   .replace(':', '_').replace('\u0142', 'l')\
+                   .replace('\u0141', 'L')
     nfname = "".join(x for x in nfname if (
         x.isalnum() or x.isspace() or x in ('_', '-', '.')
     ))
@@ -180,7 +181,7 @@ def check_font(path):
 def unquote_urls(tree):
     def get_href(item):
         raw = unquote(item.get('href', ''))
-        if not isinstance(raw, unicode):
+        if not isinstance(raw, str):
             raw = raw.decode('utf-8')
         return raw
     for item in tree.xpath('//opf:item', namespaces=OPFNS):
@@ -234,7 +235,7 @@ def find_encryption_key(opftree, method):
     if method == ADOBE_OBFUSCATION:
         # find first UUID URN-based unique identifier
         for dcid in opftree.xpath("//dc:identifier", namespaces=DCNS):
-            if 'urn:uuid:' in unicode(dcid.text):
+            if 'urn:uuid:' in str(dcid.text):
                 uid = dcid.text
                 break
         if uid is None:
@@ -276,7 +277,7 @@ def decrypt_font(path, key, method, fontdir):
         raw = f.read()
     crypt = bytearray(raw[:crypt_len])
     key = cycle(iter(bytearray(key)))
-    decrypt = bytes(bytearray(x ^ key.next() for x in crypt))
+    decrypt = bytes(bytearray(x ^ next(key) for x in crypt))
     print('* Starting decryption of font file "%s"...'
           % os.path.basename(path), end=' ')
     with open(path, 'wb') as f:
@@ -471,7 +472,7 @@ def pack_epub(output_filename, source_dir):
                                            f)
                     if sys.platform == 'darwin':
                         arcname = unicodedata.normalize(
-                            'NFC', unicode(arcname, 'utf-8')
+                            'NFC', str(arcname, 'utf-8')
                         ).encode('utf-8')
                     z.write(filename, arcname.decode(SFENC))
 
@@ -558,7 +559,7 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
     # set correct xml:lang attribute for html tag
 
     def fix_hanging_single_conjunctions_and_place_back(tel, txt):
-        newt = re.sub(r'(?<=\s\w)\s+', u'\u00A0', txt)
+        newt = re.sub(r'(?<=\s\w)\s+', '\u00A0', txt)
         if tel.is_text:
             parent.text = newt
         elif tel.is_tail:
@@ -597,7 +598,7 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
             ) for ancestor in parent.iterancestors()]
 
             # create list with duplicates of ancestor list and ignore list
-            tags = filter(set(ancestors).__contains__, ignore_list)
+            tags = list(filter(set(ancestors).__contains__, ignore_list))
             if len(tags) > 0:
                 fix_hanging_single_conjunctions_and_place_back(t, t)
                 continue
@@ -704,7 +705,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 continue
             alltexts = etree.XPath('//text()', namespaces=XHTMLNS)(xhtmltree)
             alltext = ' '.join(alltexts)
-            if alltext.find(u'Spis treści') != -1:
+            if alltext.find('Spis treści') != -1:
                 html_toc = xhtml_file
                 break
         if html_toc is not None:
@@ -1517,7 +1518,7 @@ def remove_wm_info(opftree, rootepubdir):
                 alltexts = wmtree.xpath('//xhtml:body//text()',
                                         namespaces=XHTMLNS)
                 alltext = ' '.join(alltexts)
-                alltext = alltext.replace(u'\u00AD', '').strip()
+                alltext = alltext.replace('\u00AD', '').strip()
                 if (
                     alltext == 'Plik jest zabezpieczony znakiem wodnym' or
                     'Ten ebook jest chroniony znakiem wodnym' in alltext or
@@ -1554,17 +1555,17 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     try:
         with open(xhfile, 'r') as content_file:
             c = content_file.read()
-    except IOError, e:
+    except IOError as e:
         print('* File skipped: %s. Problem with processing: '
               '%s' % (os.path.basename(xhfile), e))
         qfixerr = True
         return 1
     # placeholder
-    for key in entities.iterkeys():
+    for key in entities.keys():
         c = c.replace(key, entities[key])
     try:
         xhtree = etree.fromstring(c, parser=etree.XMLParser(recover=False))
-    except etree.XMLSyntaxError, e:
+    except etree.XMLSyntaxError as e:
         if ('XML declaration allowed only at the start of the '
                 'document' in str(e).decode(SFENC)):
             xhtree = etree.fromstring(c[c.find('<?xml'):],
@@ -1893,7 +1894,7 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
             return 0
     try:
         _tempdir = unpack_epub(os.path.join(root, f))
-    except zipfile.BadZipfile, e:
+    except zipfile.BadZipfile as e:
         fixed_pth = process_corrupted_zip(e, root, f, zbf)
         if str(fixed_pth) == '1':
             return 0
