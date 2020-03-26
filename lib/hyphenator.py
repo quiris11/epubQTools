@@ -87,13 +87,15 @@ class Hyph_dict(object):
 
     def __init__(self, filename):
         self.patterns = {}
-        f = open(filename)
-        charset = f.readline().strip()
-        if charset.startswith('charset '):
-            charset = charset[8:].strip()
+        with open(filename, 'rb') as f:
+            charset = f.readline().strip()
+            if charset.startswith(b'charset '):
+                charset = charset[8:].strip()
+            charset = charset.decode('utf-8')
 
+        f = open(filename, 'r', encoding=charset)
         for pat in f:
-            pat = pat.decode(charset).strip()
+            pat = pat.strip()
             if not pat or pat[0] == '%':
                 continue
             # replace ^^hh with the real character
@@ -192,8 +194,6 @@ class Hyphenator(object):
 
     def iterate(self, word):
         """Iterate over all hyphenation possibilities, the longest first."""
-        if isinstance(word, str):
-            word = word.decode('latin1')
         for p in reversed(self.positions(word)):
             if p.data:
                 # get the nonstandard hyphenation data
@@ -226,8 +226,6 @@ class Hyphenator(object):
         the string 'let-ter-gre-pen'. The hyphen string to use can be
         given as the second parameter, that defaults to '-'.
         """
-        if isinstance(word, str):
-            word = word.decode('latin1')
         l = list(word)
         for p in reversed(self.positions(word)):
             if p.data:
@@ -246,7 +244,7 @@ class Hyphenator(object):
 if __name__ == "__main__":
 
     dict_file = sys.argv[1]
-    word = sys.argv[2].decode('latin1')
+    word = sys.argv[2]
 
     h = Hyphenator(dict_file, left=1, right=1)
 

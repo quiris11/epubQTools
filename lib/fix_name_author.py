@@ -102,7 +102,7 @@ def fix_name_author(root, f, author, title):
         set_title(opftree, title)
     with open(opff_abs, 'w') as file:
         file.write(etree.tostring(opftree.getroot(), pretty_print=True,
-                   standalone=False, xml_declaration=True, encoding='utf-8'))
+                   standalone=False, xml_declaration=True, encoding='utf-8').decode('utf-8'))
     pack_epub(os.path.join(root, f), tempdir)
     clean_temp(tempdir)
     print('FINISH work for: ' + f.decode(SFENC))

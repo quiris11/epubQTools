@@ -432,8 +432,10 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             html_str = _epubfile.read(os.path.relpath(os.path.join(
                 _folder, _htmlfilepath
             )).replace('\\', '/'))
-            for key in entities.keys():
-                html_str = html_str.replace(key, entities[key])
+            for key, entity in entities.items():
+                key = key.encode('utf-8')
+                entity = entity.encode('utf-8')
+                html_str = html_str.replace(key, entity)
             if is_tidy:
                 document, errors = tidy_document(html_str)
                 if errors != '':
@@ -494,7 +496,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
                 _unbfound = True
         p_is = etree.XPath('//processing-instruction("fragment")')(_xhtmlsoup)
         for p in p_is:
-            print(_file_dec + 'Useless ' + etree.tostring(p) + ' processing '
+            print(_file_dec + 'Useless ' + etree.tostring(p).decode('utf-8') + ' processing '
                   'instruction found...')
         _links = etree.XPath('//xhtml:link', namespaces=XHTMLNS)(_xhtmlsoup)
         for _link in _links:
@@ -612,7 +614,7 @@ def find_opf(epub):
     if epub.namelist()[0] != 'mimetype':
         print('* CRITICAL! mimetype file is missing or '
               'is not the first file in the archive.')
-    elif epub.read('mimetype') != 'application/epub+zip':
+    elif epub.read('mimetype') != b'application/epub+zip':
         print('* CRITICAL! mimetype file has defined incorrect '
               'MIME type: ' + epub.read('mimetype'))
     try:
@@ -635,7 +637,7 @@ def find_opf(epub):
 def check_urls_in_css(singf, epub, prepnl, _file_dec):
     with epub.open(singf) as f:
         cl = re.sub(r'\/\*[^*]*\*+([^/*][^*]*\*+)*\/',
-                    '', f.read()).splitlines()
+                    '', f.read().decode('utf-8')).splitlines()
         for line in cl:
             m = re.match(r'.+?url\([ ]?(\"|\')?(.+?)(\"|\')?[ ]?\)', line)
             if m is not None:

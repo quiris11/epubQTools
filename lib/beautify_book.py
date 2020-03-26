@@ -446,7 +446,7 @@ def most_common(lst):
 def write_file_changes_back(tree, file_path):
     with open(file_path, 'w') as f:
         f.write(etree.tostring(tree.getroot(), pretty_print=True,
-                standalone=False, xml_declaration=True, encoding='utf-8'))
+                standalone=False, xml_declaration=True, encoding='utf-8').decode('utf-8'))
 
 
 def rename_calibre_cover(opftree, ncxtree, epub_dir):

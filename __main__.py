@@ -145,7 +145,7 @@ parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
                     help='Add left and right book margin to reset CSS file '
                     '(only with -e)')
 args = parser.parse_args()
-uni_dir = args.directory.decode('utf-8')
+uni_dir = args.directory
 
 
 class Logger(object):

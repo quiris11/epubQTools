@@ -408,7 +408,7 @@ def fix_ncx(opftree, rootepubdir):
     # write all NCX changes back to file
     with open(os.path.join(rootepubdir, toc_ncx_file), 'w') as f:
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
-                standalone=False, xml_declaration=True, encoding='utf-8'))
+                standalone=False, xml_declaration=True, encoding='utf-8').decode('utf-8'))
 
 
 def replace_font(actual_font_path, fontdir):
@@ -474,7 +474,7 @@ def pack_epub(output_filename, source_dir):
                         arcname = unicodedata.normalize(
                             'NFC', str(arcname, 'utf-8')
                         ).encode('utf-8')
-                    z.write(filename, arcname.decode(SFENC))
+                    z.write(filename, arcname)
 
 
 def clean_temp(sourcedir):
@@ -526,7 +526,7 @@ def find_roots(tempdir):
                                 standalone=False,
                                 xml_declaration=True,
                                 encoding='utf-8'
-                            )
+                            ).decode('utf-8')
                         )
                     return os.path.dirname(f), f, True
         print('* Parsing container.xml failed. Not an EPUB file?')
@@ -652,7 +652,7 @@ def fix_nav_in_cover_file(opftree, tempdir):
                 standalone=False,
                 encoding="utf-8",
                 doctype=set_dtd(opftree)
-            ))
+            ).decode('utf-8'))
         with open(os.path.join(tempdir, toc_href),
                   "w") as f:
             f.write(etree.tostring(
@@ -662,7 +662,7 @@ def fix_nav_in_cover_file(opftree, tempdir):
                 standalone=False,
                 encoding="utf-8",
                 doctype=set_dtd(opftree)
-            ))
+            ).decode('utf-8'))
     if opftree.xpath('//opf:package', namespaces=OPFNS)[0].get(
         'version'
     ) != '3.0':
@@ -776,7 +776,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                     standalone=False,
                     encoding="utf-8",
                     doctype=set_dtd(soup)
-                ))
+                ).decode('utf-8'))
             newtocmanifest = etree.Element(
                 '{http://www.idpf.org/2007/opf}item',
                 attrib={'media-type': 'application/xhtml+xml',
@@ -883,7 +883,7 @@ def fix_mismatched_covers(opftree, tempdir):
                 xml_declaration=True,
                 standalone=False,
                 encoding="utf-8",
-                doctype=set_dtd(opftree))
+                doctype=set_dtd(opftree)).decode('utf-8')
             )
     return opftree
 
@@ -1245,7 +1245,7 @@ def fix_ncx_dtd_uid(opftree, tempdir):
         metadtd.set('content', dc_identifier)
     with open(os.path.join(tempdir, ncxfile), 'w') as f:
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
-                xml_declaration=True, encoding='utf-8', standalone=False))
+                xml_declaration=True, encoding='utf-8', standalone=False).decode('utf-8'))
     return opftree
 
 
@@ -1477,7 +1477,7 @@ def remove_text_from_html_cover(opftree, rootepubdir):
             xml_declaration=True,
             standalone=False,
             encoding='utf-8',
-            doctype=set_dtd(opftree))
+            doctype=set_dtd(opftree)).decode('utf-8')
         )
 
 
@@ -1564,7 +1564,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     for key in entities.keys():
         c = c.replace(key, entities[key])
     try:
-        xhtree = etree.fromstring(c, parser=etree.XMLParser(recover=False))
+        xhtree = etree.fromstring(c.encode('utf-8'), parser=etree.XMLParser(recover=False))
     except etree.XMLSyntaxError as e:
         if ('XML declaration allowed only at the start of the '
                 'document' in str(e).decode(SFENC)):
@@ -1662,7 +1662,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
     with open(xhfile, "w") as f:
         f.write(etree.tostring(xhtree, pretty_print=True, xml_declaration=True,
-                standalone=False, encoding="utf-8", doctype=set_dtd(opftree)))
+                standalone=False, encoding="utf-8", doctype=set_dtd(opftree)).decode('utf-8'))
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
@@ -1796,7 +1796,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'w') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
-                standalone=False, xml_declaration=True, encoding='utf-8'))
+                standalone=False, xml_declaration=True, encoding='utf-8').decode('utf-8'))
     return False
 
 
