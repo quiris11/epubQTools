@@ -560,6 +560,8 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
 
     def fix_hanging_single_conjunctions_and_place_back(tel, txt):
         newt = re.sub(r'(?<=\s\w)\s+', '\u00A0', txt)
+        # fix when paragraph starts with single letter (aesthetic reasons only)
+        newt = re.sub(r'(?<=^\w)\s+', '\u00A0', newt)
         if tel.is_text:
             parent.text = newt
         elif tel.is_tail:
