@@ -394,7 +394,7 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
             fix_sheet(sheet, old_css_path, new_css_path, True)
 
             with open(os.path.join(epub_dir, c.get('href')), 'w') as f:
-                f.write(sheet.cssText)
+                f.write(sheet.cssText.decode('utf-8'))
 
     def update_opf(opftree, old_name_path, new_name_path):
         items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree)
@@ -572,7 +572,7 @@ def beautify_book(root, f, user_font_dir, pair_family):
     opf_dir, opf_file, is_fixed = find_roots(tempdir)
     epub_dir = os.path.join(tempdir, opf_dir)
     opf_path = os.path.join(tempdir, opf_file)
-    parser = etree.XMLParser(remove_blank_text=True)
+    parser = etree.XMLParser(remove_blank_text=True, encoding='utf-8')
     opftree = etree.parse(opf_path, parser)
     ncxfile = etree.XPath(
         '//opf:item[@media-type="application/x-dtbncx+xml"]',

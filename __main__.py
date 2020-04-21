@@ -33,10 +33,6 @@ from lib.azkfix import to_azk
 
 SFENC = sys.getfilesystemencoding()
 
-if sys.platform == "win32":
-    from lib.win_utf8_console import fix_broken_win_console
-    fix_broken_win_console()
-
 if not hasattr(sys, 'frozen'):
     q_cwd = os.path.join(os.getcwd(), os.path.dirname(__file__))
     if q_cwd.endswith('.zip'):
@@ -434,7 +430,7 @@ def main():
                 except:
                     sys.exit('ERROR! Kindlegen not found in directory: "' +
                              args.tools + '" Giving up...')
-            for ln in proc.splitlines():
+            for ln in str(proc, 'utf-8').splitlines():
                 if 'Warning' in ln and 'W14029' not in ln:
                     print(' ', ln)
                 if 'Error' in ln:
