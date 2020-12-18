@@ -36,12 +36,13 @@ cssutils.ser.prefs.omitLastSemicolon = False
 def clean_meta_tags(opftree):
 
     def clean_meta_tag(meta):
+        import html
         from html.parser import HTMLParser
         h = HTMLParser()
         if meta.text is None:
             return None
         meta.text = meta.text.replace('\r', ' ').replace('\n', ' ').strip()
-        meta.text = h.unescape(meta.text)
+        meta.text = html.unescape(meta.text)
         try:
             tree = etree.HTML(meta.text)
         except etree.XMLSyntaxError:
