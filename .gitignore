@@ -1,5 +1,13 @@
-
+# bytecode
 *.pyc
-test.py
 
-tags
+# diff backups
+*.orig
+*.rej
+
+# temporary files
+*.swp
+*.bak
+
+# visual studio code
+.vscode
