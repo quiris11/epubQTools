@@ -394,8 +394,8 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
 
             fix_sheet(sheet, old_css_path, new_css_path, True)
 
-            with open(os.path.join(epub_dir, c.get('href')), 'w') as f:
-                f.write(sheet.cssText.decode('utf-8'))
+            with open(os.path.join(epub_dir, c.get('href')), 'wb') as f:
+                f.write(sheet.cssText)
 
     def update_opf(opftree, old_name_path, new_name_path):
         items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree)
@@ -445,9 +445,9 @@ def most_common(lst):
 
 
 def write_file_changes_back(tree, file_path):
-    with open(file_path, 'w') as f:
+    with open(file_path, 'wb') as f:
         f.write(etree.tostring(tree.getroot(), pretty_print=True,
-                standalone=False, xml_declaration=True, encoding='utf-8').decode('utf-8'))
+                standalone=False, xml_declaration=True, encoding='utf-8'))
 
 
 def rename_calibre_cover(opftree, ncxtree, epub_dir):

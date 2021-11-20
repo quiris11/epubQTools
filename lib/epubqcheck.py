@@ -31,7 +31,7 @@ try:
     import cssutils
     from cssutils.profiles import Profiles, properties, macros
 except ImportError as e:
-    sys.exit('! CRITICAL! ' + str(e).decode(SFENC))
+    sys.exit('! CRITICAL! ' + str(e))
 
 # set up recover parser for malformed XML
 recover_parser = etree.XMLParser(encoding='utf-8', recover=True)

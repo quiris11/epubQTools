@@ -405,9 +405,9 @@ def fix_ncx(opftree, rootepubdir):
         i.set('id', re.sub('[^0-9a-zA-Z_.-]+', '', chid))
 
     # write all NCX changes back to file
-    with open(os.path.join(rootepubdir, toc_ncx_file), 'w') as f:
+    with open(os.path.join(rootepubdir, toc_ncx_file), 'wb') as f:
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
-                standalone=False, xml_declaration=True, encoding='utf-8').decode('utf-8'))
+                standalone=False, xml_declaration=True, encoding='utf-8'))
 
 
 def replace_font(actual_font_path, fontdir):
@@ -518,7 +518,7 @@ def find_roots(tempdir):
                     )[0].set('full-path', opf_path)
                     if not os.path.exists(os.path.dirname(cont_file)):
                         os.makedirs(os.path.dirname(cont_file))
-                    with open(cont_file, 'w') as c:
+                    with open(cont_file, 'wb') as c:
                         c.write(
                             etree.tostring(
                                 cr_tree,
@@ -526,7 +526,7 @@ def find_roots(tempdir):
                                 standalone=False,
                                 xml_declaration=True,
                                 encoding='utf-8'
-                            ).decode('utf-8')
+                            )
                         )
                     return os.path.dirname(opf_path), opf_path, True
         print('* Parsing container.xml failed. Not an EPUB file?')
@@ -646,7 +646,7 @@ def fix_nav_in_cover_file(opftree, tempdir):
             namespaces=XHTMLNS
         )(toc_tree)[0].append(nav)
         with open(os.path.join(tempdir, cover_href),
-                  "w") as f:
+                  'wb') as f:
             f.write(etree.tostring(
                 cover_tree,
                 pretty_print=True,
@@ -654,9 +654,9 @@ def fix_nav_in_cover_file(opftree, tempdir):
                 standalone=False,
                 encoding="utf-8",
                 doctype=set_dtd(opftree)
-            ).decode('utf-8'))
+            ))
         with open(os.path.join(tempdir, toc_href),
-                  "w") as f:
+                  'wb') as f:
             f.write(etree.tostring(
                 toc_tree,
                 pretty_print=True,
@@ -664,7 +664,7 @@ def fix_nav_in_cover_file(opftree, tempdir):
                 standalone=False,
                 encoding="utf-8",
                 doctype=set_dtd(opftree)
-            ).decode('utf-8'))
+            ))
     if opftree.xpath('//opf:package', namespaces=OPFNS)[0].get(
         'version'
     ) != '3.0':
@@ -770,7 +770,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                     ).replace('\\', '/')
                 ))
             with open(os.path.join(tempdir, textdir, 'epubQTools-toc.xhtml'),
-                      "w") as f:
+                      'wb') as f:
                 f.write(etree.tostring(
                     result,
                     pretty_print=True,
@@ -778,7 +778,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                     standalone=False,
                     encoding="utf-8",
                     doctype=set_dtd(soup)
-                ).decode('utf-8'))
+                ))
             newtocmanifest = etree.Element(
                 '{http://www.idpf.org/2007/opf}item',
                 attrib={'media-type': 'application/xhtml+xml',
@@ -878,14 +878,14 @@ def fix_mismatched_covers(opftree, tempdir):
                 html_cover_img_file, meta_cover_image_file
             )
         )
-        with open(cover_xhtml_file, "w") as f:
+        with open(cover_xhtml_file, 'wb') as f:
             f.write(etree.tostring(
                 xhtmltree,
                 pretty_print=True,
                 xml_declaration=True,
                 standalone=False,
-                encoding="utf-8",
-                doctype=set_dtd(opftree)).decode('utf-8')
+                encoding='utf-8',
+                doctype=set_dtd(opftree))
             )
     return opftree
 
@@ -1245,9 +1245,9 @@ def fix_ncx_dtd_uid(opftree, tempdir):
                               namespaces=NCXNS)(ncxtree)[0]
     if metadtd.get('content') != dc_identifier:
         metadtd.set('content', dc_identifier)
-    with open(os.path.join(tempdir, ncxfile), 'w') as f:
+    with open(os.path.join(tempdir, ncxfile), 'wb') as f:
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
-                xml_declaration=True, encoding='utf-8', standalone=False).decode('utf-8'))
+                xml_declaration=True, encoding='utf-8', standalone=False))
     return opftree
 
 
@@ -1472,14 +1472,14 @@ def remove_text_from_html_cover(opftree, rootepubdir):
             parent.text = ''
         elif t.is_tail:
             parent.tail = ''
-    with open(html_cover_path, 'w') as f:
+    with open(html_cover_path, 'wb') as f:
         f.write(etree.tostring(
             html_cover_tree,
             pretty_print=True,
             xml_declaration=True,
             standalone=False,
             encoding='utf-8',
-            doctype=set_dtd(opftree)).decode('utf-8')
+            doctype=set_dtd(opftree))
         )
 
 
@@ -1662,9 +1662,9 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     for p in p_is:
         remove_node(p)
 
-    with open(xhfile, "w", encoding='utf-8') as f:
+    with open(xhfile, 'wb') as f:
         f.write(etree.tostring(xhtree, pretty_print=True, xml_declaration=True,
-                standalone=False, encoding="utf-8", doctype=set_dtd(opftree)).decode('utf-8'))
+                standalone=False, encoding='utf-8', doctype=set_dtd(opftree)))
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
@@ -1719,7 +1719,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     except (etree.XMLSyntaxError, IOError) as e:
         print('! CRITICAL! XML file "%s" is not well '
               'formed: "%s"' % (os.path.basename(opf_file_path_abs),
-                                str(e).decode(SFENC)))
+                                str(e)))
         print('! Unable to proceed...')
         return True
     titles = opftree.xpath('//dc:title', namespaces=DCNS)
@@ -1796,9 +1796,9 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
               'all CSS files...')
         modify_css_align(opftree, opf_dir_abs, 'left', del_colors)
     # write all OPF changes back to file
-    with open(opf_file_path_abs, 'w') as f:
+    with open(opf_file_path_abs, 'wb') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
-                standalone=False, xml_declaration=True, encoding='utf-8').decode('utf-8'))
+                standalone=False, xml_declaration=True, encoding='utf-8'))
     return False
 
 
