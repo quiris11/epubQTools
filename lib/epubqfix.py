@@ -508,13 +508,14 @@ def find_roots(tempdir):
                         reldir = ''
                     cont_file = os.path.join(tempdir, 'META-INF',
                                              'container.xml')
+                    opf_path = os.path.join(reldir, f)
                     cr_tree = etree.fromstring(
                         get_data('lib', 'resources/container.xml')
                     )
                     cr_tree.xpath(
                         '//cr:rootfile',
                         namespaces=CRNS
-                    )[0].set('full-path', os.path.join(reldir, f))
+                    )[0].set('full-path', opf_path)
                     if not os.path.exists(os.path.dirname(cont_file)):
                         os.makedirs(os.path.dirname(cont_file))
                     with open(cont_file, 'w') as c:
@@ -527,7 +528,7 @@ def find_roots(tempdir):
                                 encoding='utf-8'
                             ).decode('utf-8')
                         )
-                    return os.path.dirname(f), f, True
+                    return os.path.dirname(opf_path), opf_path, True
         print('* Parsing container.xml failed. Not an EPUB file?')
         qfixerr = True
         return None, None, False
