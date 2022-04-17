@@ -17,7 +17,7 @@ from urllib.parse import unquote
 SFENC = sys.getfilesystemencoding()
 try:
     from lxml import etree
-    import cssutils
+    import css_parser
 except ImportError as e:
     sys.exit('! CRITICAL! ' + str(e).decode(SFENC))
 
@@ -29,8 +29,8 @@ NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 XLXHTNS = {'xhtml': 'http://www.w3.org/1999/xhtml',
            'xlink': 'http://www.w3.org/1999/xlink'}
 
-cssutils.log.setLevel(logging.CRITICAL)
-cssutils.ser.prefs.omitLastSemicolon = False
+css_parser.log.setLevel(logging.CRITICAL)
+css_parser.ser.prefs.omitLastSemicolon = False
 
 
 def clean_meta_tags(opftree):
@@ -93,10 +93,10 @@ def fix_declaration(style, old_name, new_name, is_url):
 def fix_sheet(sheet, old_name, new_name, is_url):
     changed = False
     if is_url:
-        rules_list = (cssutils.css.CSSRule.FONT_FACE_RULE,)
+        rules_list = (css_parser.css.CSSRule.FONT_FACE_RULE,)
     else:
-        rules_list = (cssutils.css.CSSRule.FONT_FACE_RULE,
-                      cssutils.css.CSSRule.STYLE_RULE)
+        rules_list = (css_parser.css.CSSRule.FONT_FACE_RULE,
+                      css_parser.css.CSSRule.STYLE_RULE)
     for rule in sheet.cssRules:
         if rule.type in rules_list:
             if fix_declaration(rule.style, old_name, new_name, is_url):
@@ -131,7 +131,7 @@ def update_css_font_families(epub_dir, opftree):
         )(opftree)
         for c in css_items:
             css_file_path = os.path.join(epub_dir, c.get('href'))
-            sheet = cssutils.parseFile(css_file_path,
+            sheet = css_parser.parseFile(css_file_path,
                                        validate=True)
             for rule in sheet:
                 if rule.type == rule.FONT_FACE_RULE:
@@ -169,7 +169,7 @@ def update_css_font_families(epub_dir, opftree):
                             namespaces=OPFNS)(opftree)
     for c in css_items:
         css_file_path = os.path.join(epub_dir, c.get('href'))
-        sheet = cssutils.parseFile(css_file_path, validate=True)
+        sheet = css_parser.parseFile(css_file_path, validate=True)
 
         for ff in ff_list:
             fix_sheet(sheet, ff[0], ff[1], False)
@@ -381,7 +381,7 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
             namespaces=OPFNS
         )(opftree)
         for c in css_items:
-            sheet = cssutils.parseFile(os.path.join(epub_dir, c.get('href')),
+            sheet = css_parser.parseFile(os.path.join(epub_dir, c.get('href')),
                                        validate=True)
             old_css_path = os.path.relpath(
                 old_name_path,

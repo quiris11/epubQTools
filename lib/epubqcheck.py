@@ -28,29 +28,29 @@ except ImportError as e:
 
 try:
     from lxml import etree
-    import cssutils
-    from cssutils.profiles import Profiles, properties, macros
+    import css_parser
+    from css_parser.profiles import Profiles, properties, macros
 except ImportError as e:
     sys.exit('! CRITICAL! ' + str(e))
 
 # set up recover parser for malformed XML
 recover_parser = etree.XMLParser(encoding='utf-8', recover=True)
 
-# add the most common used non-standard properties for cssutils
+# add the most common used non-standard properties for css_parser
 properties[Profiles.CSS_LEVEL_2]['oeb-column-number'] = r'{num}'
 properties[Profiles.CSS_LEVEL_2]['hyphens'] = r'none|manual|auto|all'
 properties[Profiles.CSS_LEVEL_2]['-epub-hyphens'] = r'none|manual|auto|all'
 properties[Profiles.CSS_LEVEL_2]['-webkit-hyphens'] = r'none|manual|auto|all'
 properties[Profiles.CSS_LEVEL_2]['-moz-hyphens'] = r'none|manual|auto|all'
 properties[Profiles.CSS_LEVEL_2]['adobe-hyphenate'] = r'none|explicit|auto'
-cssutils.profile.addProfiles([(
+css_parser.profile.addProfiles([(
     Profiles.CSS_LEVEL_2, properties[Profiles.CSS_LEVEL_2],
     macros[Profiles.CSS_LEVEL_2]
 )])
 
-# set up additional amzn MEDIA_TYPES and handler for cssutils
-cssutils.stylesheets.MediaQuery.MEDIA_TYPES = \
-    cssutils.stylesheets.MediaQuery.MEDIA_TYPES + \
+# set up additional amzn MEDIA_TYPES and handler for css_parser
+css_parser.stylesheets.MediaQuery.MEDIA_TYPES = \
+    css_parser.stylesheets.MediaQuery.MEDIA_TYPES + \
     ['amzn-mobi', 'amzn-mobi7', 'amzn-kf8']
 streamhandler = logging.StreamHandler()
 
@@ -833,10 +833,10 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
                 shutil.rmtree(temp_font_dir)
         elif singlefile.lower().endswith('.css'):
             with epubfile.open(singlefile) as f:
-                cssutils.log.setLog(logging.getLogger(singlefile))
-                cssutils.log.addHandler(streamhandler)
-                cssutils.log.setLevel(logging.WARNING)
-                cssutils.parseString(f.read(), validate=True)
+                css_parser.log.setLog(logging.getLogger(singlefile))
+                css_parser.log.addHandler(streamhandler)
+                css_parser.log.setLevel(logging.WARNING)
+                css_parser.parseString(f.read(), validate=True)
             check_urls_in_css(singlefile, epubfile, prepnl, _file_dec)
             # TODO: not a real problem with file (make separate check for it)
             # is_body_family, is_font_face, ff, sfound\

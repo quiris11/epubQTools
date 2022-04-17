@@ -78,7 +78,7 @@ optional arguments:
 
 #### Additional requirements:
 * python -m pip install lxml
-* python -m pip install cssutils
+* python -m pip install css-parser
 * python -m pip install pyinstaller (for compilation only)
 
 #### Compilation tips for creating standalone applications with Pyinstaller tool:
