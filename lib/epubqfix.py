@@ -470,9 +470,7 @@ def pack_epub(output_filename, source_dir):
                     arcname = os.path.join(os.path.relpath(root, relroot),
                                            f)
                     if sys.platform == 'darwin':
-                        arcname = unicodedata.normalize(
-                            'NFC', str(arcname, 'utf-8')
-                        ).encode('utf-8')
+                        arcname = unicodedata.normalize('NFC', arcname))
                     z.write(filename, arcname)
 
 
