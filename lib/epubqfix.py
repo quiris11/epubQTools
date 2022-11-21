@@ -1791,7 +1791,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         print('* Replacing "text-align: left" with "text-align: justify" in '
               'all CSS files...')
         modify_css_align(opftree, opf_dir_abs, 'justify', del_colors)
-    elif arg_left:
+    if arg_left:
         print('* Replacing "text-align: justify" with "text-align: left" in '
               'all CSS files...')
         modify_css_align(opftree, opf_dir_abs, 'left', del_colors)
