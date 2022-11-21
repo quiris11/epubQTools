@@ -5,19 +5,19 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-from __future__ import print_function
+
 import os
 import sys
 import re
 import shutil
 import logging
 from lib.epubqcheck import list_font_basic_properties
-from urllib import unquote
+from urllib.parse import unquote
 
 SFENC = sys.getfilesystemencoding()
 try:
     from lxml import etree
-    import cssutils
+    import css_parser
 except ImportError as e:
     sys.exit('! CRITICAL! ' + str(e).decode(SFENC))
 
@@ -29,19 +29,20 @@ NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 XLXHTNS = {'xhtml': 'http://www.w3.org/1999/xhtml',
            'xlink': 'http://www.w3.org/1999/xlink'}
 
-cssutils.log.setLevel(logging.CRITICAL)
-cssutils.ser.prefs.omitLastSemicolon = False
+css_parser.log.setLevel(logging.CRITICAL)
+css_parser.ser.prefs.omitLastSemicolon = False
 
 
 def clean_meta_tags(opftree):
 
     def clean_meta_tag(meta):
-        from HTMLParser import HTMLParser
+        import html
+        from html.parser import HTMLParser
         h = HTMLParser()
         if meta.text is None:
             return None
         meta.text = meta.text.replace('\r', ' ').replace('\n', ' ').strip()
-        meta.text = h.unescape(meta.text)
+        meta.text = html.unescape(meta.text)
         try:
             tree = etree.HTML(meta.text)
         except etree.XMLSyntaxError:
@@ -64,7 +65,7 @@ def change_font_family_value(cssvalue, new_name):
 def fix_property(prop, old_name, new_name, is_url):
     changed = False
     ff = prop.propertyValue
-    for i in xrange(ff.length):
+    for i in range(ff.length):
         val = ff.item(i)
         if (hasattr(val.value, 'lower') and
                 val.value.lower() == old_name.lower()):
@@ -92,10 +93,10 @@ def fix_declaration(style, old_name, new_name, is_url):
 def fix_sheet(sheet, old_name, new_name, is_url):
     changed = False
     if is_url:
-        rules_list = (cssutils.css.CSSRule.FONT_FACE_RULE,)
+        rules_list = (css_parser.css.CSSRule.FONT_FACE_RULE,)
     else:
-        rules_list = (cssutils.css.CSSRule.FONT_FACE_RULE,
-                      cssutils.css.CSSRule.STYLE_RULE)
+        rules_list = (css_parser.css.CSSRule.FONT_FACE_RULE,
+                      css_parser.css.CSSRule.STYLE_RULE)
     for rule in sheet.cssRules:
         if rule.type in rules_list:
             if fix_declaration(rule.style, old_name, new_name, is_url):
@@ -130,7 +131,7 @@ def update_css_font_families(epub_dir, opftree):
         )(opftree)
         for c in css_items:
             css_file_path = os.path.join(epub_dir, c.get('href'))
-            sheet = cssutils.parseFile(css_file_path,
+            sheet = css_parser.parseFile(css_file_path,
                                        validate=True)
             for rule in sheet:
                 if rule.type == rule.FONT_FACE_RULE:
@@ -168,7 +169,7 @@ def update_css_font_families(epub_dir, opftree):
                             namespaces=OPFNS)(opftree)
     for c in css_items:
         css_file_path = os.path.join(epub_dir, c.get('href'))
-        sheet = cssutils.parseFile(css_file_path, validate=True)
+        sheet = css_parser.parseFile(css_file_path, validate=True)
 
         for ff in ff_list:
             fix_sheet(sheet, ff[0], ff[1], False)
@@ -380,7 +381,7 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
             namespaces=OPFNS
         )(opftree)
         for c in css_items:
-            sheet = cssutils.parseFile(os.path.join(epub_dir, c.get('href')),
+            sheet = css_parser.parseFile(os.path.join(epub_dir, c.get('href')),
                                        validate=True)
             old_css_path = os.path.relpath(
                 old_name_path,
@@ -393,7 +394,7 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
 
             fix_sheet(sheet, old_css_path, new_css_path, True)
 
-            with open(os.path.join(epub_dir, c.get('href')), 'w') as f:
+            with open(os.path.join(epub_dir, c.get('href')), 'wb') as f:
                 f.write(sheet.cssText)
 
     def update_opf(opftree, old_name_path, new_name_path):
@@ -444,7 +445,7 @@ def most_common(lst):
 
 
 def write_file_changes_back(tree, file_path):
-    with open(file_path, 'w') as f:
+    with open(file_path, 'wb') as f:
         f.write(etree.tostring(tree.getroot(), pretty_print=True,
                 standalone=False, xml_declaration=True, encoding='utf-8'))
 
@@ -572,7 +573,7 @@ def beautify_book(root, f, user_font_dir, pair_family):
     opf_dir, opf_file, is_fixed = find_roots(tempdir)
     epub_dir = os.path.join(tempdir, opf_dir)
     opf_path = os.path.join(tempdir, opf_file)
-    parser = etree.XMLParser(remove_blank_text=True)
+    parser = etree.XMLParser(remove_blank_text=True, encoding='utf-8')
     opftree = etree.parse(opf_path, parser)
     ncxfile = etree.XPath(
         '//opf:item[@media-type="application/x-dtbncx+xml"]',

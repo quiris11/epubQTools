@@ -5,7 +5,7 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-from __future__ import print_function
+
 import os
 import sys
 import struct
@@ -86,10 +86,10 @@ def rename_mobi(title, author):
         title = title.title()
     if author.isupper():
         author = author.title()
-    nfname = strip_accents(unicode(author + ' - ' + title))
-    nfname = nfname.replace(u'\u2013', '-').replace('/', '_')\
-                   .replace(':', '_').replace(u'\u0142', 'l')\
-                   .replace(u'\u0141', 'L')
+    nfname = strip_accents(str(author + ' - ' + title))
+    nfname = nfname.replace('\u2013', '-').replace('/', '_')\
+                   .replace(':', '_').replace('\u0142', 'l')\
+                   .replace('\u0141', 'L')
     nfname = "".join(x for x in nfname if (
         x.isalnum() or x.isspace() or x in ('_', '-', '.')
     ))
@@ -146,10 +146,10 @@ def mobi_check(_documents):
                 print(
                     locations / 15 + 1,
                     locations,
-                    unicode(author.decode(
+                    str(author.decode(
                         'utf8'
                     )).encode(sys.stdout.encoding, 'replace'),
-                    unicode(title.decode(
+                    str(title.decode(
                         'utf8'
                     )).encode(sys.stdout.encoding, 'replace'),
                     sep='\t'

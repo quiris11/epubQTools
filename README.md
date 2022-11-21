@@ -78,15 +78,15 @@ optional arguments:
 
 #### Additional requirements:
 * python -m pip install lxml
-* python -m pip install cssutils
+* python -m pip install css-parser
 * python -m pip install pyinstaller (for compilation only)
 
 #### Compilation tips for creating standalone applications with Pyinstaller tool:
-* build on Mac (with Python 2.7.x from Homebrew):
+* build on Mac (with Python 3.7.x from Homebrew):
 ```
 pyinstaller -Fn epubQTools ~/github/epubQTools/__main__.py
 ```
-* build on Windows (with Python 2.7.x):
+* build on Windows (with Python 3.7.x):
 ```
-C:\Python27\Scripts\pyinstaller.exe -Fn epubQTools .\epubQTools\__main__.py
+C:\Python37\Scripts\pyinstaller.exe -Fn epubQTools .\epubQTools\__main__.py
 ```

@@ -5,7 +5,7 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-from __future__ import print_function
+
 import argparse
 import zipfile
 import os
@@ -57,7 +57,7 @@ def epubqcompare():
         print('*** EPUB 1 ***')
         count = 0
         for n in epubf1.namelist():
-            if not isinstance(n, unicode):
+            if not isinstance(n, str):
                 n = n.decode('utf-8')
             if n.endswith(ar.extension):
                 print(count, n)

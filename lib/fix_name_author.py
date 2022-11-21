@@ -5,7 +5,7 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-from __future__ import print_function
+
 import zipfile
 import os
 import sys
@@ -24,7 +24,6 @@ DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 
 def set_author(tree, author):
     crs = tree.xpath('//dc:creator', namespaces=DCNS)
-    author = author.decode(SFENC)
     au_rev_l = author.split(', ')
     if len(au_rev_l) == 1:
         au_rev = author
@@ -61,7 +60,6 @@ def set_author(tree, author):
 def set_title(tree, title):
     ts = tree.xpath('//dc:title', namespaces=DCNS)
     newtitle = etree.Element('{http://purl.org/dc/elements/1.1/}title')
-    title = title.decode(SFENC)
     newtitle.text = title
     if len(ts) == 1:
         print('* Current title: "%s"'
@@ -86,7 +84,7 @@ def set_title(tree, title):
 
 
 def fix_name_author(root, f, author, title):
-    print('START work for: ' + f.decode(SFENC))
+    print('START work for: ' + f)
     try:
         tempdir = unpack_epub(os.path.join(root, f))
     except zipfile.BadZipfile:
@@ -100,9 +98,9 @@ def fix_name_author(root, f, author, title):
         set_author(opftree, author)
     if title != 'no_title' and title is not None:
         set_title(opftree, title)
-    with open(opff_abs, 'w') as file:
+    with open(opff_abs, 'wb') as file:
         file.write(etree.tostring(opftree.getroot(), pretty_print=True,
                    standalone=False, xml_declaration=True, encoding='utf-8'))
     pack_epub(os.path.join(root, f), tempdir)
     clean_temp(tempdir)
-    print('FINISH work for: ' + f.decode(SFENC))
+    print('FINISH work for: ' + f)

@@ -5,14 +5,14 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-from __future__ import print_function
+
 
 __license__ = 'GNU Affero GPL v3'
 __copyright__ = '2014, Robert Błaut listy@blaut.biz'
-__appname__ = u'epubQTools'
+__appname__ = 'epubQTools'
 numeric_version = (0, 8)
-__version__ = u'.'.join(map(unicode, numeric_version))
-__author__ = u'Robert Błaut <listy@blaut.biz>'
+__version__ = '.'.join(map(str, numeric_version))
+__author__ = 'Robert Błaut <listy@blaut.biz>'
 
 import argparse
 import codecs
@@ -32,10 +32,6 @@ from lib.fix_name_author import fix_name_author
 from lib.azkfix import to_azk
 
 SFENC = sys.getfilesystemencoding()
-
-if sys.platform == "win32":
-    from lib.win_utf8_console import fix_broken_win_console
-    fix_broken_win_console()
 
 if not hasattr(sys, 'frozen'):
     q_cwd = os.path.join(os.getcwd(), os.path.dirname(__file__))
@@ -145,7 +141,7 @@ parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
                     help='Add left and right book margin to reset CSS file '
                     '(only with -e)')
 args = parser.parse_args()
-uni_dir = args.directory.decode('utf-8')
+uni_dir = args.directory
 
 
 class Logger(object):
@@ -248,7 +244,7 @@ def main():
                         counter += 1
                         try:
                             epbzf = zipfile.ZipFile(os.path.join(root, f))
-                        except zipfile.BadZipfile, e:
+                        except zipfile.BadZipfile as e:
                             print('! CRITICAL! Problem with file "%s": %s' % (
                                 f, str(e).decode(SFENC)))
                         opf_root, opf_path = find_opf(epbzf)
@@ -434,7 +430,7 @@ def main():
                 except:
                     sys.exit('ERROR! Kindlegen not found in directory: "' +
                              args.tools + '" Giving up...')
-            for ln in proc.splitlines():
+            for ln in str(proc, 'utf-8').splitlines():
                 if 'Warning' in ln and 'W14029' not in ln:
                     print(' ', ln)
                 if 'Error' in ln:
