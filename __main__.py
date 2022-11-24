@@ -5,15 +5,6 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-
-
-__license__ = 'GNU Affero GPL v3'
-__copyright__ = '2014, Robert Błaut listy@blaut.biz'
-__appname__ = 'epubQTools'
-numeric_version = (0, 8)
-__version__ = '.'.join(map(str, numeric_version))
-__author__ = 'Robert Błaut <listy@blaut.biz>'
-
 import argparse
 import codecs
 import os
@@ -30,6 +21,14 @@ from lib.epubqfix import qfix
 from lib.epubqfix import rename_files
 from lib.fix_name_author import fix_name_author
 from lib.azkfix import to_azk
+
+__license__ = 'GNU Affero GPL v3'
+__copyright__ = '2014, Robert Błaut listy@blaut.biz'
+__appname__ = 'epubQTools'
+numeric_version = (0, 8)
+__version__ = '.'.join(map(str, numeric_version))
+__author__ = 'Robert Błaut <listy@blaut.biz>'
+
 
 SFENC = sys.getfilesystemencoding()
 
@@ -320,12 +319,12 @@ def main():
                 ['java', '-version'],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
-        except:
+        except FileNotFoundError:
             sys.exit('Java is NOT installed. Giving up...')
         try:
             echpzipfile = zipfile.ZipFile(os.path.join(args.tools,
                                           epubcheckstr + '.zip'))
-        except:
+        except FileNotFoundError:
             sys.exit(epubcheckstr + 'EpubCheck 4.x ZIP file not found '
                      'in directory: "' + args.tools + '" Giving up...')
         echp_temp = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
@@ -427,7 +426,7 @@ def main():
                         compression,
                         os.path.join(root, f).encode(SFENC)
                     ], stdout=subprocess.PIPE).communicate()[0]
-                except:
+                except FileNotFoundError:
                     sys.exit('ERROR! Kindlegen not found in directory: "' +
                              args.tools + '" Giving up...')
             for ln in str(proc, 'utf-8').splitlines():
@@ -488,6 +487,7 @@ def main():
         print("* At least one of above optional arguments is required.")
         print("* * *")
     return 0
+
 
 if __name__ == '__main__':
     sys.exit(main())
