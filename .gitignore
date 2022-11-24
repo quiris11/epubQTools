@@ -11,3 +11,4 @@
 
 # visual studio code
 .vscode
+.DS_Store
