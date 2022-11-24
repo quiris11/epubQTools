@@ -286,7 +286,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             if (
                     (i.get('href').lower().endswith('.otf') or
                      i.get('href').lower().endswith('.ttf')) and
-                    i.get('media-type') != 'application/vnd.ms-opentype'
+                    i.get('media-type') != 'application/font-sfnt'
             ):
                 print('%sFont file "%s" has incorrect media-type "%s".' % (
                     _file_dec, i.get('href'), i.get('media-type')

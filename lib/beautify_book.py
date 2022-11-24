@@ -180,7 +180,7 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
 
     def find_old_family_fonts(epub_dir, opftree, family_name):
         font_items = etree.XPath(
-            '//opf:item[@media-type="application/vnd.ms-opentype"]',
+            '//opf:item[@media-type="application/font-sfnt"]',
             namespaces=OPFNS
         )(opftree)
         family_font_list = []

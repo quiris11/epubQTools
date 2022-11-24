@@ -976,11 +976,11 @@ def correct_mime_types(_soup):
         if (
                 (_item.get('href').lower().endswith('.otf') or
                     _item.get('href').lower().endswith('.ttf')) and
-                _item.get('media-type') != 'application/vnd.ms-opentype'
+                _item.get('media-type') != 'application/font-sfnt'
         ):
-            print('* Setting correct mime type "application/vnd.ms-opentype" '
+            print('* Setting correct mime type "application/font-sfnt" '
                   'for font "%s"' % _item.get('href'))
-            _item.set('media-type', 'application/vnd.ms-opentype')
+            _item.set('media-type', 'application/font-sfnt')
         elif _item.get('media-type').lower() == 'text/html':
             _item.set('media-type', 'application/xhtml+xml')
     return _soup
