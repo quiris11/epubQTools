@@ -14,8 +14,6 @@ from datetime import datetime
 import unicodedata
 import csv
 
-SFENC = sys.getfilesystemencoding()
-
 
 class Logger(object):
     def __init__(self, filename='eQT-default.log'):
@@ -93,7 +91,7 @@ def rename_mobi(title, author):
     nfname = "".join(x for x in nfname if (
         x.isalnum() or x.isspace() or x in ('_', '-', '.')
     ))
-    return nfname.encode(SFENC)
+    return nfname
 
 
 def mobi_header_fields(mobi_content):
@@ -157,9 +155,9 @@ def mobi_check(_documents):
             if ver == args.version:
                 print(
                     id, ver, file_dec, title,
-                    author.decode(SFENC),
-                    find_exth(503, mobi_content).decode(SFENC),
-                    find_exth(101, mobi_content).decode(SFENC),
+                    author,
+                    find_exth(503, mobi_content),
+                    find_exth(101, mobi_content),
                     sep='\t')
             # experimental feature
             if args.ebok:
@@ -169,34 +167,32 @@ def mobi_check(_documents):
             # rename MOBI files
             if args.rename:
                 nt = rename_mobi(title.decode('utf8'), author.decode('utf8'))
-                newfn = nt.encode(SFENC) + file_extension
+                newfn = nt + file_extension
                 if (
-                    file.decode(SFENC) == newfn or
-                    file.decode(SFENC).split(
+                    file == newfn or
+                    file.split(
                         '('
                     )[0][:-1] + file_extension == newfn
                 ):
-                    print('= Renaming file %s is not needed' % (
-                        file.decode(SFENC)
-                    ))
+                    print('= Renaming file %s is not needed' % (file))
                 elif os.path.exists(os.path.join(dirpath,
                                     newfn)):
                     counter = 0
                     while True:
                         counter += 1
                         if not os.path.exists(os.path.join(dirpath,
-                                              nt.encode(SFENC) + ' (' +
+                                              nt + ' (' +
                                               str(counter) + ')' +
                                               file_extension)):
                             print('* Renaming file: %s to %s' % (
                                 file,
-                                nt.encode(SFENC) + ' (' + str(counter) + ')' +
+                                nt + ' (' + str(counter) + ')' +
                                 file_extension
                             ))
                             os.rename(os.path.join(dirpath, file),
                                       os.path.join(
                                       dirpath,
-                                      nt.encode(SFENC) + ' (' + str(counter) +
+                                      nt + ' (' + str(counter) +
                                       ')' + file_extension
                                       ))
                             break
