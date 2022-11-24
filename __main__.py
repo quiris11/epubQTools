@@ -30,8 +30,6 @@ __version__ = '.'.join(map(str, numeric_version))
 __author__ = 'Robert Błaut <listy@blaut.biz>'
 
 
-SFENC = sys.getfilesystemencoding()
-
 if not hasattr(sys, 'frozen'):
     q_cwd = os.path.join(os.getcwd(), os.path.dirname(__file__))
     if q_cwd.endswith('.zip'):
@@ -245,7 +243,7 @@ def main():
                             epbzf = zipfile.ZipFile(os.path.join(root, f))
                         except zipfile.BadZipfile as e:
                             print('! CRITICAL! Problem with file "%s": %s' % (
-                                f, str(e).decode(SFENC)))
+                                f, e))
                         opf_root, opf_path = find_opf(epbzf)
                         rename_files(opf_path, root, epbzf, f, fdec)
         if counter == 0:
@@ -290,14 +288,14 @@ def main():
             )
             jp = subprocess.Popen([
                 'java', '-Djava.awt.headless=true', '-jar',
-                '%s' % epubchecker_path.encode(SFENC),
-                '%s' % os.path.join(root, f).encode(SFENC)
+                '%s' % epubchecker_path,
+                '%s' % os.path.join(root, f)
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             jpout, jperr = jp.communicate()
             if jperr:
                 print(f + ': PROBLEMS FOUND...')
                 print('*** Details... ***')
-                print(jperr.decode(SFENC))
+                print(jperr.decode('utf-8'))
             else:
                 print(f + ': OK!')
                 print('')
@@ -413,18 +411,18 @@ def main():
                 kgapp = 'kindlegen'
             try:
                 proc = subprocess.Popen([
-                    os.path.join(args.tools, kgapp).encode(SFENC),
+                    os.path.join(args.tools, kgapp),
                     '-dont_append_source',
                     compression,
-                    os.path.join(root, f).encode(SFENC)
+                    os.path.join(root, f)
                 ], stdout=subprocess.PIPE).communicate()[0]
             except OSError:
                 try:
                     proc = subprocess.Popen([
-                        os.path.join(kgapp).encode(SFENC),
+                        os.path.join(kgapp),
                         '-dont_append_source',
                         compression,
-                        os.path.join(root, f).encode(SFENC)
+                        os.path.join(root, f)
                     ], stdout=subprocess.PIPE).communicate()[0]
                 except FileNotFoundError:
                     sys.exit('ERROR! Kindlegen not found in directory: "' +
