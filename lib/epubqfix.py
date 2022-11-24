@@ -1813,7 +1813,7 @@ def process_corrupted_zip(e, root, f, zipbinf):
     print('* EPUB file "%s" is corrupted! Trying to fix it...'
           % f, end=' ')
     zipbinpath = 'zip'
-    if 'differ' in e:
+    if 'differ' in str(e):
         zipp = subprocess.Popen([
             zipbinpath, '-FF', '%s' % str(os.path.join(root, f)), '--out',
             '%s' % str(os.path.join(root, 'fixed_' + f))
@@ -1821,20 +1821,20 @@ def process_corrupted_zip(e, root, f, zipbinf):
         zippout, zipperr = zipp.communicate()
         print('FIXED')
         return os.path.join(root, 'fixed_' + f)
-    elif 'Bad CRC-32 for file' in e:
+    elif 'Bad CRC-32 for file' in str(e):
         zipp = subprocess.Popen([
             zipbinpath, '-d', '%s' % str(os.path.join(root, f)),
-            e.split("'")[1],
+            str(e).split("'")[1],
             '--out', '%s' % str(os.path.join(root, 'fixed_' + f))
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         zippout, zipperr = zipp.communicate()
         print('FIXED (with WARNING!)')
         print('WARNING! Corrupted file "%s" was removed from EPUB file' %
-              e.split("'")[1])
+              str(e).split("'")[1])
         return os.path.join(root, 'fixed_' + f)
     else:
         print('NOT FIXED')
-        print('* ' + e)
+        print('* ' + str(e))
         print('FINISH (with PROBLEMS) qfix for: ' + f)
         return 1
 
