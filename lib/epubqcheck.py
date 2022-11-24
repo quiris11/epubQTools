@@ -5,7 +5,6 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-
 import zipfile
 import re
 import os
@@ -19,7 +18,6 @@ import struct
 from urllib.parse import unquote
 from lib.htmlconstants import entities
 
-SFENC = sys.getfilesystemencoding()
 try:
     from tidylib import tidy_document
     is_tidy = True
@@ -156,8 +154,7 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
             parser
         )
     except KeyError as e:
-        print(_file_dec + 'Problem with parsing HTML cover: ' + str(
-            e).decode(SFENC))
+        print(_file_dec + 'Problem with parsing HTML cover: ' + e)
         html_cover_tree = None
         pass
     try:
@@ -318,8 +315,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         opftree = etree.fromstring(_epubfile.read(opf_path))
     except etree.XMLSyntaxError as e:
         print('%sCRITICAL! XML file "%s" is not well '
-              'formed: "%s"' % (_file_dec, os.path.basename(opf_path),
-                                str(e).decode(SFENC)))
+              'formed: "%s"' % (_file_dec, os.path.basename(opf_path), e))
         opfstring = io.StringIO(_epubfile.read(opf_path))
         try:
             opftree = etree.parse(opfstring, recover_parser)
@@ -446,11 +442,11 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
                             print('  ' + i)
             _xhtmlsoup = etree.fromstring(html_str, parser)
         except (KeyError, zipfile.BadZipfile) as e:
-            print(_file_dec + 'Problem with a file: ' + str(e).decode(SFENC))
+            print(_file_dec + 'Problem with a file: ' + e)
             continue
         except etree.XMLSyntaxError as e:
             print(_file_dec + 'XML file: ' + _htmlfilepath +
-                  ' not well formed: "' + str(e).decode(SFENC) + '"')
+                  ' not well formed: "' + e + '"')
             continue
 
         # build list with body tags with id attributes
@@ -520,7 +516,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         ncxtree = etree.fromstring(ncxstr)
     except etree.XMLSyntaxError as e:
         print('%sCRITICAL! XML file "%s" is not well '
-              'formed: "%s"' % (_file_dec, ncxfile, str(e).decode(SFENC)))
+              'formed: "%s"' % (_file_dec, ncxfile, e))
         ncxtree = etree.parse(io.StringIO(ncxstr), recover_parser)
     contents = etree.XPath('//ncx:content[@src]', namespaces=NCXNS)(ncxtree)
     cont_src_list = []
@@ -740,8 +736,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
     try:
         epubfile = zipfile.ZipFile(os.path.join(root, _file))
     except zipfile.BadZipfile as e:
-        print('%sCRITICAL! "%s" is invalid: "%s"' % (
-              _file_dec, _file, str(e).decode(SFENC)))
+        print('%sCRITICAL! "%s" is invalid: "%s"' % (_file_dec, _file, e))
         return None
     opf_root, opf_path = find_opf(epubfile)
     if not opf_path:
@@ -795,8 +790,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
             except (OSError, IOError) as e:
                 is_empty = True
                 print('%sERROR! Problem with file "%s": %s'
-                      % (_file_dec, os.path.basename(singlefile),
-                         str(e).decode(SFENC)))
+                      % (_file_dec, os.path.basename(singlefile), e))
             if not is_empty:
                 is_font, signature = check_font(
                     os.path.join(temp_font_dir, singlefile)
