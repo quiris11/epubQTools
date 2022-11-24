@@ -5,7 +5,6 @@
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
 
-
 import os
 import sys
 import tempfile
@@ -13,8 +12,6 @@ import subprocess
 import shutil
 import struct
 import json
-
-SFENC = sys.getfilesystemencoding()
 
 
 class PalmDB:
@@ -107,14 +104,12 @@ def to_azk(root, f, force):
     else:
         azkapp = '/Applications/Kindle Previewer 3.app/Contents/'\
             'MacOS/lib/azkcreator'
-    if not os.path.isfile(os.path.join(
-        root, mobisourcefile
-    ).encode(SFENC)):
+    if not os.path.isfile(os.path.join(root, mobisourcefile)):
         sys.exit('* MOBI file does not exist. Giving up...')
     proc = subprocess.Popen([
-        os.path.join(azkapp).encode(SFENC),
+        os.path.join(azkapp),
         '--no-validation', '--source',
-        os.path.join(root, mobisourcefile).encode(SFENC),
+        os.path.join(root, mobisourcefile),
         '--target', azktempdir
     ], stdout=subprocess.PIPE).communicate()[0]
     for ln in proc.splitlines():
@@ -123,7 +118,7 @@ def to_azk(root, f, force):
     write_meta(os.path.join(
         azktempdir, os.listdir(azktempdir)[0], 'x', 'y', 'book',
         'metadata.jsonp'
-    ), os.path.join(root, mobisourcefile).encode(SFENC))
+    ), os.path.join(root, mobisourcefile))
     source_dir = os.path.join(
         azktempdir, os.listdir(azktempdir)[0], 'x', 'y', 'book'
     )
