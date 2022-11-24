@@ -23,7 +23,7 @@ SFENC = sys.getfilesystemencoding()
 try:
     from tidylib import tidy_document
     is_tidy = True
-except ImportError as e:
+except ImportError:
     is_tidy = False
 
 try:
@@ -123,7 +123,7 @@ def check_dl_in_html_toc(tree, dir, epub, _file_dec):
         raw = epub.read(html_toc_path)
         if '<dl>' in raw:
             print(_file_dec + 'Problematic DL tag in HTML TOC found...')
-    except:
+    except Exception:
         pass
 
 
@@ -131,12 +131,12 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
     try:
         html_cover_path = etree.XPath('//opf:reference[@type="cover"]',
                                       namespaces=OPFNS)(tree)[0].get('href')
-    except:
+    except Exception:
         return 0
     try:
         meta_cover_id = etree.XPath('//opf:meta[@name="cover"]',
                                     namespaces=OPFNS)(tree)[0].get('content')
-    except:
+    except Exception:
         print(_file_dec + 'Meta cover image is NOT defined.')
         return 0
     try:
@@ -172,7 +172,7 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
             cover_texts = cover_texts.strip()
             if cover_texts != '':
                 print(_file_dec + 'HTML cover should not contain any text...')
-    except:
+    except Exception:
         pass
     if html_cover_tree is None:
         print(_file_dec + 'Error loading HTML cover... '
@@ -331,7 +331,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
                                  namespaces=OPFNS)[0].get('version')
         if not alter and book_ver != '2.0':
             print(_file_dec + 'Info: EPUB version: ' + book_ver)
-    except:
+    except Exception:
         print(_file_dec + 'CRITICAL! No EPUB version info...')
     enc_found = check_orphan_files(_epubfile, opftree, _folder, _file_dec)
     if opftree.xpath('//opf:metadata', namespaces=OPFNS) is None:
@@ -484,8 +484,8 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         _alltext = ' '.join(_alltexts)
 
         if _reftoccount == 0 and _alltext.find('Spis treści') != -1:
-                print(_file_dec + 'Html TOC candidate found: ' +
-                      _htmlfilepath)
+            print(_file_dec + 'Html TOC candidate found: ' +
+                  _htmlfilepath)
         check_hyphs = False
         if check_hyphs:
             if not _ufound and _alltext.find('\u00AD') != -1:
@@ -496,8 +496,8 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
                 _unbfound = True
         p_is = etree.XPath('//processing-instruction("fragment")')(_xhtmlsoup)
         for p in p_is:
-            print(_file_dec + 'Useless ' + etree.tostring(p).decode('utf-8') + ' processing '
-                  'instruction found...')
+            print(_file_dec + 'Useless ' + etree.tostring(
+                p).decode('utf-8') + ' processing instruction found...')
         _links = etree.XPath('//xhtml:link', namespaces=XHTMLNS)(_xhtmlsoup)
         for _link in _links:
             if not _linkfound and (_link.get('type') is None):
@@ -537,7 +537,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             dc_identifier = etree.XPath('//dc:identifier[@id="' + uniqid +
                                         '"]/text()',
                                         namespaces=DCNS)(opftree)[0]
-        except:
+        except Exception:
             dc_identifier = ''
             print(_file_dec + 'dc:identifier with unique-id not found')
     else:
@@ -621,7 +621,7 @@ def find_opf(epub):
         cr_tree = etree.fromstring(epub.read('META-INF/container.xml'))
         opf_path = cr_tree.xpath('//cr:rootfile',
                                  namespaces=CRNS)[0].get('full-path')
-    except:
+    except Exception:
         # try to find OPF file other way
         for i in epub.namelist():
             if i.endswith('.opf'):
@@ -693,7 +693,7 @@ def check_body_font_family(singf, epub, _file_dec, is_body_family,
                     ff = fft.split(',')[0]
                     is_body_family = True
                     sfound = singf
-                except:
+                except Exception:
                     pass
             if ff != '':
                 break
@@ -793,10 +793,10 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
                           % (_file_dec, singlefile))
                     is_empty = True
             except (OSError, IOError) as e:
-                    is_empty = True
-                    print('%sERROR! Problem with file "%s": %s'
-                          % (_file_dec, os.path.basename(singlefile),
-                             str(e).decode(SFENC)))
+                is_empty = True
+                print('%sERROR! Problem with file "%s": %s'
+                      % (_file_dec, os.path.basename(singlefile),
+                         str(e).decode(SFENC)))
             if not is_empty:
                 is_font, signature = check_font(
                     os.path.join(temp_font_dir, singlefile)
@@ -850,7 +850,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
                 for key in entities.keys():
                     c = c.replace(key, entities[key])
                 sftree = etree.fromstring(c)
-            except:
+            except Exception:
                 sftree = None
             if sftree is not None:
                 check_urls(singlefile, sftree, prepnl, _file_dec)
