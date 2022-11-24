@@ -14,12 +14,11 @@ import logging
 from lib.epubqcheck import list_font_basic_properties
 from urllib.parse import unquote
 
-SFENC = sys.getfilesystemencoding()
 try:
     from lxml import etree
     import css_parser
 except ImportError as e:
-    sys.exit('! CRITICAL! ' + str(e).decode(SFENC))
+    sys.exit('! CRITICAL! ' + e)
 
 HOME = os.path.expanduser("~")
 DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
