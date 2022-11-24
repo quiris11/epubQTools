@@ -37,8 +37,6 @@ def clean_meta_tags(opftree):
 
     def clean_meta_tag(meta):
         import html
-        from html.parser import HTMLParser
-        h = HTMLParser()
         if meta.text is None:
             return None
         meta.text = meta.text.replace('\r', ' ').replace('\n', ' ').strip()
@@ -131,8 +129,7 @@ def update_css_font_families(epub_dir, opftree):
         )(opftree)
         for c in css_items:
             css_file_path = os.path.join(epub_dir, c.get('href'))
-            sheet = css_parser.parseFile(css_file_path,
-                                       validate=True)
+            sheet = css_parser.parseFile(css_file_path, validate=True)
             for rule in sheet:
                 if rule.type == rule.FONT_FACE_RULE:
                     css_font_family = None
@@ -142,7 +139,7 @@ def update_css_font_families(epub_dir, opftree):
                             try:
                                 css_font_family = p.value.split(
                                     ',')[0].strip().strip('"').strip("'")
-                            except:
+                            except Exception:
                                 continue
                             continue
                         if p.name == 'src' and font_file_family is None:
@@ -212,7 +209,7 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
                     with open(os.path.join(furl), 'rb') as f:
                         try:
                             lfp = list_font_basic_properties(f.read())
-                        except:
+                        except Exception:
                             continue
                         if is_all:
                             family_font_list.append([furl] + list(lfp))
@@ -381,8 +378,8 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
             namespaces=OPFNS
         )(opftree)
         for c in css_items:
-            sheet = css_parser.parseFile(os.path.join(epub_dir, c.get('href')),
-                                       validate=True)
+            sheet = css_parser.parseFile(os.path.join(
+                epub_dir, c.get('href')), validate=True)
             old_css_path = os.path.relpath(
                 old_name_path,
                 os.path.dirname(c.get('href'))
@@ -451,27 +448,27 @@ def write_file_changes_back(tree, file_path):
 
 
 def rename_calibre_cover(opftree, ncxtree, epub_dir):
-        for r in etree.XPath('//opf:reference[@type="cover"]',
-                             namespaces=OPFNS)(opftree):
-            if os.path.basename(r.get('href')) == 'titlepage.xhtml':
-                print("* Renaming calibre cover file to 'cover.html'...")
-                xhtml_items = etree.XPath(
-                    '//opf:item[@media-type="application/xhtml+xml"]',
-                    namespaces=OPFNS
-                )(opftree)
-                xhtml_dirs = []
-                for i in xhtml_items:
-                    xhtml_dirs.append(os.path.dirname(i.get('href')))
-                most_xthml_dir = most_common(xhtml_dirs)
-                if most_xthml_dir != '':
-                    pass
-                try:
-                    rename_replace_files(
-                        opftree, ncxtree, epub_dir, r.get('href'),
-                        os.path.join(most_xthml_dir, 'cover.html'), False
-                    )
-                except WindowsError:
-                    pass
+    for r in etree.XPath('//opf:reference[@type="cover"]',
+                         namespaces=OPFNS)(opftree):
+        if os.path.basename(r.get('href')) == 'titlepage.xhtml':
+            print("* Renaming calibre cover file to 'cover.html'...")
+            xhtml_items = etree.XPath(
+                '//opf:item[@media-type="application/xhtml+xml"]',
+                namespaces=OPFNS
+            )(opftree)
+            xhtml_dirs = []
+            for i in xhtml_items:
+                xhtml_dirs.append(os.path.dirname(i.get('href')))
+            most_xthml_dir = most_common(xhtml_dirs)
+            if most_xthml_dir != '':
+                pass
+            try:
+                rename_replace_files(
+                    opftree, ncxtree, epub_dir, r.get('href'),
+                    os.path.join(most_xthml_dir, 'cover.html'), False
+                )
+            except WindowsError:
+                pass
 
 
 def rename_cover_img(opftree, ncxtree, epub_dir):
