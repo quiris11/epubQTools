@@ -151,6 +151,9 @@ class Logger(object):
         if sys.platform == 'win32':
             message = message.replace('\n', '\r\n')
         self.log.write(message)
+    
+    def flush(self):
+        pass 
 
 
 def main():
@@ -177,12 +180,10 @@ def main():
         print('* WARNING! --left was ignored because it works only with -e.')
     if args.log == '1':
         st = datetime.now().strftime('%Y%m%d%H%M%S')
-        sys.stdout = Logger(os.path.join(uni_dir, 'eQT-' + st +
-                                         '.log'))
+        sys.stdout = Logger(os.path.join(uni_dir, 'eQT-' + st + '.log'))
     elif args.log != '1' and args.log is not None:
         st = datetime.now().strftime('%Y%m%d%H%M%S')
-        sys.stdout = Logger(os.path.join(args.log, 'eQT-' + st +
-                                         '.log'))
+        sys.stdout = Logger(os.path.join(args.log, 'eQT-' + st + '.log'))
     ind_file = ind_root = None
     if args.individual == 'nonr':
         print('')
