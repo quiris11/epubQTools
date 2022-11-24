@@ -244,6 +244,7 @@ def main():
                         except zipfile.BadZipfile as e:
                             print('! CRITICAL! Problem with file "%s": %s' % (
                                 f, e))
+                            continue
                         opf_root, opf_path = find_opf(epbzf)
                         rename_files(opf_path, root, epbzf, f, fdec)
         if counter == 0:
