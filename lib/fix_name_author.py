@@ -8,14 +8,12 @@
 
 import zipfile
 import os
-import sys
 from lxml import etree
 from lib.epubqfix import pack_epub
 from lib.epubqfix import unpack_epub
 from lib.epubqfix import clean_temp
 from lib.epubqfix import find_roots
 
-SFENC = sys.getfilesystemencoding()
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 # OPF = 'http://www.idpf.org/2007/opf'
@@ -36,8 +34,7 @@ def set_author(tree, author):
     )
     newauthor.text = au_rev
     if len(crs) == 1:
-        print('* Current author: "%s"'
-              % crs[0].text.encode('utf8').decode(SFENC))
+        print('* Current author: "%s"' % crs[0].text)
         crs[0].getparent().append(newauthor)
         crs[0].getparent().remove(crs[0])
     elif len(crs) == 0:
@@ -50,8 +47,7 @@ def set_author(tree, author):
         opfmetadata.append(newauthor)
     else:
         print('* Multiple dc:creator found. Updating the first tag...')
-        print('* Current first author: "%s"'
-              % crs[0].text.encode('utf8').decode(SFENC))
+        print('* Current first author: "%s"' % crs[0].text)
         crs[0].getparent().insert(0, newauthor)
         crs[0].getparent().remove(crs[0])
     print('* Setting new author to "%s"...' % au_rev)
@@ -62,8 +58,7 @@ def set_title(tree, title):
     newtitle = etree.Element('{http://purl.org/dc/elements/1.1/}title')
     newtitle.text = title
     if len(ts) == 1:
-        print('* Current title: "%s"'
-              % ts[0].text.encode('utf8').decode(SFENC))
+        print('* Current title: "%s"' % ts[0].text)
         ts[0].getparent().append(newtitle)
         ts[0].getparent().remove(ts[0])
     elif len(ts) == 0:
@@ -76,8 +71,7 @@ def set_title(tree, title):
         opfmetadata.append(newtitle)
     else:
         print('* Multiple dc:title found. Updating the first tag...')
-        print('* Current first title: "%s"'
-              % ts[0].text.encode('utf8').decode(SFENC))
+        print('* Current first title: "%s"' % ts[0].text)
         ts[0].getparent().insert(0, newtitle)
         ts[0].getparent().remove(ts[0])
     print('* Setting new title to "%s"...' % title)
