@@ -76,9 +76,9 @@ def get_mobi_title(mobi_content):
 
 def write_meta(metaf, mobi_file):
     with open(mobi_file, 'rb') as f:
-            mobi_content = f.read()
-            title = get_mobi_title(mobi_content)
-            authors = get_mobi_exth(100, mobi_content)
+        mobi_content = f.read()
+        title = get_mobi_title(mobi_content)
+        authors = get_mobi_exth(100, mobi_content)
     with open(metaf, 'r+') as f:
         fs = f.read()
         fs = fs.replace('"title":""', '"title":%s' % json.dumps(title))
