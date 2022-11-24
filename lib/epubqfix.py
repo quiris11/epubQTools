@@ -65,7 +65,6 @@ SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 ADOBE_OBFUSCATION = 'http://ns.adobe.com/pdf/enc#RC'
 IDPF_OBFUSCATION = 'http://www.idpf.org/2008/embedding'
 CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
-SFENC = sys.getfilesystemencoding()
 
 
 def set_dtd(opftree):
@@ -91,8 +90,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         opftree = etree.fromstring(_epubfile.read(opf_path))
     except etree.XMLSyntaxError as e:
         print('! CRITICAL! XML file "%s" is not well '
-              'formed: "%s"' % (os.path.basename(opf_path),
-                                str(e).decode(SFENC)))
+              'formed: "%s"' % (os.path.basename(opf_path), e))
         opfstring = io.StringIO(_epubfile.read(opf_path))
         try:
             opftree = etree.parse(opfstring, recover_parser)
@@ -100,7 +98,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
             return None
     try:
         tit = etree.XPath('//dc:title/text()', namespaces=DCNS)(opftree)[0]
-    except:
+    except Exception:
         print('! ERROR! Renaming file "%s" failed - dc:title (book title) '
               'not found.' % _file_dec)
         return 0
@@ -476,17 +474,17 @@ def pack_epub(output_filename, source_dir):
 
 def clean_temp(sourcedir):
     for p in os.listdir(os.path.join(sourcedir, os.pardir)):
-            if 'epubQTools-tmp-' in p:
-                if os.path.isdir(os.path.join(sourcedir, os.pardir, p)):
-                    try:
-                        shutil.rmtree(os.path.join(sourcedir, os.pardir, p))
-                    except:
-                        if sys.platform == 'win32':
-                            os.system('rmdir /S /Q \"{}\"'.format(
-                                os.path.join(sourcedir, os.pardir, p)
-                            ))
-                        else:
-                            raise
+        if 'epubQTools-tmp-' in p:
+            if os.path.isdir(os.path.join(sourcedir, os.pardir, p)):
+                try:
+                    shutil.rmtree(os.path.join(sourcedir, os.pardir, p))
+                except Exception:
+                    if sys.platform == 'win32':
+                        os.system('rmdir /S /Q \"{}\"'.format(
+                            os.path.join(sourcedir, os.pardir, p)
+                        ))
+                    else:
+                        raise
 
 
 def find_roots(tempdir):
@@ -496,7 +494,7 @@ def find_roots(tempdir):
                                            'container.xml'))
         opf_path = cr_tree.xpath('//cr:rootfile',
                                  namespaces=CRNS)[0].get('full-path')
-    except:
+    except Exception:
         # try to find OPF file other way and rebuild META-INF/container.xml
         for r, d, fs in os.walk(tempdir):
             for f in fs:
@@ -541,7 +539,7 @@ def find_xhtml_files(rootepubdir, opftree):
             '@media-type="text/html"]',
             namespaces=OPFNS
         )(opftree)
-    except:
+    except Exception:
         print('* XHTML files not found...')
         qfixerr = True
     xhtml_files = []
@@ -575,7 +573,7 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
             '//xhtml:body//text()',
             namespaces=XHTMLNS
         )(source_file)
-    except:
+    except Exception:
         print('* No texts found...')
     # Tag list used to ignore hyphenation
     ignore_list = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'title']
@@ -619,7 +617,7 @@ def fix_styles(source_file):
             '//xhtml:link',
             namespaces=XHTMLNS
         )(source_file)
-    except:
+    except Exception:
         print('* No links found...')
     for link in links:
         if link.get('type') is None:
@@ -633,9 +631,11 @@ def fix_nav_in_cover_file(opftree, tempdir):
         print('* Moving problematic nav element from a cover file '
               'to a toc file...')
         cover_tree = etree.parse(os.path.join(tempdir, cover_href),
-                                 parser=etree.XMLParser(recover=True, encoding='utf-8'))
+                                 parser=etree.XMLParser(
+                                    recover=True, encoding='utf-8'))
         toc_tree = etree.parse(os.path.join(tempdir, toc_href),
-                               parser=etree.XMLParser(recover=True, encoding='utf-8'))
+                               parser=etree.XMLParser(
+                                recover=True, encoding='utf-8'))
         nav = etree.XPath('//xhtml:nav',
                           namespaces=XHTMLNS)(cover_tree)[0]
         remove_node(nav)
@@ -700,7 +700,8 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
         for xhtml_file in xhtml_files:
             try:
                 xhtmltree = etree.parse(xhtml_file,
-                                        parser=etree.XMLParser(recover=True, encoding='utf-8'))
+                                        parser=etree.XMLParser(
+                                            recover=True, encoding='utf-8'))
             except (etree.XMLSyntaxError, IOError):
                 continue
             alltexts = etree.XPath('//text()', namespaces=XHTMLNS)(xhtmltree)
@@ -738,7 +739,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             try:
                 ncxtree = etree.parse(os.path.join(tempdir, toc_ncx_file),
                                       parser)
-            except:
+            except Exception:
                 return soup
             result = transform(ncxtree)
             ncx_contents = ncxtree.xpath('//ncx:content', namespaces=NCXNS)
@@ -819,14 +820,15 @@ def fix_mismatched_covers(opftree, tempdir):
         return opftree
     try:
         cover_xhtml_file = os.path.join(tempdir, refcvs[0].get('href'))
-    except:
+    except Exception:
         print('* HTML cover reference not found. Giving up...')
         qfixerr = True
         return opftree
     try:
         xhtmltree = etree.parse(cover_xhtml_file,
-                                parser=etree.XMLParser(recover=True, encoding='utf-8'))
-    except:
+                                parser=etree.XMLParser(
+                                    recover=True, encoding='utf-8'))
+    except Exception:
         print('* Unable to parse HTML cover file. Giving up...')
         qfixerr = True
         return opftree
@@ -893,7 +895,8 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
     cover_file = None
     for xhtml_file in _xhtml_files:
         xhtmltree = etree.parse(xhtml_file,
-                                parser=etree.XMLParser(recover=True, encoding='utf-8'))
+                                parser=etree.XMLParser(
+                                    recover=True, encoding='utf-8'))
 
         allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
         for img in allimgs:
@@ -1044,7 +1047,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
                 os.path.join(tempdir, refcovers[0].get('href')),
                 parser=etree.XMLParser(recover=True, encoding='utf-8')
             )
-        except:
+        except Exception:
             coversoup = None
         if etree.tostring(coversoup) is not None:
             imgs = etree.XPath('//xhtml:img',
@@ -1113,7 +1116,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
         book_ver = soup.xpath(
             '//opf:package', namespaces=OPFNS
         )[0].get('version')
-    except:
+    except Exception:
         print("! No EPUB version found...")
         return soup
     if not book_ver == '3.0':
@@ -1179,7 +1182,7 @@ def fix_ncx_dtd_uid(opftree, tempdir):
         return opftree
     try:
         ncxtree = etree.parse(os.path.join(tempdir, ncxfile))
-    except:
+    except Exception:
         return opftree
     # remove empty dc:identifiers
     for i in opftree.xpath('//dc:identifier', namespaces=DCNS):
@@ -1255,7 +1258,7 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
             '//xhtml:head',
             namespaces=XHTMLNS
         )(source_file)
-    except:
+    except Exception:
         print('* No head found...')
     for ci in opftree.xpath('//opf:item[@media-type="text/css"]',
                             namespaces=OPFNS):
@@ -1304,7 +1307,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
                                     r'font-family\s*:\s*(.*?)(;|})', e
                                 ).group(1)
                                 is_body_family = True
-                            except:
+                            except Exception:
                                 pass
                         # if ff != '':
                         #     break
@@ -1322,11 +1325,11 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
                                 fflist.append(re.search(
                                     r'font-family\s*:\s*(.+?)(;|})', e
                                 ).group(1))
-                            except:
+                            except Exception:
                                 continue
             try:
                 ff = most_common(fflist)
-            except:
+            except Exception:
                 ff = ''
     except IndexError:
         is_reset_css = True
@@ -1357,7 +1360,7 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
                                 r'font-family\s*:\s*(\"|\')?' +
                                 re.escape(ffr) + r'(\"|\')?.*?}', '}', e
                             )
-                        except:
+                        except Exception:
                             continue
                     fs = ''.join(lis)
                 if is_calibre_class:
@@ -1377,25 +1380,25 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
     else:
         cssdir = ''
     if ff != '':
-            print('! Setting font-family for body to: %s' % ff)
-            if is_calibre_class:
-                bs = 'body, .calibre {font-family: %s }\r\n' % ff
-            else:
-                bs = 'body {font-family: %s }\r\n' % ff
+        print('! Setting font-family for body to: %s' % ff)
+        if is_calibre_class:
+            bs = 'body, .calibre {font-family: %s }\r\n' % ff
+        else:
+            bs = 'body {font-family: %s }\r\n' % ff
     else:
         bs = ''
     if skip_hyph:
         hyphen_properties = '* { adobe-hyphenate: auto !important;\r\n' +\
-        'hyphens: auto !important;\r\n' +\
-        '-epub-hyphens: auto !important;\r\n' +\
-        '-webkit-hyphens: auto !important;\r\n' +\
-        '-moz-hyphens: auto !important; }'
+                            'hyphens: auto !important;\r\n' +\
+                            '-epub-hyphens: auto !important;\r\n' +\
+                            '-webkit-hyphens: auto !important;\r\n' +\
+                            '-moz-hyphens: auto !important; }'
     else:
         hyphen_properties = '* { adobe-hyphenate: explicit !important;\r\n' +\
-        'hyphens: manual !important;\r\n' +\
-        '-epub-hyphens: manual !important;\r\n' +\
-        '-webkit-hyphens: manual !important;\r\n' +\
-        '-moz-hyphens: manual !important; }'
+                            'hyphens: manual !important;\r\n' +\
+                            '-epub-hyphens: manual !important;\r\n' +\
+                            '-webkit-hyphens: manual !important;\r\n' +\
+                            '-moz-hyphens: manual !important; }'
     if html_margin is not None:
         bs = bs + 'html {margin-left: ' + html_margin + \
             'px !important; margin-right: ' + html_margin + \
@@ -1447,18 +1450,19 @@ def remove_text_from_html_cover(opftree, rootepubdir):
             '//opf:reference[@type="cover"]',
             namespaces=OPFNS
         )[0].get('href'))
-    except:
+    except Exception:
         return 0
     try:
-        html_cover_tree = etree.parse(html_cover_path,
-                                      parser=etree.XMLParser(recover=True, encoding='utf-8'))
-    except:
+        html_cover_tree = etree.parse(
+            html_cover_path, parser=etree.XMLParser(
+                recover=True, encoding='utf-8'))
+    except Exception:
         print('* Unable to parse HTML cover file. Giving up...')
         return 0
     try:
         cover_texts = html_cover_tree.xpath('//xhtml:body//text()',
                                             namespaces=XHTMLNS)
-    except:
+    except Exception:
         return None
     if len(cover_texts) > 0:
         print('* Removing needless texts from HTML cover...')
@@ -1513,7 +1517,7 @@ def remove_wm_info(opftree, rootepubdir):
                 try:
                     wmtree = etree.parse(os.path.join(rootepubdir,
                                                       i.get('href')))
-                except:
+                except Exception:
                     continue
                 alltexts = wmtree.xpath('//xhtml:body//text()',
                                         namespaces=XHTMLNS)
@@ -1564,27 +1568,28 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     for key in entities.keys():
         c = c.replace(key, entities[key])
     try:
-        xhtree = etree.fromstring(c.encode('utf-8'), parser=etree.XMLParser(recover=False))
+        xhtree = etree.fromstring(c.encode('utf-8'), parser=etree.XMLParser(
+            recover=False))
     except etree.XMLSyntaxError as e:
         if ('XML declaration allowed only at the start of the '
-                'document' in str(e).decode(SFENC)):
+                'document' in e):
             xhtree = etree.fromstring(c[c.find('<?xml'):],
                                       parser=etree.XMLParser(recover=False))
-        elif re.search('Opening and ending tag mismatch: body line \d+ and '
-                       'html', str(e).decode(SFENC)):
+        elif re.search(
+                r'Opening and ending tag mismatch: body line \d+ and html', e):
             try:
                 xhtree = etree.fromstring(
                     c.replace('</html>', '</body></html>'),
                     parser=etree.XMLParser(recover=False)
                 )
-            except:
+            except Exception:
                 print('* File skipped: ' + os.path.basename(xhfile) +
-                      '. NOT well formed: "' + str(e).decode(SFENC) + '"')
+                      '. NOT well formed: "' + e + '"')
                 qfixerr = True
                 return 1
         else:
             print('* File skipped: ' + os.path.basename(xhfile) +
-                  '. NOT well formed: "' + str(e).decode(SFENC) + '"')
+                  '. NOT well formed: "' + e + '"')
             qfixerr = True
             return 1
 
@@ -1607,7 +1612,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
             ):
                 print('* Removing WM remaining <div><span/></div>...')
                 remove_node(i[-1])
-        except:
+        except Exception:
             continue
 
     # remove WM reset spans
@@ -1808,7 +1813,7 @@ def process_corrupted_zip(e, root, f, zipbinf):
     print('* EPUB file "%s" is corrupted! Trying to fix it...'
           % f, end=' ')
     zipbinpath = 'zip'
-    if 'differ' in str(e).decode(SFENC):
+    if 'differ' in e:
         zipp = subprocess.Popen([
             zipbinpath, '-FF', '%s' % str(os.path.join(root, f)), '--out',
             '%s' % str(os.path.join(root, 'fixed_' + f))
@@ -1816,20 +1821,20 @@ def process_corrupted_zip(e, root, f, zipbinf):
         zippout, zipperr = zipp.communicate()
         print('FIXED')
         return os.path.join(root, 'fixed_' + f)
-    elif 'Bad CRC-32 for file' in str(e).decode(SFENC):
+    elif 'Bad CRC-32 for file' in e:
         zipp = subprocess.Popen([
             zipbinpath, '-d', '%s' % str(os.path.join(root, f)),
-            str(e).decode(SFENC).split("'")[1],
+            e.split("'")[1],
             '--out', '%s' % str(os.path.join(root, 'fixed_' + f))
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         zippout, zipperr = zipp.communicate()
         print('FIXED (with WARNING!)')
-        print ('WARNING! Corrupted file "%s" was removed from EPUB file' %
-               str(e).decode(SFENC).split("'")[1])
+        print('WARNING! Corrupted file "%s" was removed from EPUB file' %
+              e.split("'")[1])
         return os.path.join(root, 'fixed_' + f)
     else:
         print('NOT FIXED')
-        print('* ' + str(e).decode(SFENC))
+        print('* ' + e)
         print('FINISH (with PROBLEMS) qfix for: ' + f)
         return 1
 
@@ -1874,7 +1879,7 @@ def html_cover_first(opftree):
             del coverir.attrib['linear']
         spine = coverir.getparent()
         spine.remove(coverir)
-    except:
+    except Exception:
         return opftree
     spine.insert(0, coverir)
     return opftree
