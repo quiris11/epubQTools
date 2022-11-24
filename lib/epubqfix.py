@@ -79,11 +79,6 @@ def set_dtd(opftree):
 def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
     import unicodedata
 
-    def strip_accents(text):
-        return ''.join(c for c in unicodedata.normalize(
-            'NFKD', text
-        ) if unicodedata.category(c) != 'Mn')
-
     if _filename.endswith('_moh.epub'):
         return 0
     try:
@@ -126,15 +121,15 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         print('! ERROR! Renaming file "%s" failed - dc:title (book title) '
               'is empty.' % _file_dec)
         return 0
-    nfname = strip_accents(str(cr + ' - ' + tit))
-    nfname = nfname.replace('\u2013', '-').replace('/', '_')\
-                   .replace(':', '_').replace('\u0142', 'l')\
-                   .replace('\u0141', 'L')
+    nfname = str(cr + ' - ' + tit)
+    nfname = nfname.replace('\u2013', '-').replace('/', '_').replace(':', '_')
     nfname = "".join(x for x in nfname if (
         x.isalnum() or x.isspace() or x in ('_', '-', '.')
     ))
     is_renamed = False
     counter = 1
+    if sys.platform == 'darwin':
+        nfname = unicodedata.normalize('NFD', nfname)
     while True:
         if _filename == (nfname + '.epub'):
             is_renamed = False
