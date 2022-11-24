@@ -70,6 +70,9 @@ parser.add_argument("-a", "--alter", help="alternative output display",
 parser.add_argument("-n", "--rename", help="rename .epub files to "
                     "'author - title.epub'",
                     action="store_true")
+parser.add_argument("-t", "--rename-to-title", help="rename .epub files to "
+                    "'title.epub'",
+                    action="store_true")
 parser.add_argument("-q", "--qcheck", help="validate files with qcheck "
                     "internal tool",
                     action="store_true")
@@ -139,6 +142,7 @@ parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
                     '(only with -e)')
 args = parser.parse_args()
 uni_dir = args.directory
+tmpSend2KindDir = '_TEMP_SendToKindle'
 
 
 class Logger(object):
@@ -365,6 +369,10 @@ def main():
         print('*** Fixing with internal qfix tool...  ***')
         print('******************************************')
         counter = 0
+        try:
+            shutil.rmtree(os.path.join(uni_dir, tmpSend2KindDir))
+        except FileNotFoundError:
+            pass
         if ind_file:
             counter += 1
             qfix(ind_root, ind_file, args.force, args.replace_font_files,
@@ -480,6 +488,44 @@ def main():
         if counter == 0:
             print('')
             print('* NO *_moh.mobi files for converting found!')
+
+    if args.rename_to_title:
+        print('')
+        print('********************************************')
+        print('*** Renaming "MOH" EPUBs to "title.epub" ***')
+        print('********************************************')
+        print('')
+        counter = 0
+        try:
+            os.mkdir(os.path.join(uni_dir, tmpSend2KindDir))
+        except FileExistsError:
+            pass
+        if ind_file:
+            counter += 1
+            mohFile = ind_file.split('.')[0] + '_moh.epub'
+            newName = ind_file.split(' - ')[1]
+            try:
+                print('* Rename: "%s" to: "%s'"" % (mohFile, newName))
+                os.rename(os.path.join(ind_root, mohFile),
+                          os.path.join(ind_root, tmpSend2KindDir, newName))
+            except FileNotFoundError:
+                print('* Error: "MOH" file not found or already renamed.')
+        else:
+            for root, dirs, files in os.walk(uni_dir):
+                for f in files:
+                    if f.lower().endswith('_moh.epub'):
+                        counter += 1
+                        newName = f.split(' - ')[1][:-9] + '.epub'
+                        try:
+                            print('* Rename: "%s" to: "%s'"" % (f, newName))
+                            os.rename(os.path.join(root, f),
+                                      os.path.join(root, 
+                                                   tmpSend2KindDir, newName))
+                        except (FileExistsError, FileNotFoundError):
+                            print('* Error: "MOH" file not found or already'
+                                  ' renamed.')
+        if counter == 0:
+            print('* NO epub files for renaming found!')
 
     if len(sys.argv) == 2:
         parser.print_help()
