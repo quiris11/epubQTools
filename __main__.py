@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+import unicodedata
 
 from datetime import datetime
 from lib.epubqcheck import qcheck
@@ -70,8 +71,8 @@ parser.add_argument("-a", "--alter", help="alternative output display",
 parser.add_argument("-n", "--rename", help="rename .epub files to "
                     "'author - title.epub'",
                     action="store_true")
-parser.add_argument("-t", "--rename-to-title", help="rename .epub files to "
-                    "'title.epub'",
+parser.add_argument("-t", "--prepare-send-to-kindle", help="copy MOH files to "
+                    "'title.epub' (Send to Kindle friendly)",
                     action="store_true")
 parser.add_argument("-q", "--qcheck", help="validate files with qcheck "
                     "internal tool",
@@ -489,11 +490,11 @@ def main():
             print('')
             print('* NO *_moh.mobi files for converting found!')
 
-    if args.rename_to_title:
+    if args.prepare_send_to_kindle:
         print('')
-        print('********************************************')
-        print('*** Renaming "MOH" EPUBs to "title.epub" ***')
-        print('********************************************')
+        print('*************************************************************')
+        print('* Copy and rename "MOH" EPUBs for upload via Send to Kindle *')
+        print('*************************************************************')
         print('')
         counter = 0
         try:
@@ -502,12 +503,16 @@ def main():
             pass
         if ind_file:
             counter += 1
-            mohFile = ind_file.split('.')[0] + '_moh.epub'
+            if sys.platform == 'darwin':
+                mohFile = unicodedata.normalize('NFD', ind_file.split(
+                    '.epub')[0] + '_moh.epub')
+            else:
+                mohFile = ind_file.split('.epub')[0] + '_moh.epub'
             newName = ind_file.split(' - ')[1]
             try:
-                print('* Rename: "%s" to: "%s'"" % (mohFile, newName))
-                os.rename(os.path.join(ind_root, mohFile),
-                          os.path.join(ind_root, tmpSend2KindDir, newName))
+                print('* Copy and rename: "%s" to: "%s'"" % (mohFile, newName))
+                shutil.copy2(os.path.join(ind_root, mohFile), os.path.join(
+                    ind_root, tmpSend2KindDir, newName))
             except FileNotFoundError:
                 print('* Error: "MOH" file not found or already renamed.')
         else:
@@ -517,15 +522,14 @@ def main():
                         counter += 1
                         newName = f.split(' - ')[1][:-9] + '.epub'
                         try:
-                            print('* Rename: "%s" to: "%s'"" % (f, newName))
-                            os.rename(os.path.join(root, f),
-                                      os.path.join(root, 
-                                                   tmpSend2KindDir, newName))
+                            print('* Copy and rename: "%s" to: "%s'"" % (
+                                f, newName))
+                            shutil.copy2(os.path.join(root, f), os.path.join(
+                                root, tmpSend2KindDir, newName))
                         except (FileExistsError, FileNotFoundError):
-                            print('* Error: "MOH" file not found or already'
-                                  ' renamed.')
+                            print('* Error: "MOH" file not found.')
         if counter == 0:
-            print('* NO epub files for renaming found!')
+            print('* NO MOH files for copy and rename found!')
 
     if len(sys.argv) == 2:
         parser.print_help()
