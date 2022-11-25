@@ -254,7 +254,7 @@ def find_encryption_key(opftree, method):
             return uid
         uid = uid.replace('\x20', '').replace('\x09', '').\
             replace('\x0D', '').replace('\x0A', '')
-        uid = hashlib.sha1(uid).digest()
+        uid = hashlib.sha1(uid.encode('utf-8')).digest()
     return uid
 
 
