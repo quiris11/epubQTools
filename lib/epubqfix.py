@@ -29,10 +29,10 @@ from functools import reduce
 try:
     from lxml import etree
 except ImportError as e:
-    sys.exit('! CRITICAL! ' + str(e).decode(sys.getfilesystemencoding()))
+    sys.exit('! CRITICAL! ' + str(e))
 
 # set up recover parser for malformed XML
-recover_parser = etree.XMLParser(encoding='utf-8', recover=True)
+recover_parser = etree.XMLParser(recover=True)
 
 if not hasattr(sys, 'frozen'):
     dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='epubQTools-tmp-')
@@ -385,7 +385,7 @@ def fix_ncx(opftree, rootepubdir):
         return None
     ncxtree = etree.parse(
         os.path.join(rootepubdir, toc_ncx_file),
-        parser=etree.XMLParser(recover=True, encoding='utf-8')
+        parser=etree.XMLParser(recover=True)
     )
     ncxtree = xml2html_fix_references(ncxtree, rootepubdir, True)
 
@@ -627,10 +627,10 @@ def fix_nav_in_cover_file(opftree, tempdir):
               'to a toc file...')
         cover_tree = etree.parse(os.path.join(tempdir, cover_href),
                                  parser=etree.XMLParser(
-                                    recover=True, encoding='utf-8'))
+                                    recover=True))
         toc_tree = etree.parse(os.path.join(tempdir, toc_href),
                                parser=etree.XMLParser(
-                                recover=True, encoding='utf-8'))
+                                recover=True))
         nav = etree.XPath('//xhtml:nav',
                           namespaces=XHTMLNS)(cover_tree)[0]
         remove_node(nav)
@@ -696,7 +696,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             try:
                 xhtmltree = etree.parse(xhtml_file,
                                         parser=etree.XMLParser(
-                                            recover=True, encoding='utf-8'))
+                                            recover=True))
             except (etree.XMLSyntaxError, IOError):
                 continue
             alltexts = etree.XPath('//text()', namespaces=XHTMLNS)(xhtmltree)
@@ -715,7 +715,7 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             )
         else:
             print('* Fix for a missing HTML TOC file. Generating a new TOC...')
-            parser = etree.XMLParser(remove_blank_text=True, encoding='utf-8')
+            parser = etree.XMLParser(remove_blank_text=True)
             if not hasattr(sys, 'frozen'):
                 transform = etree.XSLT(etree.fromstring(get_data('lib',
                                        'resources/ncx2end-0.2.xsl')))
@@ -822,7 +822,7 @@ def fix_mismatched_covers(opftree, tempdir):
     try:
         xhtmltree = etree.parse(cover_xhtml_file,
                                 parser=etree.XMLParser(
-                                    recover=True, encoding='utf-8'))
+                                    recover=True))
     except Exception:
         print('* Unable to parse HTML cover file. Giving up...')
         qfixerr = True
@@ -891,7 +891,7 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
     for xhtml_file in _xhtml_files:
         xhtmltree = etree.parse(xhtml_file,
                                 parser=etree.XMLParser(
-                                    recover=True, encoding='utf-8'))
+                                    recover=True))
 
         allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
         for img in allimgs:
@@ -1040,7 +1040,7 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
         try:
             coversoup = etree.parse(
                 os.path.join(tempdir, refcovers[0].get('href')),
-                parser=etree.XMLParser(recover=True, encoding='utf-8')
+                parser=etree.XMLParser(recover=True)
             )
         except Exception:
             coversoup = None
@@ -1450,7 +1450,7 @@ def remove_text_from_html_cover(opftree, rootepubdir):
     try:
         html_cover_tree = etree.parse(
             html_cover_path, parser=etree.XMLParser(
-                recover=True, encoding='utf-8'))
+                recover=True))
     except Exception:
         print('* Unable to parse HTML cover file. Giving up...')
         return 0
@@ -1622,6 +1622,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     etree.strip_tags(xhtree, deltag)  # strip bogus tags with attributes
     # workaround strange strip tag bug during hyphenation:
     xhtree = etree.fromstring(etree.tostring(xhtree, encoding='utf-8'))
+    # print(etree.tostring(xhtree))
     if not skip_hyph and book_lang == 'pl':
         xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph,
                                                 dont_hyph_headers)
