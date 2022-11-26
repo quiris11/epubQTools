@@ -297,12 +297,13 @@ def main():
                 'java', '-Djava.awt.headless=true', '-jar',
                 '%s' % epubchecker_path,
                 '%s' % os.path.join(root, f)
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                universal_newlines=True)
             jpout, jperr = jp.communicate()
             if jperr:
                 print(f + ': PROBLEMS FOUND...')
                 print('*** Details... ***')
-                print(jperr.decode('utf-8'))
+                print(jperr)
             else:
                 print(f + ': OK!')
                 print('')
