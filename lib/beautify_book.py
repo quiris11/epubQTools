@@ -44,8 +44,11 @@ def clean_meta_tags(opftree):
             tree = etree.HTML(meta.text)
         except etree.XMLSyntaxError:
             return None
-        clean_text = etree.tostring(tree, method="text", encoding="utf-8")
-        meta.text = clean_text.decode('utf-8')
+        try:
+            clean_text = etree.tostring(tree, method="text", encoding="utf-8")
+            meta.text = clean_text.decode('utf-8')
+        except TypeError:
+            return None
 
     tags = ['creator', 'title', 'description']
     for t in tags:
@@ -585,6 +588,7 @@ def beautify_book(root, f, user_font_dir, pair_family):
     cont_src_list = make_content_src_list(ncxtree)
     fix_display_none(opftree, epub_dir, cont_src_list)
     replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family)
+
     clean_meta_tags(opftree)
     # temprorary disabled due critical problems
     # update_css_font_families(epub_dir, opftree)
