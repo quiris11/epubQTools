@@ -546,7 +546,7 @@ def find_xhtml_files(rootepubdir, opftree):
 
 
 def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
-                                   dont_hyph_headers):
+                                   dont_hyph_headers, skip_hyph):
     # set correct xml:lang attribute for html tag
 
     def fix_hanging_single_conjunctions_and_place_back(tel, txt):
@@ -600,8 +600,12 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
             continue
         newt = ''
         wlist = re.compile(r'\w+|[^\w]', re.UNICODE).findall(t)
-        for w in wlist:
-            newt += hyph.inserted(w, hyphen_mark)
+        if skip_hyph:
+            for w in wlist:
+                newt += w.replace(HYPHEN_MARK, '')
+        else:
+            for w in wlist:
+                newt += hyph.inserted(w, hyphen_mark)
         fix_hanging_single_conjunctions_and_place_back(t, newt)
     return source_file
 
@@ -1623,9 +1627,9 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     # workaround strange strip tag bug during hyphenation:
     xhtree = etree.fromstring(etree.tostring(xhtree, encoding='utf-8'))
     # print(etree.tostring(xhtree))
-    if not skip_hyph and book_lang == 'pl':
+    if book_lang == 'pl':
         xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph,
-                                                dont_hyph_headers)
+                                                dont_hyph_headers, skip_hyph)
     xhtree = fix_styles(xhtree)
     if is_xml_ext_fixed:
         xhtree = xml2html_fix_references(xhtree, os.path.dirname(xhfile),
