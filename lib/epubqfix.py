@@ -1294,7 +1294,9 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
     try:
         for c in cssitems:
             if not is_body_family:
-                with open(os.path.join(tempdir, c.get('href')), 'r') as f:
+                with open(os.path.join(tempdir, c.get('href')), mode='r', 
+                          encoding='utf-8') as f:
+                    # print(repr(f.read()))
                     fs = f.read()
                     lis = splitkeepsep(fs, '}')
                     for e in lis:
@@ -1315,7 +1317,8 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
                   'to find the best font...')
             fflist = []
             for c in cssitems:
-                with open(os.path.join(tempdir, c.get('href')), 'r') as f:
+                with open(os.path.join(tempdir, c.get('href')), mode='r', 
+                          encoding='utf-8') as f:
                     fs = f.read()
                     lis = splitkeepsep(fs, '}')
                     for e in lis:
@@ -1335,7 +1338,8 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
         return opftree, is_reset_css
     if ff != '':
         for c in cssitems:
-            with open(os.path.join(tempdir, c.get('href')), 'r+') as f:
+            with open(os.path.join(tempdir, c.get('href')), mode='r+', 
+                      encoding='utf-8') as f:
                 fs = f.read()
                 if del_fonts:
                     print('* Removing all @font-face rules...')
@@ -1849,7 +1853,8 @@ def modify_css_align(opftree, opfdir, mode, del_colors):
                              namespaces=OPFNS)
     for c in cssitems:
         try:
-            with open(os.path.join(opfdir, c.get('href')), 'r+') as cf:
+            with open(os.path.join(opfdir, c.get('href')), mode='r+', 
+                      encoding='utf-8') as cf:
                 cc = cf.read()
                 cc = re.sub(r'text-align\s*:\s*' + searchmode,
                             'text-align: ' + mode, cc)
