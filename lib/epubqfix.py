@@ -1574,12 +1574,13 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
         xhtree = etree.fromstring(c.encode('utf-8'), parser=etree.XMLParser(
             recover=False))
     except etree.XMLSyntaxError as e:
-        if ('XML declaration allowed only at the start of the '
-                'document' in e):
+        if ('XML declaration allowed only at the '
+                'start of the document' in str(e)):
             xhtree = etree.fromstring(c[c.find('<?xml'):],
                                       parser=etree.XMLParser(recover=False))
         elif re.search(
-                r'Opening and ending tag mismatch: body line \d+ and html', e):
+                r'Opening and ending tag mismatch: body line \d+ and html', 
+                str(e)):
             try:
                 xhtree = etree.fromstring(
                     c.replace('</html>', '</body></html>'),
@@ -1587,12 +1588,12 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                 )
             except Exception:
                 print('* File skipped: ' + os.path.basename(xhfile) +
-                      '. NOT well formed: "' + e + '"')
+                      '. NOT well formed: "' + str(e) + '"')
                 qfixerr = True
                 return 1
         else:
             print('* File skipped: ' + os.path.basename(xhfile) +
-                  '. NOT well formed: "' + e + '"')
+                  '. NOT well formed: "' + str(e) + '"')
             qfixerr = True
             return 1
 
