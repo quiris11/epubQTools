@@ -12,3 +12,5 @@
 # visual studio code
 .vscode
 .DS_Store
+*.sublime-workspace
+*.sublime-project
