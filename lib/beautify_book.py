@@ -270,8 +270,13 @@ def fix_body_id_links(opftree, epub_dir, ncxtree):
         body_id_list = []
         for i in xhtml_items:
             xhtml_url = i.get('href')
-            xhtree = etree.parse(os.path.join(epub_dir, xhtml_url),
-                                 parser=etree.XMLParser(recover=False))
+            try:
+                xhtree = etree.parse(os.path.join(epub_dir, xhtml_url),
+                                     parser=etree.XMLParser(recover=False))
+            except etree.XMLSyntaxError as e:
+                print('* File skipped: ' + os.path.basename(xhtml_url) +
+                      '. NOT well formed: "' + str(e) + '"')
+                return []
             try:
                 body_id = etree.XPath('//xhtml:body[@id]',
                                       namespaces=XHTMLNS)(xhtree)[0]
@@ -538,8 +543,13 @@ def fix_display_none(opftree, epub_dir, cont_src_list):
     for i in xhtml_items:
         is_updated = False
         xhtml_url = i.get('href')
-        xhtree = etree.parse(os.path.join(epub_dir, xhtml_url),
-                             parser=etree.XMLParser(recover=False))
+        try:
+            xhtree = etree.parse(os.path.join(epub_dir, xhtml_url),
+                                 parser=etree.XMLParser(recover=False))
+        except etree.XMLSyntaxError as e:
+            print('* File skipped: ' + os.path.basename(xhtml_url) +
+                  '. NOT well formed: "' + str(e) + '"')
+            return []
         styles = etree.XPath('//*[@style]',
                              namespaces=XHTMLNS)(xhtree)
         for s in styles:
