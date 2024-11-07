@@ -1578,6 +1578,14 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                 'start of the document' in str(e)):
             xhtree = etree.fromstring(c[c.find('<?xml'):],
                                       parser=etree.XMLParser(recover=False))
+        elif ('Namespace prefix mbp on pagebreak is not defined' in str(e)):
+            c = c.replace('<html>', 
+                          '<html xmlns="http://www.w3.org/1999/xhtml">')
+            c = c.replace('<html ', '<html xmlns:mbp="https://kindlegen''.s3.'
+                          'amazonaws.com/AmazonKindlePublishingGuidelines'
+                          '.pdf" ')
+            xhtree = etree.fromstring(c.encode('utf-8'),
+                                      parser=etree.XMLParser(recover=False))
         elif re.search(
                 r'Opening and ending tag mismatch: body line \d+ and html', 
                 str(e)):
