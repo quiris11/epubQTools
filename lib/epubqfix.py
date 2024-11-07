@@ -61,6 +61,8 @@ OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
 DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
+MBPNS = {'mbp': 'https://kindlegen.s3.amazonaws.com/'
+         'AmazonKindlePublishingGuidelines.pdf'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 ADOBE_OBFUSCATION = 'http://ns.adobe.com/pdf/enc#RC'
 IDPF_OBFUSCATION = 'http://www.idpf.org/2008/embedding'
@@ -1586,6 +1588,9 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                           '.pdf" ')
             xhtree = etree.fromstring(c.encode('utf-8'),
                                       parser=etree.XMLParser(recover=False))
+            for pbrk in xhtree.xpath('//mbp:pagebreak', namespaces=MBPNS):
+                pbrk.addnext(etree.XML(
+                    "<div style='page-break-before: always'/>"))
         elif re.search(
                 r'Opening and ending tag mismatch: body line \d+ and html', 
                 str(e)):
