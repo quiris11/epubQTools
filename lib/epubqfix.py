@@ -77,6 +77,7 @@ NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 MBPNS = {'mbp': 'https://kindlegen.s3.amazonaws.com/'
          'AmazonKindlePublishingGuidelines.pdf'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
+EPUBNS = {'epub': 'http://www.idpf.org/2007/ops'}
 ADOBE_OBFUSCATION = 'http://ns.adobe.com/pdf/enc#RC'
 IDPF_OBFUSCATION = 'http://www.idpf.org/2008/embedding'
 CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
@@ -416,6 +417,188 @@ def fix_ncx(opftree, rootepubdir):
     with open(os.path.join(rootepubdir, toc_ncx_file), 'wb') as f:
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
                 standalone=False, xml_declaration=True, encoding='utf-8'))
+
+
+def find_epub3_nav_item(opftree):
+    """Return the manifest <opf:item> for the EPUB 3 navigation
+    document (the item whose "properties" attribute contains the
+    "nav" token), or None if the book doesn't declare one."""
+    for item in opftree.xpath('//opf:item[@properties]', namespaces=OPFNS):
+        if 'nav' in item.get('properties', '').split():
+            return item
+    return None
+
+
+def build_ncx_navpoints_from_nav_ol(ol_element, counter, depth):
+    """Recursively turn a nested <ol>/<li> tree from an EPUB 3
+    navigation document into a list of NCX <navPoint> elements.
+
+    Returns a tuple (list_of_navpoint_elements, max_depth_reached).
+    """
+    ncx = 'http://www.daisy.org/z3986/2005/ncx/'
+    navpoints = []
+    max_depth = depth
+    for li in ol_element.xpath('./xhtml:li', namespaces=XHTMLNS):
+        anchors = li.xpath('./xhtml:a', namespaces=XHTMLNS)
+        sub_ols = li.xpath('./xhtml:ol', namespaces=XHTMLNS)
+        if anchors:
+            href = anchors[0].get('href', '') or ''
+            label = ' '.join(''.join(anchors[0].itertext()).split())
+            if not label:
+                label = ' '
+            counter[0] += 1
+            navpoint = etree.Element(
+                '{%s}navPoint' % ncx,
+                attrib={'id': 'epubQTools-navPoint-%d' % counter[0],
+                        'playOrder': str(counter[0])}
+            )
+            navlabel = etree.SubElement(navpoint, '{%s}navLabel' % ncx)
+            text_el = etree.SubElement(navlabel, '{%s}text' % ncx)
+            text_el.text = label
+            etree.SubElement(navpoint, '{%s}content' % ncx,
+                             attrib={'src': href})
+            if sub_ols:
+                children, child_depth = build_ncx_navpoints_from_nav_ol(
+                    sub_ols[0], counter, depth + 1
+                )
+                for child in children:
+                    navpoint.append(child)
+                max_depth = max(max_depth, child_depth)
+            navpoints.append(navpoint)
+        elif sub_ols:
+            # a heading with no anchor/link of its own (rare, but
+            # allowed by the EPUB 3 spec) - promote its children to
+            # this level instead of losing them
+            children, child_depth = build_ncx_navpoints_from_nav_ol(
+                sub_ols[0], counter, depth
+            )
+            navpoints.extend(children)
+            max_depth = max(max_depth, child_depth)
+    return navpoints, max_depth
+
+
+def generate_ncx_from_nav(opftree, opf_dir_abs):
+    """Build a toc.ncx file out of the EPUB 3 navigation document and
+    register it in the OPF manifest/spine, for EPUB 3 books that don't
+    ship an NCX file at all (EPUB 3 doesn't require one).
+    """
+    ncx = 'http://www.daisy.org/z3986/2005/ncx/'
+    nav_item = find_epub3_nav_item(opftree)
+    if nav_item is None:
+        print('! ERROR! No EPUB 3 navigation document (nav) declared in '
+              'OPF either. Unable to generate a NCX file.')
+        return opftree
+    nav_href = unquote(nav_item.get('href'))
+    nav_path_abs = os.path.join(opf_dir_abs, nav_href)
+    if not os.path.isfile(nav_path_abs):
+        print('! ERROR! EPUB 3 navigation document "%s" declared in OPF '
+              'is missing from the EPUB file.' % nav_href)
+        return opftree
+    try:
+        navtree = etree.parse(nav_path_abs,
+                              parser=etree.XMLParser(recover=True))
+    except etree.XMLSyntaxError as e:
+        print('! ERROR! Unable to parse EPUB 3 navigation document '
+              '"%s": %s' % (nav_href, e))
+        return opftree
+
+    toc_nav_ns = dict(XHTMLNS)
+    toc_nav_ns.update(EPUBNS)
+    nav_elements = etree.XPath(
+        '//xhtml:nav[@epub:type="toc"]', namespaces=toc_nav_ns
+    )(navtree)
+    if not nav_elements:
+        nav_elements = etree.XPath(
+            '//xhtml:nav[@id="toc"]', namespaces=XHTMLNS
+        )(navtree)
+    if not nav_elements:
+        nav_elements = etree.XPath('//xhtml:nav', namespaces=XHTMLNS)(navtree)
+    if not nav_elements:
+        print('! ERROR! No <nav> element found in EPUB 3 navigation '
+              'document "%s". Unable to generate a NCX file.' % nav_href)
+        return opftree
+    top_ols = nav_elements[0].xpath('./xhtml:ol', namespaces=XHTMLNS)
+    if not top_ols:
+        print('! ERROR! The table of contents <nav> element in "%s" has '
+              'no <ol> list. Unable to generate a NCX file.' % nav_href)
+        return opftree
+
+    counter = [0]
+    navpoints, max_depth = build_ncx_navpoints_from_nav_ol(
+        top_ols[0], counter, 1
+    )
+    if not navpoints:
+        print('! ERROR! Could not extract any table of contents entries '
+              'from "%s". Unable to generate a NCX file.' % nav_href)
+        return opftree
+
+    try:
+        book_title = opftree.xpath('//dc:title/text()', namespaces=DCNS)[0]
+    except IndexError:
+        book_title = 'Untitled'
+    try:
+        book_lang = opftree.xpath(
+            '//dc:language/text()', namespaces=DCNS
+        )[0]
+    except IndexError:
+        book_lang = 'en'
+
+    ncxroot = etree.Element(
+        '{%s}ncx' % ncx, nsmap={None: ncx},
+        attrib={'version': '2005-1',
+                '{http://www.w3.org/XML/1998/namespace}lang': book_lang}
+    )
+    head = etree.SubElement(ncxroot, '{%s}head' % ncx)
+    # dtb:uid content is filled in later by fix_ncx_dtd_uid()
+    for meta_name, meta_content in (('dtb:uid', ''),
+                                    ('dtb:depth', str(max_depth)),
+                                    ('dtb:totalPageCount', '0'),
+                                    ('dtb:maxPageNumber', '0')):
+        etree.SubElement(head, '{%s}meta' % ncx,
+                         attrib={'name': meta_name, 'content': meta_content})
+    doctitle = etree.SubElement(ncxroot, '{%s}docTitle' % ncx)
+    doctitle_text = etree.SubElement(doctitle, '{%s}text' % ncx)
+    doctitle_text.text = book_title
+    navmap = etree.SubElement(ncxroot, '{%s}navMap' % ncx)
+    for navpoint in navpoints:
+        navmap.append(navpoint)
+
+    # Place the new NCX file next to the nav document, so the hrefs
+    # copied straight out of the nav document keep pointing to the
+    # right place without having to be rewritten.
+    nav_dir_abs = os.path.dirname(nav_path_abs)
+    ncx_abs_path = os.path.join(nav_dir_abs, 'epubQTools-toc.ncx')
+    dedup_counter = 1
+    while os.path.exists(ncx_abs_path):
+        ncx_abs_path = os.path.join(
+            nav_dir_abs, 'epubQTools-toc-%d.ncx' % dedup_counter
+        )
+        dedup_counter += 1
+    with open(ncx_abs_path, 'wb') as f:
+        f.write(etree.tostring(ncxroot, pretty_print=True,
+                standalone=False, xml_declaration=True, encoding='utf-8'))
+    ncx_href = os.path.relpath(ncx_abs_path, opf_dir_abs).replace('\\', '/')
+
+    existing_ids = set(opftree.xpath('//*/@id'))
+    ncx_id = 'ncx'
+    id_suffix = 1
+    while ncx_id in existing_ids:
+        ncx_id = 'ncx-%d' % id_suffix
+        id_suffix += 1
+    ncx_manifest_item = etree.Element(
+        '{http://www.idpf.org/2007/opf}item',
+        attrib={'id': ncx_id, 'href': ncx_href,
+                'media-type': 'application/x-dtbncx+xml'}
+    )
+    opftree.xpath('//opf:manifest', namespaces=OPFNS)[0].append(
+        ncx_manifest_item
+    )
+    spine = opftree.xpath('//opf:spine', namespaces=OPFNS)[0]
+    if not spine.get('toc'):
+        spine.set('toc', ncx_id)
+    print('* Generated NCX file "%s" from EPUB 3 navigation document '
+          '"%s" (%d TOC entries).' % (ncx_href, nav_href, len(navpoints)))
+    return opftree
 
 
 def replace_font(actual_font_path, fontdir):
@@ -1844,9 +2027,20 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         etree.XPath('//opf:item[@media-type="application/x-dtbncx+xml"]',
                     namespaces=OPFNS)(opftree)[0].get('href')
     except IndexError:
-        print('! CRITICAL! NCX file element is NOT defined in OPF file. '
-              'Unable to proceed...')
-        return True
+        print('* NCX file element is NOT defined in OPF file (this is a '
+              'valid EPUB 3 book without a NCX). Trying to generate a '
+              'NCX file from the EPUB 3 navigation document...')
+        opftree = generate_ncx_from_nav(opftree, opf_dir_abs)
+        try:
+            etree.XPath(
+                '//opf:item[@media-type="application/x-dtbncx+xml"]',
+                namespaces=OPFNS
+            )(opftree)[0].get('href')
+        except IndexError:
+            print('! CRITICAL! NCX file element is NOT defined in OPF '
+                  'file and it was NOT possible to generate one. '
+                  'Unable to proceed...')
+            return True
     opftree = unquote_urls(opftree)
 
     opftree, is_xml_ext_fixed = xml2html_extension(opftree, opf_dir_abs)
