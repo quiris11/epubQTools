@@ -7,6 +7,7 @@
 
 
 import hashlib
+import logging
 import os
 import re
 import tempfile
@@ -30,6 +31,18 @@ try:
     from lxml import etree
 except ImportError as e:
     sys.exit('! CRITICAL! ' + str(e))
+
+try:
+    import css_parser
+except ImportError as e:
+    sys.exit('! CRITICAL! ' + str(e) + ' (install with: '
+              'python -m pip install css-parser)')
+
+# css_parser logs a warning for every non-CSS2.1 quirk it meets (vendor
+# prefixes, @font-face, epub-specific properties, etc.) - real-world epub
+# CSS is full of these, so silence the logger instead of drowning stdout.
+css_parser.log.setLevel(logging.CRITICAL)
+css_parser.log.raiseExceptions = False
 
 # set up recover parser for malformed XML
 recover_parser = etree.XMLParser(recover=True)
@@ -966,6 +979,63 @@ def force_cover_find(_soup):
     return None, None
 
 
+def _split_css_value_list(value_text):
+    """Split a comma-separated CSS value (e.g. a font-family list) into
+    its individual entries, respecting quoted strings so a comma inside
+    a quoted family name is never mistaken for a separator."""
+    entries = []
+    current = []
+    in_quote = None
+    for ch in value_text:
+        if in_quote:
+            current.append(ch)
+            if ch == in_quote:
+                in_quote = None
+        elif ch in ('"', "'"):
+            in_quote = ch
+            current.append(ch)
+        elif ch == ',':
+            entries.append(''.join(current).strip())
+            current = []
+        else:
+            current.append(ch)
+    if current:
+        entries.append(''.join(current).strip())
+    return [e for e in entries if e]
+
+
+# CSS generic font-family keywords, plus the CSS-wide keywords that can
+# legally stand alone as a font-family value. Everything else is a named
+# font a Kindle/e-reader may simply not have installed, so it gets
+# stripped rather than kept as a "fallback".
+GENERIC_FONT_FAMILIES = {
+    'serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui',
+    'inherit', 'initial', 'unset', 'revert', 'revert-layer',
+}
+
+
+def strip_named_fonts(cssrules):
+    """Recursively drop every @font-face rule, and in font-family
+    declarations elsewhere keep only generic CSS family keywords (e.g.
+    'serif', 'sans-serif') - every named font is removed, not just the
+    ones that were embedded, since a reader may not have any of them."""
+    for rule in list(cssrules):
+        if rule.type == rule.FONT_FACE_RULE:
+            cssrules.remove(rule)
+        elif rule.type == rule.STYLE_RULE:
+            prop = rule.style.getProperty('font-family')
+            if prop is not None:
+                kept = [e for e in _split_css_value_list(prop.value)
+                        if e.strip().lower() in GENERIC_FONT_FAMILIES]
+                if kept:
+                    rule.style.setProperty('font-family', ', '.join(kept),
+                                           prop.priority)
+                else:
+                    rule.style.removeProperty('font-family')
+        elif hasattr(rule, 'cssRules'):
+            strip_named_fonts(rule.cssRules)
+
+
 def remove_fonts(opftree, rootepubdir):
     print('* Removing all fonts...')
     for i in opftree.xpath('//opf:item[@href]', namespaces=OPFNS):
@@ -973,6 +1043,28 @@ def remove_fonts(opftree, rootepubdir):
                 i.get('href').lower().endswith('.ttf')):
             remove_node(i)
             os.remove(os.path.join(rootepubdir, i.get('href')))
+    print('* Removing all named fonts from CSS files (keeping only '
+          'generic families: serif, sans-serif, monospace, cursive, '
+          'fantasy, system-ui)...')
+    cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
+                             namespaces=OPFNS)
+    for c in cssitems:
+        css_path = os.path.join(rootepubdir, c.get('href'))
+        try:
+            with open(css_path, 'r', encoding='utf-8') as cf:
+                css_text = cf.read()
+        except IOError as e:
+            print('! WARNING! Unable to read CSS file "%s": %s' %
+                  (c.get('href'), e))
+            continue
+        sheet = css_parser.parseString(css_text, validate=False)
+        strip_named_fonts(sheet.cssRules)
+        try:
+            with open(css_path, 'wb') as cf:
+                cf.write(sheet.cssText)
+        except IOError as e:
+            print('! WARNING! Unable to write CSS file "%s": %s' %
+                  (c.get('href'), e))
     return opftree
 
 
