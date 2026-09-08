@@ -65,6 +65,8 @@ else:
 MY_LANGUAGE = 'pl'
 MY_LANGUAGE2 = 'pl-PL'
 HYPHEN_MARK = '\u00AD'
+FONT_SIZE_1PX_RE = re.compile(
+    r'font-size\s*:\s*1px\s*!important', re.IGNORECASE)
 
 HOME = os.path.expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
@@ -1796,6 +1798,25 @@ def convert_dl_to_ul(opftree, rootepubdir):
             f.write(raw)
 
 
+def remove_trailing_wm_div(xhtree):
+    for body in xhtree.xpath('//xhtml:body', namespaces=XHTMLNS):
+        children = list(body)
+        if not children:
+            continue
+        last = children[-1]
+        is_div = etree.QName(last).localname == 'div'
+        style = (last.get('style') or '').strip()
+        style_matches = bool(FONT_SIZE_1PX_RE.search(style))
+        style_stripped = re.sub(r'\s+', '', style).rstrip(';')
+        style_is_minimal = style_stripped.lower() in (
+            'font-size:1px!important',
+        )
+        tail_is_empty = not (last.tail and last.tail.strip())
+
+        if is_div and style_matches and style_is_minimal and tail_is_empty:
+            remove_node(last)
+
+
 def remove_wm_info(opftree, rootepubdir):
     wmfiles = ['watermark.', 'default-info.', 'generated.', 'platon_wm.',
                'cover-special.', 'default-info-epub3.']
@@ -1956,6 +1977,9 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
         if ''.join(parent.itertext()) == '' and len(parent) == 0:
             remove_node(parent)
 
+    # new wm: div font-size:1px !important at the and of <body>
+    remove_trailing_wm_div(xhtree)
+    
     # remove meta charsets
     _metacharsets = xhtree.xpath('//xhtml:meta[@charset="utf-8"]',
                                  namespaces=XHTMLNS)
