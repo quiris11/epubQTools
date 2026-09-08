@@ -81,6 +81,7 @@ EPUBNS = {'epub': 'http://www.idpf.org/2007/ops'}
 ADOBE_OBFUSCATION = 'http://ns.adobe.com/pdf/enc#RC'
 IDPF_OBFUSCATION = 'http://www.idpf.org/2008/embedding'
 CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
+XSINS = {'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
 
 
 def set_dtd(opftree):
@@ -1279,6 +1280,14 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
         if lang_counter > 1:
             print('* Removing multiple language definitions...')
             lang.getparent().remove(lang)
+
+    # remove xsi:type attribute from dc:language
+    # (e.g. <dc:language xsi:type="dcterms:RFC3066">CODE</dc:language>)
+    xsi_type_attr = '{%s}type' % XSINS['xsi']
+    for lang in soup.xpath("//dc:language", namespaces=DCNS):
+        if xsi_type_attr in lang.attrib:
+            print('* Removing xsi:type attribute from dc:language...')
+            del lang.attrib[xsi_type_attr]
 
     # set dc:language to my language
     for lang in soup.xpath("//dc:language", namespaces=DCNS):
