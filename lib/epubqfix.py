@@ -83,7 +83,68 @@ EPUBNS = {'epub': 'http://www.idpf.org/2007/ops'}
 ADOBE_OBFUSCATION = 'http://ns.adobe.com/pdf/enc#RC'
 IDPF_OBFUSCATION = 'http://www.idpf.org/2008/embedding'
 CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
-XSINS = {'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
+
+# Languages for which dc:language attributes (xsi:type, id, etc.) are
+# LEFT ALONE. For any other language, all attributes on dc:language are
+# stripped. Codes below are lowercase BCP-47/ISO 639 primary subtags.
+LANGS_EXEMPT_FROM_ATTR_STRIP = {
+    'af',       # Afrikaans
+    'gsw',      # Alsatian
+    'ar',       # Arabic
+    'eu',       # Basque
+    'nb',       # Bokmål Norwegian
+    'br',       # Breton
+    'ca',       # Catalan
+    'kw',       # Cornish
+    'co',       # Corsican
+    'da',       # Danish
+    'nl',       # Dutch
+    'stq',      # Eastern Frisian
+    'en',       # English
+    'fi',       # Finnish
+    'fr',       # French
+    'fy',       # Frisian
+    'gl',       # Galician
+    'de',       # German
+    'is',       # Icelandic
+    'ga',       # Irish
+    'it',       # Italian
+    'lb',       # Luxembourgish
+    'gv',       # Manx
+    'frr',      # Northern Frisian
+    'no',       # Norwegian
+    'nn',       # Nynorsk Norwegian
+    'pt',       # Portuguese
+    'oc',       # Provençal (Occitan)
+    'prv',
+    'rm',       # Romansh
+    'ru',       # Russian
+    'sco',      # Scots
+    'gd',       # Scottish Gaelic
+    'es',       # Spanish
+    'sw',       # Swahili
+    'sv',       # Swedish
+    'cy',       # Welsh
+    'ml',       # Malayalam
+    'ta',       # Tamil
+    'hi',       # Hindi
+    'gu',       # Gujarati
+    'mr',       # Marathi
+}
+# Chinese needs special-casing: only Chinese (Simplified) is exempt,
+# Traditional-Chinese subtags must NOT match.
+ZH_TRADITIONAL_TAGS = {'zh-hant', 'zh-tw', 'zh-hk', 'zh-mo'}
+
+
+def is_lang_exempt_from_attr_strip(lang_code):
+    if not lang_code:
+        return False
+    code = lang_code.strip().lower()
+    primary = code.split('-')[0]
+    if primary == 'zh':
+        return code not in ZH_TRADITIONAL_TAGS
+    return primary in LANGS_EXEMPT_FROM_ATTR_STRIP
+
 
 
 def set_dtd(opftree):
@@ -1283,13 +1344,13 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             print('* Removing multiple language definitions...')
             lang.getparent().remove(lang)
 
-    # remove xsi:type attribute from dc:language
-    # (e.g. <dc:language xsi:type="dcterms:RFC3066">CODE</dc:language>)
-    xsi_type_attr = '{%s}type' % XSINS['xsi']
+    # remove all attributes from dc:language, but only when the book's
+    # language is NOT on the exempt list (LANGS_EXEMPT_FROM_ATTR_STRIP)
     for lang in soup.xpath("//dc:language", namespaces=DCNS):
-        if xsi_type_attr in lang.attrib:
-            print('* Removing xsi:type attribute from dc:language...')
-            del lang.attrib[xsi_type_attr]
+        if lang.attrib and not is_lang_exempt_from_attr_strip(lang.text):
+            print('* Removing all attributes from dc:language...')
+            for attr in list(lang.attrib):
+                del lang.attrib[attr]
 
     # set dc:language to my language
     for lang in soup.xpath("//dc:language", namespaces=DCNS):
