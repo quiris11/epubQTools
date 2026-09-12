@@ -36,7 +36,7 @@ try:
     import css_parser
 except ImportError as e:
     sys.exit('! CRITICAL! ' + str(e) + ' (install with: '
-              'python -m pip install css-parser)')
+             'python -m pip install css-parser)')
 
 # css_parser logs a warning for every non-CSS2.1 quirk it meets (vendor
 # prefixes, @font-face, epub-specific properties, etc.) - real-world epub
@@ -144,7 +144,6 @@ def is_lang_exempt_from_attr_strip(lang_code):
     if primary == 'zh':
         return code not in ZH_TRADITIONAL_TAGS
     return primary in LANGS_EXEMPT_FROM_ATTR_STRIP
-
 
 
 def set_dtd(opftree):
@@ -1759,7 +1758,8 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
         f.write(bs +
                 '@page { margin: 5pt; } \r\n'
                 'body, body.calibre  { margin: 5pt; padding: 0; }\r\n'
-                'p { margin-left: 0; margin-right: 0; }\r\n' +
+                'p { margin-left: 0; margin-right: 0; '
+                'font-size: 1em !important; }\r\n' +
                 hyphen_properties)
     newcssmanifest = etree.Element(
         '{http://www.idpf.org/2007/opf}item',
