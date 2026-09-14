@@ -16,10 +16,12 @@ import zipfile
 import unicodedata
 
 from datetime import datetime
+from lxml import etree
 from lib.epubqcheck import qcheck
 from lib.epubqcheck import find_opf
 from lib.epubqfix import qfix
 from lib.epubqfix import rename_files
+from lib.epubqfix import DCNS
 from lib.fix_name_author import fix_name_author
 from lib.azkfix import to_azk
 
@@ -74,6 +76,9 @@ parser.add_argument("-n", "--rename", help="rename .epub files to "
 parser.add_argument("-t", "--prepare-send-to-kindle", help="copy MOH files to "
                     "'title.epub' (Send to Kindle friendly)",
                     action="store_true")
+parser.add_argument("--pl-to-la", help='in staged Send to Kindle EPUBs, '
+                    'change dc:language from "pl" to "la" (Latin) '
+                    '(only with -t)', action="store_true")
 parser.add_argument("-q", "--qcheck", help="validate files with qcheck "
                     "internal tool",
                     action="store_true")
@@ -204,6 +209,49 @@ def _stage_moh_epub(src_path, dest_dir, stats):
         stats['missing'] += 1
 
 
+def _pl_to_la(dest_dir):
+    """
+    In every EPUB sitting in the Send-to-Kindle staging folder, change
+    dc:language from 'pl' to 'la' (Latin), in place. Files that don't
+    declare 'pl' are left untouched. Only the OPF entry is rewritten;
+    every other entry in the zip is copied over byte-for-byte.
+    """
+    changed = 0
+    for f in os.listdir(dest_dir):
+        if not f.lower().endswith('.epub'):
+            continue
+        epub_path = os.path.join(dest_dir, f)
+        try:
+            with zipfile.ZipFile(epub_path) as zin:
+                _, opf_path = find_opf(zin)
+                opftree = etree.fromstring(zin.read(opf_path))
+                langs = opftree.xpath('//dc:language', namespaces=DCNS)
+                if not any(lang.text == 'pl' for lang in langs):
+                    continue
+                for lang in langs:
+                    if lang.text == 'pl':
+                        lang.text = 'la'
+                new_opf = etree.tostring(
+                    opftree, xml_declaration=True, encoding='utf-8')
+                entries = [
+                    (item, new_opf if item.filename == opf_path
+                     else zin.read(item.filename))
+                    for item in zin.infolist()
+                ]
+        except Exception as e:
+            print(f'! ERROR! Could not update language in "{f}": {e}')
+            continue
+
+        tmp_path = epub_path + '.tmp'
+        with zipfile.ZipFile(tmp_path, 'w') as zout:
+            for item, data in entries:
+                zout.writestr(item, data)
+        os.replace(tmp_path, epub_path)
+        print(f'* Changed dc:language "pl" to "la" in: "{f}"')
+        changed += 1
+    return changed
+
+
 def main():
     if args.alter and not args.qcheck:
         print('* WARNING! -a was ignored because it works only with -q.')
@@ -226,6 +274,9 @@ def main():
               'with -e.')
     if args.left and not args.epub:
         print('* WARNING! --left was ignored because it works only with -e.')
+    if args.pl_to_la and not args.prepare_send_to_kindle:
+        print('* WARNING! --pl-to-la was ignored because it works only '
+              'with -t.')
     if args.log == '1':
         st = datetime.now().strftime('%Y%m%d%H%M%S')
         sys.stdout = Logger(os.path.join(uni_dir, 'eQT-' + st + '.log'))
@@ -566,6 +617,11 @@ def main():
                 print(f'* Done: {stats["copied"]} file(s) copied '
                       f'({stats["renamed"]} renamed to avoid a naming clash), '
                       f'{stats["missing"]} skipped due to errors.')
+
+            if args.pl_to_la and stats['copied']:
+                changed = _pl_to_la(dest_dir)
+                print(f'* Changed dc:language "pl" to "la" in '
+                      f'{changed} file(s).')
 
     if len(sys.argv) == 2:
         parser.print_help()
