@@ -161,6 +161,49 @@ class Logger(object):
         pass 
 
 
+def _stage_moh_epub(src_path, dest_dir, stats):
+    """
+    Copy one '..._moh.epub' file into the (already-created, already-empty)
+    staging folder, stripping the '_moh' marker from the name.
+    """
+    fname = os.path.basename(src_path)
+
+    # maxsplit=1 so a title that itself contains " - " isn't truncated
+    parts = fname.split(' - ', 1)
+    if len(parts) < 2:
+        print(f'* Error: "{fname}" does not match the '
+              f'"Author - Title_moh.epub" pattern, skipping.')
+        stats['missing'] += 1
+        return
+
+    new_name = parts[1]
+    if new_name.lower().endswith('_moh.epub'):
+        new_name = new_name[:-len('_moh.epub')] + '.epub'
+
+    dest_path = os.path.join(dest_dir, new_name)
+    if os.path.exists(dest_path):
+        # The folder starts empty every run, so this can only mean another
+        # source file already produced this same name earlier in this run.
+        # Don't overwrite it -- find a free "Title (2).epub" style name.
+        base, ext = os.path.splitext(new_name)
+        n = 2
+        while os.path.exists(os.path.join(dest_dir, f'{base} ({n}){ext}')):
+            n += 1
+        new_name = f'{base} ({n}){ext}'
+        dest_path = os.path.join(dest_dir, new_name)
+        print(f'* Warning: duplicate result name, saving this one as '
+              f'"{new_name}" instead.')
+        stats['renamed'] += 1
+
+    try:
+        print(f'* Copy and rename: "{fname}" to: "{new_name}"')
+        shutil.copy2(src_path, dest_path)
+        stats['copied'] += 1
+    except FileNotFoundError:
+        print(f'* Error: "{fname}" not found or already renamed.')
+        stats['missing'] += 1
+
+
 def main():
     if args.alter and not args.qcheck:
         print('* WARNING! -a was ignored because it works only with -q.')
@@ -497,40 +540,32 @@ def main():
         print('* Copy and rename "MOH" EPUBs for upload via Send to Kindle *')
         print('*************************************************************')
         print('')
-        counter = 0
-        try:
-            os.mkdir(os.path.join(uni_dir, tmpSend2KindDir))
-        except FileExistsError:
-            pass
+
         if ind_file:
-            counter += 1
-            if sys.platform == 'darwin':
-                mohFile = unicodedata.normalize('NFD', ind_file.split(
-                    '.epub')[0] + '_moh.epub')
-            else:
-                mohFile = ind_file.split('.epub')[0] + '_moh.epub'
-            newName = ind_file.split(' - ')[1]
-            try:
-                print('* Copy and rename: "%s" to: "%s'"" % (mohFile, newName))
-                shutil.copy2(os.path.join(ind_root, mohFile), os.path.join(
-                    ind_root, tmpSend2KindDir, newName))
-            except FileNotFoundError:
-                print('* Error: "MOH" file not found or already renamed.')
+            print('* Not supported in individual file mode.')
         else:
+            dest_dir = os.path.join(uni_dir, tmpSend2KindDir)
+
+            # Always start from a clean staging folder: wipe it if it exists,
+            # then recreate it empty.
+            shutil.rmtree(dest_dir, ignore_errors=True)
+            os.makedirs(dest_dir)
+
+            stats = {'copied': 0, 'missing': 0, 'renamed': 0}
+
             for root, dirs, files in os.walk(uni_dir):
+                # don't descend into the staging folder itself
+                dirs[:] = [d for d in dirs if d != tmpSend2KindDir]
                 for f in files:
                     if f.lower().endswith('_moh.epub'):
-                        counter += 1
-                        newName = f.split(' - ')[1][:-9] + '.epub'
-                        try:
-                            print('* Copy and rename: "%s" to: "%s'"" % (
-                                f, newName))
-                            shutil.copy2(os.path.join(root, f), os.path.join(
-                                root, tmpSend2KindDir, newName))
-                        except (FileExistsError, FileNotFoundError):
-                            print('* Error: "MOH" file not found.')
-        if counter == 0:
-            print('* NO MOH files for copy and rename found!')
+                        _stage_moh_epub(os.path.join(root, f), dest_dir, stats)
+
+            if stats['copied'] == 0 and stats['missing'] == 0:
+                print('* NO MOH files for copy and rename found!')
+            else:
+                print(f'* Done: {stats["copied"]} file(s) copied '
+                      f'({stats["renamed"]} renamed to avoid a naming clash), '
+                      f'{stats["missing"]} skipped due to errors.')
 
     if len(sys.argv) == 2:
         parser.print_help()
