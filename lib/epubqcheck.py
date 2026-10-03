@@ -446,7 +446,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             continue
         except etree.XMLSyntaxError as e:
             print(_file_dec + 'XML file: ' + _htmlfilepath +
-                  ' not well formed: "' + e + '"')
+                  ' not well formed: "' + str(e) + '"')
             continue
 
         # build list with body tags with id attributes
