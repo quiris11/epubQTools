@@ -1847,15 +1847,20 @@ def convert_dl_to_ul(opftree, rootepubdir):
         return None
     with open(html_toc_path, 'r', encoding='utf-8') as f:
         raw = f.read()
-    if '<dl>' in raw:
-        print('* Coverting HTML TOC from definition list to unsorted list...')
-        raw = re.sub(r'<dd>(\s*)<dl>', '<li><ul>', raw)
-        raw = re.sub(r'</dl>(\s*)</dd>', '</ul></li>', raw)
-        raw = raw.replace('<dl>', '<ul>')
+    if '<dl' in raw:
+        print('* Converting HTML TOC from definition list to unordered list...')
+        # nested lists (unchanged behaviour, but tolerate attributes)
+        raw = re.sub(r'<dd>\s*<dl\b[^>]*>', '<li><ul>', raw)
+        raw = re.sub(r'</dl>\s*</dd>', '</ul></li>', raw)
+        # remove empty <dd/> or <dd></dd> (not allowed inside <ul>)
+        raw = re.sub(r'<dd\s*/>', '', raw)
+        raw = re.sub(r'<dd\b[^>]*>\s*</dd>', '', raw)
+        # main conversion, keeping any attributes (class, id, ...)
+        raw = re.sub(r'<dl\b([^>]*)>', r'<ul\1>', raw)
         raw = raw.replace('</dl>', '</ul>')
-        raw = raw.replace('<dt>', '<li>')
+        raw = re.sub(r'<dt\b([^>]*)>', r'<li\1>', raw)
         raw = raw.replace('</dt>', '</li>')
-        with open(html_toc_path, 'w') as f:
+        with open(html_toc_path, 'w', encoding='utf-8') as f:
             f.write(raw)
 
 
