@@ -11,7 +11,7 @@ Tools for checking, correcting and hyphenating EPUB files.
 ```
 usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]] [--author [Surname, First Name]] [--title [Title]]
                                                         [--font-dir [DIR]] [--replace-font-family [old,new]] [-a] [-n] [-t] [-q] [-p] [--list-fonts] [-m] [-e] [-s]
-                                                        [-r] [--skip-reset-css] [--skip-justify] [--left] [--replace-font-files] [-x] [--remove-colors]
+                                                        [-r] [-c] [--skip-justify] [--left] [--replace-font-files] [-x] [--remove-colors]
                                                         [--remove-fonts] [-k] [-z] [-d] [-f] [--fix-missing-container] [--book-margin [NUMBER]]
                                                         directory
 
@@ -43,7 +43,8 @@ options:
   -s, --skip-hyphenate  do not hyphenate book (only with -e)
   -r, --skip-hyphenate-headers
                         do not hyphenate headers like h1, h2, h3...(only with -e)
-  --skip-reset-css      skip linking a reset CSS file to every xthml file (only with -e)
+  -c, --skip-reset-css  skip linking a full reset CSS file to every xthml file; if the book is hyphenated,
+                        a CSS with "hyphens: manual" only is linked instead (only with -e)
   --skip-justify        skip replacing "text-align: left" with "text-align: justify" in all CSS files (only with -e)
   --left                replace "text-align: justify" with "text-align: left" in all CSS files (experimental) (only with -e)
   --replace-font-files  replace font files (only with -e)

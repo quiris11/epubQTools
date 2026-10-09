@@ -1620,6 +1620,42 @@ def append_reset_css(source_file, xhtml_file, opf_path, opftree):
     return source_file
 
 
+def append_hyphen_css_file(opftree, tempdir):
+    """Reset CSS with 'hyphens: manual' only (used with --skip-reset-css when
+    the book was hyphenated) - book CSS files are not modified."""
+    cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
+                             namespaces=OPFNS)
+    for c in cssitems:
+        if 'epubQTools-reset.css' in c.get('href'):
+            return opftree, True
+    if len(cssitems) > 0 and all(
+        os.path.dirname(x.get('href')) == os.path.dirname(
+            cssitems[0].get('href')
+        ) for x in cssitems
+    ):
+        cssdir = os.path.dirname(cssitems[0].get('href'))
+    else:
+        cssdir = ''
+    with open(os.path.join(tempdir, cssdir, 'epubQTools-reset.css'), 'w') as f:
+        f.write('* { adobe-hyphenate: explicit !important;\r\n'
+                'hyphens: manual !important;\r\n'
+                '-epub-hyphens: manual !important;\r\n'
+                '-webkit-hyphens: manual !important;\r\n'
+                '-moz-hyphens: manual !important; }')
+    newcssmanifest = etree.Element(
+        '{http://www.idpf.org/2007/opf}item',
+        attrib={'media-type': 'text/css',
+                'href': os.path.join(
+                    cssdir,
+                    'epubQTools-reset.css'
+                ).replace('\\', '/'),
+                'id': 'epubQTools-reset'}
+    )
+    opftree.xpath('//opf:manifest',
+                  namespaces=OPFNS)[0].append(newcssmanifest)
+    return opftree, False
+
+
 def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
                           html_margin, skip_hyph):
 
@@ -2163,28 +2199,38 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
 
     if _replacefonts:
         find_and_replace_fonts(opftree, opf_dir_abs, fontdir)
+    try:
+        book_lang = opftree.xpath("//dc:language", namespaces=DCNS)[0].text
+    except IndexError:
+        book_lang = ''
+    # hyphenation is done only for Polish books (see below)
+    is_hyphenated = not skip_hyph and book_lang == 'pl'
     if _resetmargins:
         print('* Setting custom CSS styles...')
         opftree, is_reset_css = append_reset_css_file(
             opftree, opf_dir_abs, irmf, del_fonts, html_margin, skip_hyph
         )
+        link_reset_css = True
+    elif is_hyphenated:
+        # --skip-reset-css: only "hyphens: manual", so the reader breaks
+        # words at the inserted soft hyphens only
+        print('* Setting hyphenation-only CSS style...')
+        opftree, is_reset_css = append_hyphen_css_file(opftree, opf_dir_abs)
+        link_reset_css = True
     else:
         is_reset_css = False
+        link_reset_css = False
     opftree = remove_jacket(opftree, opf_dir_abs)
     _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
     opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
                            _xhtml_file_paths)
     convert_dl_to_ul(opftree, opf_dir_abs)
-    try:
-        book_lang = opftree.xpath("//dc:language", namespaces=DCNS)[0].text
-    except IndexError:
-        book_lang = ''
-    if not skip_hyph and book_lang == 'pl':
+    if is_hyphenated:
         print('* Hyphenating texts...')
         if dont_hyph_headers:
             print('* ... except headers...')
     for s in _xhtml_files:
-        process_xhtml_file(s, opftree, _resetmargins, skip_hyph, opf_dir_abs,
+        process_xhtml_file(s, opftree, link_reset_css, skip_hyph, opf_dir_abs,
                            is_reset_css, opf_dir_abs, is_xml_ext_fixed,
                            book_lang, dont_hyph_headers)
     opftree = remove_wm_info(opftree, opf_dir_abs)

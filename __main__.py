@@ -95,9 +95,10 @@ parser.add_argument("-r", "--skip-hyphenate-headers",
                     help="do not hyphenate headers like h1, h2, h3..."
                     "(only with -e)",
                     action="store_true")
-parser.add_argument("--skip-reset-css",
-                    help='skip linking a reset CSS file to every xthml file'
-                    ' (only with -e)',
+parser.add_argument("-c", "--skip-reset-css",
+                    help='skip linking a full reset CSS file to every xthml '
+                    'file; if the book is hyphenated, a CSS with '
+                    '"hyphens: manual" only is linked instead (only with -e)',
                     action="store_false")
 parser.add_argument("--skip-justify", help='skip replacing '
                     '"text-align: left" '
