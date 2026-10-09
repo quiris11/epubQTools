@@ -1656,7 +1656,7 @@ def append_hyphen_css_file(opftree, tempdir):
     return opftree, False
 
 
-def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
+def append_reset_css_file(opftree, tempdir, del_fonts,
                           html_margin, skip_hyph):
 
     def splitkeepsep(s, sep):
@@ -1730,26 +1730,6 @@ def append_reset_css_file(opftree, tempdir, is_rm_family, del_fonts,
                     fs = re.sub(re.compile(
                         r'@font-face.*?\{.*?\}', re.DOTALL
                     ), '', fs)
-                if is_rm_family:
-                    print('* Removing problematic font-family...')
-                    ffr = ff.split(',')[0]
-                    ffr = ffr.replace('"', '').replace("'", '')
-                    lis = splitkeepsep(fs, '}')
-                    for e in lis:
-                        if '@font-face' in e:
-                            continue
-                        lis[lis.index(e)] = re.sub(
-                            r'font-family\s*:\s*(\"|\')?' + re.escape(ffr) +
-                            r'(\"|\')?.*?;', '', e
-                        )
-                        try:
-                            lis[lis.index(e)] = re.sub(
-                                r'font-family\s*:\s*(\"|\')?' +
-                                re.escape(ffr) + r'(\"|\')?.*?}', '}', e
-                            )
-                        except Exception:
-                            continue
-                    fs = ''.join(lis)
                 if is_calibre_class:
                     fs = 'body, .calibre {font-family: ' + ff + ' }\r\n' + fs
                 else:
@@ -2099,7 +2079,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
-                 skip_hyph, arg_justify, arg_left, irmf, fontdir, del_colors,
+                 skip_hyph, arg_justify, arg_left, fontdir, del_colors,
                  del_fonts, html_margin, dont_hyph_headers):
     global qfixerr
     qfixerr = False
@@ -2208,7 +2188,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if _resetmargins:
         print('* Setting custom CSS styles...')
         opftree, is_reset_css = append_reset_css_file(
-            opftree, opf_dir_abs, irmf, del_fonts, html_margin, skip_hyph
+            opftree, opf_dir_abs, del_fonts, html_margin, skip_hyph
         )
         link_reset_css = True
     elif is_hyphenated:
@@ -2336,7 +2316,7 @@ def html_cover_first(opftree):
 
 
 def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
-         skip_hyph, arg_justify, arg_left, irmf, del_colors, del_fonts,
+         skip_hyph, arg_justify, arg_left, del_colors, del_fonts,
          fontdir, fix_container_only, html_margin, dont_hyph_headers,
          pair_family):
     global qfixerr
@@ -2374,7 +2354,7 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
             print('* Hyphenating is turned OFF...')
         is_failed = process_epub(
             _tempdir, _replacefonts, _resetmargins, skip_hyph,
-            arg_justify, arg_left, irmf, fontdir, del_colors,
+            arg_justify, arg_left, fontdir, del_colors,
             del_fonts, html_margin, dont_hyph_headers)
         if not is_failed:
             pack_epub(os.path.join(root, newfile), _tempdir)

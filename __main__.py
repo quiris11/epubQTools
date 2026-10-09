@@ -112,10 +112,6 @@ parser.add_argument("--left", help='replace "text-align: justify" '
 parser.add_argument("--replace-font-files",
                     help="replace font files (only with -e)",
                     action="store_true")
-parser.add_argument("-x", "--myk-fix",
-                    help="fix for MYK conversion oddity (experimental) "
-                    "(only with -e)",
-                    action="store_true")
 parser.add_argument("--remove-colors",
                     help="remove all color definitions from CSS files "
                     "(only with -e)",
@@ -423,7 +419,7 @@ def main():
             counter += 1
             qfix(ind_root, ind_file, args.force, args.replace_font_files,
                  args.skip_reset_css, args.tools, args.skip_hyphenate,
-                 args.skip_justify, args.left, args.myk_fix,
+                 args.skip_justify, args.left,
                  args.remove_colors, args.remove_fonts, args.font_dir,
                  args.fix_missing_container, args.book_margin,
                  args.skip_hyphenate_headers, args.replace_font_family)
@@ -437,7 +433,7 @@ def main():
                         qfix(root, f, args.force, args.replace_font_files,
                              args.skip_reset_css, args.tools,
                              args.skip_hyphenate, args.skip_justify, args.left,
-                             args.myk_fix, args.remove_colors,
+                             args.remove_colors,
                              args.remove_fonts, args.font_dir,
                              args.fix_missing_container,
                              args.book_margin, args.skip_hyphenate_headers,

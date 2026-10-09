@@ -11,7 +11,7 @@ Tools for checking, correcting and hyphenating EPUB files.
 ```
 usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]] [--author [Surname, First Name]] [--title [Title]]
                                                         [--font-dir [DIR]] [--replace-font-family [old,new]] [-a] [-n] [-t] [-q] [-p] [--list-fonts] [-m] [-e] [-s]
-                                                        [-r] [-c] [--skip-justify] [--left] [--replace-font-files] [-x] [--remove-colors]
+                                                        [-r] [-c] [--skip-justify] [--left] [--replace-font-files] [--remove-colors]
                                                         [--remove-fonts] [-k] [-z] [-d] [-f] [--fix-missing-container] [--book-margin [NUMBER]]
                                                         directory
 
@@ -48,7 +48,6 @@ options:
   --skip-justify        skip replacing "text-align: left" with "text-align: justify" in all CSS files (only with -e)
   --left                replace "text-align: justify" with "text-align: left" in all CSS files (experimental) (only with -e)
   --replace-font-files  replace font files (only with -e)
-  -x, --myk-fix         fix for MYK conversion oddity (experimental) (only with -e)
   --remove-colors       remove all color definitions from CSS files (only with -e)
   --remove-fonts        remove all embedded font files (only with -e)
   -k, --kindlegen       convert _moh.epub files to .mobi with kindlegen
