@@ -337,6 +337,39 @@ def find_encryption_key(opftree, method):
     return uid
 
 
+def system_font_dirs():
+    """System font directories. On Linux they are searched recursively,
+    because fonts are stored in subdirectories there."""
+    if sys.platform == 'win32':
+        return [os.path.abspath(os.path.join(os.environ['WINDIR'], 'Fonts'))]
+    dirs = [os.path.join(os.path.sep, 'Library', 'Fonts'),
+            os.path.join(HOME, 'Library', 'Fonts')]
+    if sys.platform.startswith('linux'):
+        data_home = os.environ.get('XDG_DATA_HOME') or os.path.join(
+            HOME, '.local', 'share')
+        dirs += [os.path.join(data_home, 'fonts'),
+                 os.path.join(HOME, '.fonts'),
+                 os.path.join(os.path.sep, 'usr', 'local', 'share', 'fonts'),
+                 os.path.join(os.path.sep, 'usr', 'share', 'fonts')]
+    return dirs
+
+
+def find_font_file(file_name, fontdir):
+    """Path of a font file named file_name or None. The user font directory
+    (--font-dir) has priority, then user and system font directories."""
+    if fontdir and os.path.isfile(os.path.join(fontdir, file_name)):
+        return os.path.join(fontdir, file_name)
+    recursive = sys.platform.startswith('linux')
+    for font_dir in system_font_dirs():
+        if os.path.isfile(os.path.join(font_dir, file_name)):
+            return os.path.join(font_dir, file_name)
+        if recursive and os.path.isdir(font_dir):
+            for root, dirs, files in os.walk(font_dir):
+                if file_name in files:
+                    return os.path.join(root, file_name)
+    return None
+
+
 # based on calibri work
 def decrypt_font(path, key, method, fontdir):
     global qfixerr
@@ -362,25 +395,10 @@ def decrypt_font(path, key, method, fontdir):
     if not is_font and not ('.ttc' in path):
         print('* Starting replace procedure for encrypted file "%s" with font'
               ' from system directory...' % os.path.basename(path), end=' ')
-        if fontdir is None:
-            fontdir = ''
-        if sys.platform == 'win32':
-            font_paths = [
-                os.path.abspath(os.path.join(os.environ['WINDIR'], 'Fonts')),
-                fontdir
-            ]
-        else:
-            font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
-                          os.path.join(HOME, 'Library', 'Fonts'),
-                          fontdir]
-        for font_path in font_paths:
-            if os.path.exists(os.path.join(font_path,
-                              os.path.basename(path))):
-                os.remove(path)
-                shutil.copyfile(
-                    os.path.join(font_path, os.path.basename(path)),
-                    path
-                )
+        substitute = find_font_file(os.path.basename(path), fontdir)
+        if substitute:
+            os.remove(path)
+            shutil.copyfile(substitute, path)
         is_font, signature = check_font(path)
         if is_font:
             print('OK! Replaced.')
@@ -666,28 +684,12 @@ def generate_ncx_from_nav(opftree, opf_dir_abs):
 
 def replace_font(actual_font_path, fontdir):
     global qfixerr
-    if fontdir is None:
-        fontdir = ''
-    if sys.platform == 'win32':
-        font_paths = [
-            os.path.abspath(os.path.join(os.environ['WINDIR'], 'Fonts')),
-            fontdir
-        ]
-    else:
-        font_paths = [os.path.join(os.path.sep, 'Library', 'Fonts'),
-                      os.path.join(HOME, 'Library', 'Fonts'),
-                      fontdir]
     font_replaced = False
-    for font_path in font_paths:
-        if os.path.exists(
-                os.path.join(font_path, os.path.basename(actual_font_path))
-        ):
-            os.remove(actual_font_path)
-            shutil.copyfile(
-                os.path.join(font_path, os.path.basename(actual_font_path)),
-                actual_font_path
-            )
-            font_replaced = True
+    substitute = find_font_file(os.path.basename(actual_font_path), fontdir)
+    if substitute:
+        os.remove(actual_font_path)
+        shutil.copyfile(substitute, actual_font_path)
+        font_replaced = True
     if font_replaced:
         print('* Font replaced: ' + os.path.basename(actual_font_path))
     else:
