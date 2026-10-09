@@ -62,6 +62,12 @@ DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
 CRNS = {'cr': 'urn:oasis:names:tc:opendocument:xmlns:container'}
+# font media types allowed by EPUB 3.3 (core media types), preferred first
+FONT_MEDIA_TYPES = {
+    '.ttf': ('font/ttf', 'application/font-sfnt'),
+    '.otf': ('font/otf', 'application/font-sfnt',
+             'application/vnd.ms-opentype'),
+}
 
 
 def check_font(path):
@@ -283,14 +289,13 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         items = tree.xpath('//opf:item[@href]', namespaces=OPFNS)
         for i in items:
 
-            if (
-                    (i.get('href').lower().endswith('.otf') or
-                     i.get('href').lower().endswith('.ttf')) and
-                    i.get('media-type') != 'application/font-sfnt'
-            ):
-                print('%sFont file "%s" has incorrect media-type "%s".' % (
-                    _file_dec, i.get('href'), i.get('media-type')
-                ))
+            ext = os.path.splitext(i.get('href').lower())[1]
+            if (ext in FONT_MEDIA_TYPES and
+                    i.get('media-type') not in FONT_MEDIA_TYPES[ext]):
+                print('%sFont file "%s" has non-standard media-type "%s" '
+                      '(EPUB 3.3: %s).' % (
+                          _file_dec, i.get('href'), i.get('media-type'),
+                          ', '.join(FONT_MEDIA_TYPES[ext])))
             elif i.get('href').lower().endswith('.ttc'):
                 print('%sFont file "%s" has problematic format "TTC".' % (
                     _file_dec, i.get('href'))
