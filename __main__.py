@@ -81,6 +81,10 @@ parser.add_argument("-q", "--qcheck", help="validate files with qcheck "
 parser.add_argument("-p", "--epubcheck", help="validate epub files with "
                     " EpubCheck 4 tool",
                     action="store_true")
+parser.add_argument("-w", "--skip-css-mime",
+                    help="do not report CSS errors and warnings and "
+                    "non-standard font media types (only with -q)",
+                    action="store_true")
 parser.add_argument("--list-fonts",
                     help="list all fonts in EPUB (only with -q)",
                     action="store_true")
@@ -257,6 +261,8 @@ def main():
         print('! WARNING! -d was ignored because it works only with -k.')
     if args.force and not (args.epub or args.kindlegen):
         print('! WARNING! -f was ignored because it works only with -e or -k.')
+    if args.skip_css_mime and not args.qcheck:
+        print('! WARNING! -w was ignored because it works only with -q.')
     if args.mod and not (args.qcheck or args.epubcheck):
         print('! WARNING! -m was ignored because it works only with -q or -p.')
     if not args.skip_reset_css and not args.epub:
@@ -374,13 +380,15 @@ def main():
         counter = 0
         if ind_file:
             counter += 1
-            qcheck(ind_root, ind_file_m, args.alter, args.mod, args.list_fonts)
+            qcheck(ind_root, ind_file_m, args.alter, args.mod, args.list_fonts,
+                   args.skip_css_mime)
         else:
             for root, dirs, files in os.walk(uni_dir):
                 for f in files:
                     if f.lower().endswith(fe) and not f.lower().endswith(nfe):
                         counter += 1
-                        qcheck(root, f, args.alter, args.mod, args.list_fonts)
+                        qcheck(root, f, args.alter, args.mod, args.list_fonts,
+                               args.skip_css_mime)
         if counter == 0:
             print('')
             print('* NO epub files for checking found!')

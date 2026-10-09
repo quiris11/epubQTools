@@ -10,7 +10,7 @@ Tools for checking, correcting and hyphenating EPUB files.
 
 ```
 usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]] [--author [Surname, First Name]] [--title [Title]]
-                                                        [--font-dir [DIR]] [--replace-font-family [old,new]] [-a] [-n] [-t] [-q] [-p] [--list-fonts] [-m] [-e] [-s]
+                                                        [--font-dir [DIR]] [--replace-font-family [old,new]] [-a] [-n] [-t] [-q] [-p] [-w] [--list-fonts] [-m] [-e] [-s]
                                                         [-r] [-c] [--skip-justify] [--left] [--replace-font-files] [--remove-colors]
                                                         [--remove-fonts] [-k] [-d] [-f] [--fix-missing-container] [--book-margin [NUMBER]]
                                                         directory
@@ -37,6 +37,7 @@ options:
                         copy MOH files to 'title.epub' (Send to Kindle friendly)
   -q, --qcheck          validate files with qcheck internal tool
   -p, --epubcheck       validate epub files with EpubCheck 4 tool
+  -w, --skip-css-mime   do not report CSS errors and warnings and non-standard font media types (only with -q)
   --list-fonts          list all fonts in EPUB (only with -q)
   -m, --mod             validate only _moh.epub files (works only with -q or -p)
   -e, --epub            fix and hyphenate original epub files to _moh.epub files

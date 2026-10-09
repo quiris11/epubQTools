@@ -228,7 +228,8 @@ def find_cover_image(_opftree, _file_dec):
         print(_file_dec + 'No images in an entire book found...')
 
 
-def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
+def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
+                    skip_css_mime=False):
 
     def check_orphan_files(epub, opftree, root, _file_dec):
         def is_exluded(name):
@@ -290,7 +291,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
         for i in items:
 
             ext = os.path.splitext(i.get('href').lower())[1]
-            if (ext in FONT_MEDIA_TYPES and
+            if (ext in FONT_MEDIA_TYPES and not skip_css_mime and
                     i.get('media-type') not in FONT_MEDIA_TYPES[ext]):
                 print('%sFont file "%s" has non-standard media-type "%s" '
                       '(EPUB 3.3: %s).' % (
@@ -730,7 +731,7 @@ def list_font_basic_properties(raw_file):
     return font_family, regular, bold, italic
 
 
-def qcheck(root, _file, alter, mod, is_list_fonts):
+def qcheck(root, _file, alter, mod, is_list_fonts, skip_css_mime=False):
     if alter:
         _file_dec = _file + ': '
     else:
@@ -749,7 +750,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
             print('FINISH qcheck for: ' + _file)
         return None
     cont_src_list = qcheck_opf_file(opf_root, opf_path, epubfile, _file_dec,
-                                    alter)
+                                    alter, skip_css_mime)
     prepnl = []
     for n in epubfile.namelist():
         if not isinstance(n, str):
@@ -831,11 +832,12 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
             if os.path.isdir(temp_font_dir):
                 shutil.rmtree(temp_font_dir)
         elif singlefile.lower().endswith('.css'):
-            with epubfile.open(singlefile) as f:
-                css_parser.log.setLog(logging.getLogger(singlefile))
-                css_parser.log.addHandler(streamhandler)
-                css_parser.log.setLevel(logging.WARNING)
-                css_parser.parseString(f.read(), validate=True)
+            if not skip_css_mime:
+                with epubfile.open(singlefile) as f:
+                    css_parser.log.setLog(logging.getLogger(singlefile))
+                    css_parser.log.addHandler(streamhandler)
+                    css_parser.log.setLevel(logging.WARNING)
+                    css_parser.parseString(f.read(), validate=True)
             check_urls_in_css(singlefile, epubfile, prepnl, _file_dec)
             # TODO: not a real problem with file (make separate check for it)
             # is_body_family, is_font_face, ff, sfound\
