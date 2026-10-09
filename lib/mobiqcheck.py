@@ -174,7 +174,7 @@ def mobi_check(_documents):
                         '('
                     )[0][:-1] + file_extension == newfn
                 ):
-                    print('= Renaming file %s is not needed' % (file))
+                    print('* Renaming file %s is not needed.' % (file))
                 elif os.path.exists(os.path.join(dirpath,
                                     newfn)):
                     counter = 0

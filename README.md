@@ -60,6 +60,16 @@ options:
                         Add left and right book margin to reset CSS file (only with -e)
 ```
 
+#### Output messages:
+* `* text` - information
+* `! WARNING! text` - warning, the book is processed
+* `! ERROR! text` - error, the book is processed with problems
+* `! CRITICAL! text` - the book (or the whole run) cannot be processed
+* `START ... for:`, `FINISH ... for:`, `FINISH (with PROBLEMS) ... for:` - start and end of each stage
+
+The internal check (`-q`) prints one finding per line (`* ` or `file: ` with `-a`), marked
+`CRITICAL!`, `ERROR!` or `WARNING!` where it applies.
+
 #### Additional requirements:
 * python -m pip install lxml
 * python -m pip install css-parser

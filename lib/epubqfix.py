@@ -240,7 +240,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         else:
             counter += 1
     if not is_renamed:
-        print('= Renaming file "%s" is not needed.' % _file_dec)
+        print('* Renaming file "%s" is not needed.' % _file_dec)
 
 
 def check_font(path):
@@ -312,7 +312,7 @@ def find_encryption_key(opftree, method):
                 uid = dcid.text
                 break
         if uid is None:
-            print('* UUID URN-based unique identifier in content.opf does '
+            print('! WARNING! UUID URN-based unique identifier in content.opf '
                   'not found')
             return uid
         uid = uid.replace('\x20', '').replace('\x09', '').\
@@ -330,7 +330,7 @@ def find_encryption_key(opftree, method):
                     uid = elem.text
                     break
         if uid is None:
-            print('* Unique identifier in content.opf does not found')
+            print('! WARNING! Unique identifier in content.opf not found')
             return uid
         uid = uid.replace('\x20', '').replace('\x09', '').\
             replace('\x0D', '').replace('\x0A', '')
@@ -405,7 +405,7 @@ def decrypt_font(path, key, method, fontdir):
             print('OK! Replaced.')
         else:
             qfixerr = True
-            print('FAILED! Substitute did NOT found.')
+            print('FAILED! Substitute NOT found.')
 
 
 def find_and_replace_fonts(opftree, rootepubdir, fontdir):
@@ -695,7 +695,7 @@ def replace_font(actual_font_path, fontdir):
         print('* Font replaced: ' + os.path.basename(actual_font_path))
     else:
         qfixerr = True
-        print('* Font "%s" not replaced. Substitute did NOT found.'
+        print('! WARNING! Font "%s" not replaced. Substitute NOT found.'
               % os.path.basename(actual_font_path))
 
 
@@ -1105,7 +1105,7 @@ def fix_mismatched_covers(opftree, tempdir):
                                 parser=etree.XMLParser(
                                     recover=True))
     except Exception:
-        print('* Unable to parse HTML cover file. Giving up...')
+        print('! WARNING! Unable to parse HTML cover file. Giving up...')
         qfixerr = True
         return opftree
     if not etree.tostring(xhtmltree):
@@ -1713,7 +1713,7 @@ def append_reset_css_file(opftree, tempdir, del_fonts,
                         # if ff != '':
                         #     break
         if not is_body_family:
-            print('! Font-family for body or .calibre does not found. Trying '
+            print('* Font-family for body or .calibre not found. Trying '
                   'to find the best font...')
             fflist = []
             for c in cssitems:
@@ -1763,7 +1763,7 @@ def append_reset_css_file(opftree, tempdir, del_fonts,
     else:
         cssdir = ''
     if ff != '':
-        print('! Setting font-family for body to: %s' % ff)
+        print('* Setting font-family for body to: %s' % ff)
         if is_calibre_class:
             bs = 'body, .calibre {font-family: %s }\r\n' % ff
         else:
@@ -1841,7 +1841,7 @@ def remove_text_from_html_cover(opftree, rootepubdir):
             html_cover_path, parser=etree.XMLParser(
                 recover=True))
     except Exception:
-        print('* Unable to parse HTML cover file. Giving up...')
+        print('! WARNING! Unable to parse HTML cover file. Giving up...')
         return 0
     try:
         cover_texts = html_cover_tree.xpath('//xhtml:body//text()',
@@ -1969,7 +1969,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
         with open(xhfile, 'r', encoding='utf-8') as content_file:
             c = content_file.read()
     except IOError as e:
-        print('* File skipped: %s. Problem with processing: '
+        print('! ERROR! File skipped: %s. Problem with processing: '
               '%s' % (os.path.basename(xhfile), e))
         qfixerr = True
         return 1
@@ -2004,12 +2004,12 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                     parser=etree.XMLParser(recover=False)
                 )
             except Exception:
-                print('* File skipped: ' + os.path.basename(xhfile) +
+                print('! ERROR! File skipped: ' + os.path.basename(xhfile) +
                       '. NOT well formed: "' + str(e) + '"')
                 qfixerr = True
                 return 1
         else:
-            print('* File skipped: ' + os.path.basename(xhfile) +
+            print('! ERROR! File skipped: ' + os.path.basename(xhfile) +
                   '. NOT well formed: "' + str(e) + '"')
             qfixerr = True
             return 1
@@ -2263,7 +2263,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
 
 def process_corrupted_zip(e, root, f, zipbinf):
     if sys.platform == 'win32':
-        print('* Corrupted EPUB file. Unable to fix it...')
+        print('! ERROR! Corrupted EPUB file. Unable to fix it...')
         finish_with_problems(f)
         return 1
     print('* EPUB file "%s" is corrupted! Trying to fix it...'
@@ -2285,12 +2285,12 @@ def process_corrupted_zip(e, root, f, zipbinf):
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         zippout, zipperr = zipp.communicate()
         print('FIXED (with WARNING!)')
-        print('WARNING! Corrupted file "%s" was removed from EPUB file' %
+        print('! WARNING! Corrupted file "%s" was removed from EPUB file' %
               str(e).split("'")[1])
         return os.path.join(root, 'fixed_' + f)
     else:
         print('NOT FIXED')
-        print('* ' + str(e))
+        print('! ERROR! ' + str(e))
         finish_with_problems(f)
         return 1
 

@@ -471,7 +471,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter):
             _metacharsets = etree.XPath('//xhtml:meta[@charset="utf-8"]',
                                         namespaces=XHTMLNS)(_xhtmlsoup)
             if len(_metacharsets) > 0:
-                print(_file_dec + 'At least one xhtml file hase problematic'
+                print(_file_dec + 'At least one xhtml file has problematic'
                       ' <meta charset="utf-8" /> defined...')
                 metcharfound = True
 
@@ -856,6 +856,6 @@ def qcheck(root, _file, alter, mod, is_list_fonts):
             print('%sfont-family for body: "%s" found in "%s"'
                   % (_file_dec, ff, sfound))
     elif is_font_face:
-        print('%sWarning! Potential "stripping font" problem!' % (_file_dec))
+        print('%sWARNING! Potential "stripping font" problem!' % (_file_dec))
     if not alter:
         print('FINISH qcheck for: ' + _file)

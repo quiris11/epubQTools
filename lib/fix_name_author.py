@@ -42,7 +42,7 @@ def set_author(tree, author):
         try:
             opfmetadata = tree.xpath('//opf:metadata', namespaces=OPFNS)[0]
         except IndexError:
-            print('Metadata does not defined...')
+            print('! ERROR! Metadata not defined...')
             return 0
         opfmetadata.append(newauthor)
     else:
@@ -66,7 +66,7 @@ def set_title(tree, title):
         try:
             opfmetadata = tree.xpath('//opf:metadata', namespaces=OPFNS)[0]
         except IndexError:
-            print('Metadata does not defined...')
+            print('! ERROR! Metadata not defined...')
             return 0
         opfmetadata.append(newtitle)
     else:
@@ -82,7 +82,7 @@ def fix_name_author(root, f, author, title):
     try:
         tempdir = unpack_epub(os.path.join(root, f))
     except zipfile.BadZipfile:
-        print('Unable to process corrupted file...')
+        print('! ERROR! Unable to process corrupted file...')
         return 0
     opfd, opff, is_fixed = find_roots(tempdir)
     opff_abs = os.path.join(tempdir, opff)

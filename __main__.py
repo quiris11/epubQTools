@@ -169,7 +169,7 @@ def _stage_moh_epub(src_path, dest_dir, stats):
     # maxsplit=1 so a title that itself contains " - " isn't truncated
     parts = fname.split(' - ', 1)
     if len(parts) < 2:
-        print(f'* Error: "{fname}" does not match the '
+        print(f'! ERROR! "{fname}" does not match the '
               f'"Author - Title_moh.epub" pattern, skipping.')
         stats['missing'] += 1
         return
@@ -189,7 +189,7 @@ def _stage_moh_epub(src_path, dest_dir, stats):
             n += 1
         new_name = f'{base} ({n}){ext}'
         dest_path = os.path.join(dest_dir, new_name)
-        print(f'* Warning: duplicate result name, saving this one as '
+        print(f'! WARNING! Duplicate result name, saving this one as '
               f'"{new_name}" instead.')
         stats['renamed'] += 1
 
@@ -198,33 +198,33 @@ def _stage_moh_epub(src_path, dest_dir, stats):
         shutil.copy2(src_path, dest_path)
         stats['copied'] += 1
     except FileNotFoundError:
-        print(f'* Error: "{fname}" not found or already renamed.')
+        print(f'! ERROR! "{fname}" not found or already renamed.')
         stats['missing'] += 1
 
 
 def main():
     if args.alter and not args.qcheck:
-        print('* WARNING! -a was ignored because it works only with -q.')
+        print('! WARNING! -a was ignored because it works only with -q.')
     if args.huffdic and not args.kindlegen:
-        print('* WARNING! -d was ignored because it works only with -k.')
+        print('! WARNING! -d was ignored because it works only with -k.')
     if args.force and not (args.epub or args.kindlegen or args.azk):
-        print('* WARNING! -f was ignored because it works only with -e or -k.')
+        print('! WARNING! -f was ignored because it works only with -e or -k.')
     if args.mod and not (args.qcheck or args.epubcheck):
-        print('* WARNING! -m was ignored because it works only with -q or -p.')
+        print('! WARNING! -m was ignored because it works only with -q or -p.')
     if not args.skip_reset_css and not args.epub:
-        print('* WARNING! --skip-reset-css was ignored because it works only '
+        print('! WARNING! --skip-reset-css was ignored because it works only '
               'with -e.')
     if args.skip_hyphenate and not args.epub:
-        print('* WARNING! --skip-hyphenate was ignored because it works only '
+        print('! WARNING! --skip-hyphenate was ignored because it works only '
               'with -e.')
     if args.replace_font_files and not args.epub:
-        print('* WARNING! --replace-font-files was ignored because it works '
+        print('! WARNING! --replace-font-files was ignored because it works '
               'only with -e.')
     if not args.skip_justify and not args.epub:
-        print('* WARNING! --skip-justify was ignored because it works only '
+        print('! WARNING! --skip-justify was ignored because it works only '
               'with -e.')
     if args.left and not args.epub:
-        print('* WARNING! --left was ignored because it works only with -e.')
+        print('! WARNING! --left was ignored because it works only with -e.')
     if args.log == '1':
         st = datetime.now().strftime('%Y%m%d%H%M%S')
         sys.stdout = Logger(os.path.join(uni_dir, 'eQT-' + st + '.log'))
@@ -262,7 +262,7 @@ def main():
                     counter += 1
         if ind_file is None:
             # without this the code below falls back to processing ALL files
-            print('* ERROR! File number "%s" not found. Use -i without '
+            print('! ERROR! File number "%s" not found. Use -i without '
                   'a number to list files.' % args.individual)
             return 1
     if (
@@ -491,7 +491,7 @@ def main():
                         os.path.join(root, f)
                     ], stdout=subprocess.PIPE).communicate()[0]
                 except FileNotFoundError:
-                    sys.exit('ERROR! Kindlegen not found in directory: "' +
+                    sys.exit('! CRITICAL! Kindlegen not found in directory: "' +
                              args.tools + '" Giving up...')
             for ln in str(proc, 'utf-8').splitlines():
                 if 'Warning' in ln and 'W14029' not in ln:
@@ -503,7 +503,7 @@ def main():
                     cover_html_found = True
             if not cover_html_found and not error_found:
                 print('')
-                print('* WARNING: Probably duplicated covers generated '
+                print('! WARNING! Probably duplicated covers generated '
                       'in file: ' + newmobifile)
 
         compression = '-c2' if args.huffdic else '-c1'

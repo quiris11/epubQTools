@@ -226,7 +226,7 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
             print('* Replacing old font family "%s" with '
                   'new font family "%s"...' % (of, nf))
         else:
-            print('! Font replacing FAILED! You should provide pair of font '
+            print('! ERROR! Font replacing failed. You should provide pair of font '
                   'families comma separated: "old,new"')
             return None
     else:
@@ -235,10 +235,10 @@ def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
                                            nf, False)
     old_font_files = find_old_family_fonts(epub_dir, opftree, of)
     if old_font_files == []:
-        print('! No font with family name "%s" was found in EPUB file'
+        print('! ERROR! No font with family name "%s" was found in EPUB file'
               '...' % (of))
     if new_font_files == []:
-        print('! No font with family name "%s" was found in provided '
+        print('! ERROR! No font with family name "%s" was found in provided '
               'directory "%s"...' % (nf, user_font_dir))
         print('* Choose from the below list of font family names:')
         for i in find_new_family_fonts(user_font_dir, epub_dir, opftree,
@@ -274,7 +274,7 @@ def fix_body_id_links(opftree, epub_dir, ncxtree):
                 xhtree = etree.parse(os.path.join(epub_dir, xhtml_url),
                                      parser=etree.XMLParser(recover=False))
             except etree.XMLSyntaxError as e:
-                print('* File skipped: ' + os.path.basename(xhtml_url) +
+                print('! ERROR! File skipped: ' + os.path.basename(xhtml_url) +
                       '. NOT well formed: "' + str(e) + '"')
                 return []
             try:
@@ -547,7 +547,7 @@ def fix_display_none(opftree, epub_dir, cont_src_list):
             xhtree = etree.parse(os.path.join(epub_dir, xhtml_url),
                                  parser=etree.XMLParser(recover=False))
         except etree.XMLSyntaxError as e:
-            print('* File skipped: ' + os.path.basename(xhtml_url) +
+            print('! ERROR! File skipped: ' + os.path.basename(xhtml_url) +
                   '. NOT well formed: "' + str(e) + '"')
             return []
         styles = etree.XPath('//*[@style]',
