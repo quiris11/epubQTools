@@ -19,6 +19,7 @@ from datetime import datetime
 from lib.epubqcheck import qcheck
 from lib.epubqcheck import find_opf
 from lib.epubqfix import qfix
+from lib.epubqfix import problem_files
 from lib.epubqfix import rename_files
 from lib.fix_name_author import fix_name_author
 from lib.azkfix import to_azk
@@ -448,6 +449,12 @@ def main():
         if counter == 0:
             print('')
             print('* NO epub files for fixing found!')
+        elif problem_files:
+            print('')
+            print('* Files finished with PROBLEMS (%d of %d):'
+                  % (len(problem_files), counter))
+            for pf in problem_files:
+                print('  - ' + pf)
 
     if args.kindlegen:
         print('')

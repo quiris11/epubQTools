@@ -18,6 +18,7 @@ import zipfile
 import uuid
 import unicodedata
 import io
+import traceback
 
 from pkgutil import get_data
 from urllib.parse import unquote
@@ -698,9 +699,22 @@ def replace_font(actual_font_path, fontdir):
               % os.path.basename(actual_font_path))
 
 
+# temporary directories in use (removed after an unexpected error) and
+# books finished with problems (summary at the end of the batch)
+open_tempdirs = []
+problem_files = []
+
+
+def finish_with_problems(f):
+    print('FINISH (with PROBLEMS) qfix for: ' + f)
+    if f not in problem_files:
+        problem_files.append(f)
+
+
 def unpack_epub(source_epub):
     epubzipfile = zipfile.ZipFile(source_epub)
     tempdir = tempfile.mkdtemp(suffix='', prefix='epubQTools-tmp-')
+    open_tempdirs.append(tempdir)
     epubzipfile.extractall(tempdir)
     try:
         os.remove(os.path.join(tempdir, 'mimetype'))
@@ -733,6 +747,8 @@ def pack_epub(output_filename, source_dir):
 def clean_temp(sourcedir):
     # remove only this temporary directory - removing every
     # 'epubQTools-tmp-*' directory broke other running instances
+    if sourcedir in open_tempdirs:
+        open_tempdirs.remove(sourcedir)
     if os.path.isdir(sourcedir):
         try:
             shutil.rmtree(sourcedir)
@@ -2248,7 +2264,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
 def process_corrupted_zip(e, root, f, zipbinf):
     if sys.platform == 'win32':
         print('* Corrupted EPUB file. Unable to fix it...')
-        print('FINISH (with PROBLEMS) qfix for: ' + f)
+        finish_with_problems(f)
         return 1
     print('* EPUB file "%s" is corrupted! Trying to fix it...'
           % f, end=' ')
@@ -2275,7 +2291,7 @@ def process_corrupted_zip(e, root, f, zipbinf):
     else:
         print('NOT FIXED')
         print('* ' + str(e))
-        print('FINISH (with PROBLEMS) qfix for: ' + f)
+        finish_with_problems(f)
         return 1
 
 
@@ -2326,7 +2342,31 @@ def html_cover_first(opftree):
     return opftree
 
 
-def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
+def qfix(root, f, *args):
+    """Process one book. An unexpected error stops only this book, not the
+    whole batch: it is reported, temporary files are removed and a partly
+    written _moh file is deleted."""
+    newfile = os.path.join(root, os.path.splitext(f)[0] + '_moh.epub')
+    mtime_before = (os.path.getmtime(newfile) if os.path.exists(newfile)
+                    else None)
+    tempdirs_before = list(open_tempdirs)
+    try:
+        return _qfix(root, f, *args)
+    except Exception:
+        print('')
+        print('! CRITICAL! Unexpected error while processing "%s":' % f)
+        print(traceback.format_exc().rstrip())
+        for d in [d for d in open_tempdirs if d not in tempdirs_before]:
+            clean_temp(d)
+        if (os.path.exists(newfile) and
+                os.path.getmtime(newfile) != mtime_before):
+            os.remove(newfile)
+            print('* Removed incomplete file: ' + os.path.basename(newfile))
+        finish_with_problems(f)
+        return 1
+
+
+def _qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
          skip_hyph, arg_justify, arg_left, del_colors, del_fonts,
          fontdir, fix_container_only, html_margin, dont_hyph_headers,
          pair_family):
@@ -2372,7 +2412,7 @@ def qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
         else:
             qfixerr = True
         if qfixerr:
-            print('FINISH (with PROBLEMS) qfix for: ' + f)
+            finish_with_problems(f)
         else:
             print('FINISH qfix for: ' + f)
     clean_temp(_tempdir)
