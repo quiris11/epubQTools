@@ -37,7 +37,7 @@ options:
                         copy MOH files to 'title.epub' (Send to Kindle friendly)
   -q, --qcheck          validate files with qcheck internal tool
   -p, --epubcheck       validate epub files with EpubCheck 4 tool
-  -w, --skip-css-mime   do not report CSS errors and warnings and non-standard font media types (only with -q)
+  -w, --skip-font-mime  do not report non-standard font media types (only with -q)
   -u, --skip-css-warnings
                         do not report CSS warnings, only CSS errors (only with -q)
   --list-fonts          list all fonts in EPUB (only with -q)

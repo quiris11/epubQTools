@@ -81,9 +81,9 @@ parser.add_argument("-q", "--qcheck", help="validate files with qcheck "
 parser.add_argument("-p", "--epubcheck", help="validate epub files with "
                     " EpubCheck 4 tool",
                     action="store_true")
-parser.add_argument("-w", "--skip-css-mime",
-                    help="do not report CSS errors and warnings and "
-                    "non-standard font media types (only with -q)",
+parser.add_argument("-w", "--skip-font-mime",
+                    help="do not report non-standard font media types "
+                    "(only with -q)",
                     action="store_true")
 parser.add_argument("-u", "--skip-css-warnings",
                     help="do not report CSS warnings, only CSS errors "
@@ -284,7 +284,7 @@ def main():
         print('! WARNING! -f was ignored because it works only with -e or -k.')
     if args.skip_css_warnings and not args.qcheck:
         print('! WARNING! -u was ignored because it works only with -q.')
-    if args.skip_css_mime and not args.qcheck:
+    if args.skip_font_mime and not args.qcheck:
         print('! WARNING! -w was ignored because it works only with -q.')
     if args.mod and not (args.qcheck or args.epubcheck):
         print('! WARNING! -m was ignored because it works only with -q or -p.')
@@ -398,14 +398,14 @@ def main():
         if ind_file:
             counter += 1
             qcheck(ind_root, ind_file_m, args.alter, args.mod, args.list_fonts,
-                   args.skip_css_mime, args.skip_css_warnings)
+                   args.skip_font_mime, args.skip_css_warnings)
         else:
             for root, dirs, files in os.walk(uni_dir):
                 for f in files:
                     if f.lower().endswith(fe) and not f.lower().endswith(nfe):
                         counter += 1
                         qcheck(root, f, args.alter, args.mod, args.list_fonts,
-                               args.skip_css_mime, args.skip_css_warnings)
+                               args.skip_font_mime, args.skip_css_warnings)
         if color_stream:
             sys.stdout.flush()
             color_stream.qcheck_mode = False
