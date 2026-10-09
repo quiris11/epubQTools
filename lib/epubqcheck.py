@@ -50,7 +50,15 @@ css_parser.profile.addProfiles([(
 css_parser.stylesheets.MediaQuery.MEDIA_TYPES = \
     css_parser.stylesheets.MediaQuery.MEDIA_TYPES + \
     ['amzn-mobi', 'amzn-mobi7', 'amzn-kf8']
-streamhandler = logging.StreamHandler()
+class PrintHandler(logging.Handler):
+    """Writes CSS messages with print(), i.e. to the current sys.stdout, so
+    they are colored in a terminal and written to the log file (-l) like the
+    other messages (a StreamHandler wrote them to stderr)."""
+    def emit(self, record):
+        print(self.format(record))
+
+
+streamhandler = PrintHandler()
 
 formatter = logging.Formatter('* CSS %(levelname)s! Problem in '
                               '"%(name)s": %(message)s')
