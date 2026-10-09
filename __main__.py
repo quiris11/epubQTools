@@ -406,10 +406,7 @@ def main():
                         counter += 1
                         epubchecker(echp_temp, root, f, epubcheckstr,
                                     epubcheckjar)
-        for p in os.listdir(os.path.join(echp_temp, os.pardir)):
-            if 'quiris-tmp-' in p:
-                if os.path.isdir(os.path.join(echp_temp, os.pardir, p)):
-                    shutil.rmtree(os.path.join(echp_temp, os.pardir, p))
+        shutil.rmtree(echp_temp, ignore_errors=True)
         if counter == 0:
             print('')
             print('* NO epub files for checking found!')

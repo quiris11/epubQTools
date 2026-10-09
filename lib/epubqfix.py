@@ -729,18 +729,16 @@ def pack_epub(output_filename, source_dir):
 
 
 def clean_temp(sourcedir):
-    for p in os.listdir(os.path.join(sourcedir, os.pardir)):
-        if 'epubQTools-tmp-' in p:
-            if os.path.isdir(os.path.join(sourcedir, os.pardir, p)):
-                try:
-                    shutil.rmtree(os.path.join(sourcedir, os.pardir, p))
-                except Exception:
-                    if sys.platform == 'win32':
-                        os.system('rmdir /S /Q \"{}\"'.format(
-                            os.path.join(sourcedir, os.pardir, p)
-                        ))
-                    else:
-                        raise
+    # remove only this temporary directory - removing every
+    # 'epubQTools-tmp-*' directory broke other running instances
+    if os.path.isdir(sourcedir):
+        try:
+            shutil.rmtree(sourcedir)
+        except Exception:
+            if sys.platform == 'win32':
+                os.system('rmdir /S /Q \"{}\"'.format(sourcedir))
+            else:
+                raise
 
 
 def find_roots(tempdir):
