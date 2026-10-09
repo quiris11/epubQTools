@@ -2084,6 +2084,10 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path, is_fixed = find_roots(_tempdir)
+    if opf_dir is None:
+        # no container.xml and no OPF file - skip this book, not the batch
+        print('! Unable to proceed...')
+        return True
     opf_dir_abs = os.path.join(_tempdir, opf_dir)
     opf_file_path_abs = os.path.join(_tempdir, opf_file_path)
 
