@@ -2174,7 +2174,13 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     # parse encryption.xml file
     enc_file = os.path.join(_tempdir, 'META-INF', 'encryption.xml')
     if os.path.exists(enc_file):
-        process_encryption(enc_file, opftree, fontdir)
+        if not process_encryption(enc_file, opftree, fontdir):
+            # not a font obfuscation (e.g. DRM) - removing encryption.xml
+            # would produce a broken book that looks like a plain EPUB
+            print('! CRITICAL! encryption.xml describes encryption other '
+                  'than font obfuscation (DRM?).')
+            print('! Unable to proceed...')
+            return True
         os.remove(enc_file)
 
     if _replacefonts:
