@@ -1770,9 +1770,17 @@ def append_reset_css_file(opftree, tempdir, del_fonts,
                         r'@font-face.*?\{.*?\}', re.DOTALL
                     ), '', fs)
                 if is_calibre_class:
-                    fs = 'body, .calibre {font-family: ' + ff + ' }\r\n' + fs
+                    rule = 'body, .calibre {font-family: ' + ff + ' }\r\n'
                 else:
-                    fs = 'body {font-family: ' + ff + ' }\r\n' + fs
+                    rule = 'body {font-family: ' + ff + ' }\r\n'
+                # @charset must stay the first rule of the style sheet
+                charset = re.match(r'\ufeff?\s*@charset\s+["\'][^"\']*["\']\s*;',
+                                   fs, re.IGNORECASE)
+                if charset:
+                    fs = (fs[:charset.end()] + '\r\n' + rule +
+                          fs[charset.end():].lstrip('\r\n'))
+                else:
+                    fs = rule + fs
                 f.seek(0)
                 f.truncate()
                 f.write(fs)
