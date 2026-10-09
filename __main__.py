@@ -217,7 +217,8 @@ def main():
         print('* WARNING! --skip-hyphenate was ignored because it works only '
               'with -e.')
     if args.replace_font_files and not args.epub:
-        print('* WARNING! -t was ignored because it works only with -e.')
+        print('* WARNING! --replace-font-files was ignored because it works '
+              'only with -e.')
     if not args.skip_justify and not args.epub:
         print('* WARNING! --skip-justify was ignored because it works only '
               'with -e.')
