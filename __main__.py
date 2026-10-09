@@ -245,15 +245,24 @@ def main():
                     counter += 1
         return 0
     elif args.individual != 'nonr' and args.individual is not None:
+        try:
+            ind_nr = int(args.individual)
+        except ValueError:
+            ind_nr = None
         counter = 0
         for root, dirs, files in os.walk(uni_dir):
             for f in files:
                 if f.lower().endswith('.epub') and not f.lower().endswith(
                         '_moh.epub'):
-                    if counter == int(args.individual):
+                    if counter == ind_nr:
                         ind_file = f
                         ind_root = root
                     counter += 1
+        if ind_file is None:
+            # without this the code below falls back to processing ALL files
+            print('* ERROR! File number "%s" not found. Use -i without '
+                  'a number to list files.' % args.individual)
+            return 1
     if (
             (args.author or args.title) and args.individual != 'nonr' and
             args.individual is not None
