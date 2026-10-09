@@ -156,6 +156,28 @@ def set_dtd(opftree):
         return DTD
 
 
+# characters not allowed in file names on Windows (Linux forbids only '/',
+# macOS also ':'), mapped to safe replacements; control characters are removed
+UNSAFE_FILE_NAME_CHARS = {'/': '_', '\\': '_', ':': '_', '|': '_', '<': '_',
+                          '>': '_', '"': "'", '?': '', '*': ''}
+MAX_FILE_NAME_BYTES = 230   # 255 bytes limit minus ' (NN).epub' and margin
+
+
+def safe_file_name(name):
+    """File name (without extension) safe on Windows, macOS and Linux, keeping
+    as many characters as possible (&, comma, #, apostrophes, letters...)."""
+    name = re.sub(r'\s+', ' ', name)        # tabs, new lines -> one space
+    name = ''.join(UNSAFE_FILE_NAME_CHARS.get(x, x) for x in name
+                   if ord(x) >= 32 and x != '\x7f')
+    name = re.sub(r' +', ' ', name).strip()
+    # NFD (used on macOS) takes more bytes than NFC, so measure it
+    while len(unicodedata.normalize('NFD', name).encode('utf-8')) > \
+            MAX_FILE_NAME_BYTES:
+        name = name[:-1]
+    # Windows does not allow trailing dots and spaces
+    return name.rstrip(' .')
+
+
 def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
     import unicodedata
 
@@ -201,11 +223,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         print('! ERROR! Renaming file "%s" failed - dc:title (book title) '
               'is empty.' % _file_dec)
         return 0
-    nfname = str(cr + ' - ' + tit)
-    nfname = nfname.replace('\u2013', '-').replace('/', '_').replace(':', '_')
-    nfname = "".join(x for x in nfname if (
-        x.isalnum() or x.isspace() or x in ('_', '-', '.')
-    ))
+    nfname = safe_file_name(cr + ' - ' + tit)
     is_renamed = False
     counter = 1
     if sys.platform == 'darwin':
