@@ -152,23 +152,33 @@ class ColorStream(object):
     Lines are buffered until the end of line, so a line printed in parts
     (e.g. '... decryption of font file "x"... ' + 'FAILED!') gets one color."""
     RED, YELLOW, GREEN, RESET = '\033[31m', '\033[33m', '\033[32m', '\033[0m'
+    HEADER = '\033[1;36m'          # bold cyan
 
     def __init__(self, stream):
         self.stream = stream
         self.buf = ''
+        self.qcheck_mode = False
 
     def color(self, line):
         s = line.strip()
-        if ('WARNING!' in s and 'CRITICAL!' not in s and
-                'ERROR!' not in s and 'FAILED' not in s):
+        if s.startswith('=== '):
+            return self.HEADER
+        if (('WARNING!' in s or s.startswith('WARNING(')) and
+                'CRITICAL!' not in s and 'ERROR!' not in s and
+                'FAILED' not in s):
             return self.YELLOW
         if (s.startswith('!') or 'CRITICAL!' in s or 'ERROR!' in s or
-                'with PROBLEMS' in s or s.endswith(('FAILED!', 'NOT FIXED')) or
-                'FAILED! ' in s or s.startswith('Traceback')):
+                'with PROBLEMS' in s or 'PROBLEMS FOUND' in s or
+                s.endswith(('FAILED!', 'NOT FIXED')) or 'FAILED! ' in s or
+                s.startswith(('Traceback', 'ERROR(', 'FATAL('))):
             return self.RED
-        if s.startswith('FINISH ') or s.endswith(('OK! Decrypted.',
-                                                  'OK! Replaced.', 'FIXED')):
+        if (s.startswith('FINISH ') or s.endswith(': OK!') or
+                s.endswith(('OK! Decrypted.', 'OK! Replaced.', 'FIXED'))):
             return self.GREEN
+        # internal check (-q): every other line is a finding, except info
+        if (self.qcheck_mode and s and not s.startswith('START ') and
+                'Info: ' not in s and 'Font info for ' not in s):
+            return self.YELLOW
         return None
 
     def write(self, message):
@@ -192,8 +202,15 @@ if (sys.stdout.isatty() and 'NO_COLOR' not in os.environ and
         os.environ.get('TERM') != 'dumb'):
     if sys.platform == 'win32':
         os.system('')               # enables ANSI colors in Windows console
-    sys.stdout = ColorStream(sys.stdout)
+    color_stream = sys.stdout = ColorStream(sys.stdout)
     atexit.register(sys.stdout.flush)
+else:
+    color_stream = None
+
+
+def print_header(title):
+    """Section header: one line of fixed width (ASCII, safe in any console)."""
+    print(('=== ' + title + ' ').ljust(72, '='))
 
 
 class Logger(object):
@@ -288,9 +305,7 @@ def main():
     ind_file = ind_root = None
     if args.individual == 'nonr':
         print('')
-        print('**********************************************')
-        print('*** Listing EPUB files for individual mode ***')
-        print('**********************************************')
+        print_header('Listing EPUB files for individual mode')
         print('')
         counter = 0
         for root, dirs, files in os.walk(uni_dir):
@@ -324,17 +339,13 @@ def main():
             args.individual is not None
     ):
         print('')
-        print('******************************************')
-        print('*** Processing author or book title... ***')
-        print('******************************************')
+        print_header('Processing author or book title')
         print('')
         fix_name_author(ind_root, ind_file, args.author, args.title)
 
     if args.rename:
         print('')
-        print('******************************************')
-        print('*** Renaming EPUBs to "author - title" ***')
-        print('******************************************')
+        print_header('Renaming EPUBs to "author - title"')
         print('')
         counter = 0
         if ind_file:
@@ -368,9 +379,9 @@ def main():
 
     if args.qcheck:
         print('')
-        print('******************************************')
-        print('*** Checking with internal qcheck tool ***')
-        print('******************************************')
+        print_header('Checking with internal qcheck tool')
+        if color_stream:
+            color_stream.qcheck_mode = True
         if args.mod:
             fe = '_moh.epub'
             nfe = '_org.epub'
@@ -389,6 +400,9 @@ def main():
                         counter += 1
                         qcheck(root, f, args.alter, args.mod, args.list_fonts,
                                args.skip_css_mime)
+        if color_stream:
+            sys.stdout.flush()
+            color_stream.qcheck_mode = False
         if counter == 0:
             print('')
             print('* NO epub files for checking found!')
@@ -409,7 +423,7 @@ def main():
             jpout, jperr = jp.communicate()
             if jperr:
                 print(f + ': PROBLEMS FOUND...')
-                print('*** Details... ***')
+                print('Details:')
                 print(jperr)
             else:
                 print(f + ': OK!')
@@ -430,9 +444,7 @@ def main():
         epubcheckjar = 'epubcheck.jar'
 
         print('')
-        print('***********************************************')
-        print('*** Checking with ' + epubcheckstr + ' tool ***')
-        print('***********************************************')
+        print_header('Checking with ' + epubcheckstr + ' tool')
         try:
             subprocess.Popen(
                 ['java', '-version'],
@@ -477,9 +489,7 @@ def main():
 
     if args.epub:
         print('')
-        print('******************************************')
-        print('*** Fixing with internal qfix tool...  ***')
-        print('******************************************')
+        print_header('Fixing with internal qfix tool')
         counter = 0
         try:
             shutil.rmtree(os.path.join(uni_dir, tmpSend2KindDir))
@@ -520,9 +530,7 @@ def main():
 
     if args.kindlegen:
         print('')
-        print('******************************************')
-        print('*** Converting with kindlegen tool...  ***')
-        print('******************************************')
+        print_header('Converting with kindlegen tool')
 
         def to_mobi(root, f, cover_html_found, error_found):
             newmobifile = os.path.splitext(f)[0] + '.mobi'
@@ -588,9 +596,8 @@ def main():
 
     if args.prepare_send_to_kindle:
         print('')
-        print('*************************************************************')
-        print('* Copy and rename "MOH" EPUBs for upload via Send to Kindle *')
-        print('*************************************************************')
+        print_header('Copy and rename "MOH" EPUBs for upload via '
+                     'Send to Kindle')
         print('')
 
         if ind_file:
