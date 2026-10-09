@@ -158,8 +158,8 @@ def set_dtd(opftree):
 
 # characters not allowed in file names on Windows (Linux forbids only '/',
 # macOS also ':'), mapped to safe replacements; control characters are removed
-UNSAFE_FILE_NAME_CHARS = {'/': '_', '\\': '_', ':': '_', '|': '_', '<': '_',
-                          '>': '_', '"': "'", '?': '', '*': ''}
+UNSAFE_FILE_NAME_CHARS = {':': ' - ', '/': '-', '\\': '-', '|': '-', '<': '(',
+                          '>': ')', '"': "'", '?': '', '*': ''}
 MAX_FILE_NAME_BYTES = 230   # 255 bytes limit minus ' (NN).epub' and margin
 
 
@@ -167,6 +167,7 @@ def safe_file_name(name):
     """File name (without extension) safe on Windows, macOS and Linux, keeping
     as many characters as possible (&, comma, #, apostrophes, letters...)."""
     name = re.sub(r'\s+', ' ', name)        # tabs, new lines -> one space
+    name = re.sub(r'(?<=\d):(?=\d)', '.', name)  # time 10:30 -> 10.30
     name = ''.join(UNSAFE_FILE_NAME_CHARS.get(x, x) for x in name
                    if ord(x) >= 32 and x != '\x7f')
     name = re.sub(r' +', ' ', name).strip()
@@ -174,8 +175,12 @@ def safe_file_name(name):
     while len(unicodedata.normalize('NFD', name).encode('utf-8')) > \
             MAX_FILE_NAME_BYTES:
         name = name[:-1]
-    # Windows does not allow trailing dots and spaces
-    return name.rstrip(' .')
+    # Windows does not allow trailing dots and spaces; a colon at the end
+    # would leave a dangling ' -'
+    name = name.rstrip(' .')
+    if name.endswith(' -'):
+        name = name[:-2].rstrip(' .')
+    return name
 
 
 def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
