@@ -128,7 +128,7 @@ def to_azk(root, f, force):
         os.rename(os.path.join(root, newazkfile + '.zip'),
                   os.path.join(root, newazkfile))
     except OSError:
-        print('* Renaming file failed...')
+        print('! ERROR! Renaming file failed...')
     # clean up temp files
     for p in os.listdir(os.path.join(azktempdir, os.pardir)):
         if 'quiris-azk-' in p:

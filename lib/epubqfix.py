@@ -797,7 +797,7 @@ def find_roots(tempdir):
                             )
                         )
                     return os.path.dirname(opf_path), opf_path, True
-        print('* Parsing container.xml failed. Not an EPUB file?')
+        print('! CRITICAL! Parsing container.xml failed. Not an EPUB file?')
         qfixerr = True
         return None, None, False
     return os.path.dirname(opf_path), opf_path, False
@@ -812,7 +812,7 @@ def find_xhtml_files(rootepubdir, opftree):
             namespaces=OPFNS
         )(opftree)
     except Exception:
-        print('* XHTML files not found...')
+        print('! ERROR! XHTML files not found...')
         qfixerr = True
     xhtml_files = []
     xhtml_file_paths = []
@@ -1091,13 +1091,13 @@ def fix_mismatched_covers(opftree, tempdir):
     global qfixerr
     refcvs = opftree.xpath('//opf:reference[@type="cover"]', namespaces=OPFNS)
     if len(refcvs) > 1:
-        print('* Too many cover references in OPF. Giving up...')
+        print('! ERROR! Too many cover references in OPF. Giving up...')
         qfixerr = True
         return opftree
     try:
         cover_xhtml_file = os.path.join(tempdir, refcvs[0].get('href'))
     except Exception:
-        print('* HTML cover reference not found. Giving up...')
+        print('! ERROR! HTML cover reference not found. Giving up...')
         qfixerr = True
         return opftree
     try:
@@ -1119,7 +1119,7 @@ def fix_mismatched_covers(opftree, tempdir):
     else:
         len_svg_images = 0
     if len(allimgs) != 1 and len_svg_images != 1:
-        print('* HTML cover should have only one image. Giving up...')
+        print('! ERROR! HTML cover should have only one image. Giving up...')
         qfixerr = True
         return opftree
     if allimgs:
