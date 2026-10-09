@@ -165,7 +165,7 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
     except etree.XMLSyntaxError as e:
         print('! CRITICAL! XML file "%s" is not well '
               'formed: "%s"' % (os.path.basename(opf_path), e))
-        opfstring = io.StringIO(_epubfile.read(opf_path))
+        opfstring = io.BytesIO(_epubfile.read(opf_path))
         try:
             opftree = etree.parse(opfstring, recover_parser)
         except etree.XMLSyntaxError:
