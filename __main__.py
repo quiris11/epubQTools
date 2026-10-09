@@ -6,6 +6,7 @@
 #
 
 import argparse
+import atexit
 import codecs
 import os
 import shutil
@@ -142,6 +143,56 @@ parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
 args = parser.parse_args()
 uni_dir = args.directory
 tmpSend2KindDir = '_TEMP_SendToKindle'
+
+
+class ColorStream(object):
+    """Colors whole output lines in a terminal according to the message
+    convention (see README): red - errors, yellow - warnings, green - success.
+    Lines are buffered until the end of line, so a line printed in parts
+    (e.g. '... decryption of font file "x"... ' + 'FAILED!') gets one color."""
+    RED, YELLOW, GREEN, RESET = '\033[31m', '\033[33m', '\033[32m', '\033[0m'
+
+    def __init__(self, stream):
+        self.stream = stream
+        self.buf = ''
+
+    def color(self, line):
+        s = line.strip()
+        if ('WARNING!' in s and 'CRITICAL!' not in s and
+                'ERROR!' not in s and 'FAILED' not in s):
+            return self.YELLOW
+        if (s.startswith('!') or 'CRITICAL!' in s or 'ERROR!' in s or
+                'with PROBLEMS' in s or s.endswith(('FAILED!', 'NOT FIXED')) or
+                'FAILED! ' in s or s.startswith('Traceback')):
+            return self.RED
+        if s.startswith('FINISH ') or s.endswith(('OK! Decrypted.',
+                                                  'OK! Replaced.', 'FIXED')):
+            return self.GREEN
+        return None
+
+    def write(self, message):
+        self.buf += message
+        while '\n' in self.buf:
+            line, self.buf = self.buf.split('\n', 1)
+            c = self.color(line)
+            self.stream.write((c + line + self.RESET if c and line.strip()
+                               else line) + '\n')
+        self.stream.flush()
+
+    def flush(self):
+        if self.buf:
+            c = self.color(self.buf)
+            self.stream.write(c + self.buf + self.RESET if c else self.buf)
+            self.buf = ''
+        self.stream.flush()
+
+
+if (sys.stdout.isatty() and 'NO_COLOR' not in os.environ and
+        os.environ.get('TERM') != 'dumb'):
+    if sys.platform == 'win32':
+        os.system('')               # enables ANSI colors in Windows console
+    sys.stdout = ColorStream(sys.stdout)
+    atexit.register(sys.stdout.flush)
 
 
 class Logger(object):
