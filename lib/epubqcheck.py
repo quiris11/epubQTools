@@ -11,12 +11,12 @@ import os
 import sys
 import tempfile
 import shutil
-import logging
 import lib.fntutls
 import io
 import struct
 from urllib.parse import unquote
 from lib.htmlconstants import entities
+from lib.csscheck import check_css
 
 try:
     from tidylib import tidy_document
@@ -26,43 +26,12 @@ except ImportError:
 
 try:
     from lxml import etree
-    import css_parser
-    from css_parser.profiles import Profiles, properties, macros
 except ImportError as e:
     sys.exit('! CRITICAL! ' + str(e))
 
 # set up recover parser for malformed XML
 recover_parser = etree.XMLParser(encoding='utf-8', recover=True)
 
-# add the most common used non-standard properties for css_parser
-properties[Profiles.CSS_LEVEL_2]['oeb-column-number'] = r'{num}'
-properties[Profiles.CSS_LEVEL_2]['hyphens'] = r'none|manual|auto|all'
-properties[Profiles.CSS_LEVEL_2]['-epub-hyphens'] = r'none|manual|auto|all'
-properties[Profiles.CSS_LEVEL_2]['-webkit-hyphens'] = r'none|manual|auto|all'
-properties[Profiles.CSS_LEVEL_2]['-moz-hyphens'] = r'none|manual|auto|all'
-properties[Profiles.CSS_LEVEL_2]['adobe-hyphenate'] = r'none|explicit|auto'
-css_parser.profile.addProfiles([(
-    Profiles.CSS_LEVEL_2, properties[Profiles.CSS_LEVEL_2],
-    macros[Profiles.CSS_LEVEL_2]
-)])
-
-# set up additional amzn MEDIA_TYPES and handler for css_parser
-css_parser.stylesheets.MediaQuery.MEDIA_TYPES = \
-    css_parser.stylesheets.MediaQuery.MEDIA_TYPES + \
-    ['amzn-mobi', 'amzn-mobi7', 'amzn-kf8']
-class PrintHandler(logging.Handler):
-    """Writes CSS messages with print(), i.e. to the current sys.stdout, so
-    they are colored in a terminal and written to the log file (-l) like the
-    other messages (a StreamHandler wrote them to stderr)."""
-    def emit(self, record):
-        print(self.format(record))
-
-
-streamhandler = PrintHandler()
-
-formatter = logging.Formatter('* CSS %(levelname)s! Problem in '
-                              '"%(name)s": %(message)s')
-streamhandler.setFormatter(formatter)
 
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
@@ -841,11 +810,8 @@ def qcheck(root, _file, alter, mod, is_list_fonts, skip_css_mime=False):
                 shutil.rmtree(temp_font_dir)
         elif singlefile.lower().endswith('.css'):
             if not skip_css_mime:
-                with epubfile.open(singlefile) as f:
-                    css_parser.log.setLog(logging.getLogger(singlefile))
-                    css_parser.log.addHandler(streamhandler)
-                    css_parser.log.setLevel(logging.WARNING)
-                    css_parser.parseString(f.read(), validate=True)
+                check_css(epubfile.read(singlefile).decode('utf-8', 'replace'),
+                          singlefile, _file_dec)
             check_urls_in_css(singlefile, epubfile, prepnl, _file_dec)
             # TODO: not a real problem with file (make separate check for it)
             # is_body_family, is_font_face, ff, sfound\

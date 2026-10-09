@@ -70,9 +70,21 @@ options:
 The internal check (`-q`) prints one finding per line (`* ` or `file: ` with `-a`), marked
 `CRITICAL!`, `ERROR!` or `WARNING!` where it applies.
 
+#### CSS check (-q):
+CSS files are parsed with tinycss2 (CSS Syntax Level 3) and checked for problems that matter
+in e-book readers (not for CSS 2.1 validity - vendor prefixes and modern properties are fine):
+* `CSS ERROR!` - a reader drops the declaration or rule: syntax errors, a declaration without
+  `:`, an unexpected `}`, unknown property names (typos; list of known properties from MDN in
+  `lib/resources/css_properties.txt`), a non-breaking or other unusual space in a value (outside
+  quotes), a missing semicolon, more than 4 values in `margin`/`padding`
+* `CSS WARNING!` - may cause problems in some readers: `!important` on `font-size`,
+  `font-family`, `line-height`, `color` or `background-color`, `position: fixed/absolute`,
+  `display: flex/grid`, `vh/vw/vmin/vmax` units, a color on `body`/`html`, `@import`
+
 #### Additional requirements:
 * python -m pip install lxml
 * python -m pip install css-parser
+* python -m pip install tinycss2
 * python -m pip install pyinstaller (for compilation only)
 
 #### Compilation tips for creating standalone applications with Pyinstaller tool:
