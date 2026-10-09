@@ -576,7 +576,8 @@ def beautify_book(root, f, user_font_dir, pair_family):
     from lib.epubqfix import unpack_epub
     from lib.epubqfix import clean_temp
     from lib.epubqfix import find_roots
-    f = f.replace('.epub', '_moh.epub')
+    # same name as in qfix (also for '.EPUB' or '.epub' inside the name)
+    f = os.path.splitext(f)[0] + '_moh.epub'
     print('START beautify for: ' + f)
     tempdir = unpack_epub(os.path.join(root, f))
     opf_dir, opf_file, is_fixed = find_roots(tempdir)
