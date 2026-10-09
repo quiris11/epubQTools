@@ -12,7 +12,7 @@ Tools for checking, correcting and hyphenating EPUB files.
 usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]] [--author [Surname, First Name]] [--title [Title]]
                                                         [--font-dir [DIR]] [--replace-font-family [old,new]] [-a] [-n] [-t] [-q] [-p] [--list-fonts] [-m] [-e] [-s]
                                                         [-r] [-c] [--skip-justify] [--left] [--replace-font-files] [--remove-colors]
-                                                        [--remove-fonts] [-k] [-z] [-d] [-f] [--fix-missing-container] [--book-margin [NUMBER]]
+                                                        [--remove-fonts] [-k] [-d] [-f] [--fix-missing-container] [--book-margin [NUMBER]]
                                                         directory
 
 positional arguments:
@@ -51,7 +51,6 @@ options:
   --remove-colors       remove all color definitions from CSS files (only with -e)
   --remove-fonts        remove all embedded font files (only with -e)
   -k, --kindlegen       convert _moh.epub files to .mobi with kindlegen
-  -z, --azk             convert _moh.mobi files to .azk with azkcreator
   -d, --huffdic         tell kindlegen to use huffdic compression (slow conversion) (only with -k)
   -f, --force           overwrite previously generated _moh.epub or .mobi files (only with -k or -e)
   --fix-missing-container

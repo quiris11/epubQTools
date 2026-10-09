@@ -23,7 +23,6 @@ from lib.epubqfix import qfix
 from lib.epubqfix import problem_files
 from lib.epubqfix import rename_files
 from lib.fix_name_author import fix_name_author
-from lib.azkfix import to_azk
 
 __license__ = 'GNU Affero GPL v3'
 __copyright__ = '2014, Robert Błaut listy@blaut.biz'
@@ -124,8 +123,6 @@ parser.add_argument("--remove-fonts",
                     action="store_true")
 parser.add_argument("-k", "--kindlegen", help="convert _moh.epub files to"
                     " .mobi with kindlegen", action="store_true")
-parser.add_argument("-z", "--azk", help="convert _moh.mobi files to"
-                    " .azk with azkcreator", action="store_true")
 parser.add_argument("-d", "--huffdic", help="tell kindlegen to use huffdic "
                     "compression (slow conversion) (only with -k)",
                     action="store_true")
@@ -258,7 +255,7 @@ def main():
         print('! WARNING! -a was ignored because it works only with -q.')
     if args.huffdic and not args.kindlegen:
         print('! WARNING! -d was ignored because it works only with -k.')
-    if args.force and not (args.epub or args.kindlegen or args.azk):
+    if args.force and not (args.epub or args.kindlegen):
         print('! WARNING! -f was ignored because it works only with -e or -k.')
     if args.mod and not (args.qcheck or args.epubcheck):
         print('! WARNING! -m was ignored because it works only with -q or -p.')
@@ -574,27 +571,6 @@ def main():
         if counter == 0:
             print('')
             print('* NO *_moh.epub files for converting found!')
-
-    if args.azk:
-        print('')
-        print('***********************************************')
-        print('*** Converting MOBI with AZKcreator tool... ***')
-        print('***********************************************')
-
-        counter = 0
-        if ind_file:
-            counter += 1
-            to_azk(ind_root, os.path.splitext(ind_file)[0] + '_moh.mobi',
-                   args.force)
-        else:
-            for root, dirs, files in os.walk(uni_dir):
-                for f in files:
-                    if f.lower().endswith('_moh.mobi'):
-                        counter += 1
-                        to_azk(root, f, args.force)
-        if counter == 0:
-            print('')
-            print('* NO *_moh.mobi files for converting found!')
 
     if args.prepare_send_to_kindle:
         print('')
