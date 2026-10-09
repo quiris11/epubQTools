@@ -73,11 +73,14 @@ def serialize_without_strings(tokens):
     return ''.join(parts)
 
 
-def check_css(css_text, css_name, file_dec):
-    """Print problems found in one CSS file; returns their number."""
+def check_css(css_text, css_name, file_dec, skip_warnings=False):
+    """Print problems found in one CSS file; returns their number. With
+    skip_warnings only errors are reported."""
     found = []
 
     def report(level, line, message):
+        if skip_warnings and level == 'WARNING':
+            return
         found.append(1)
         print('%sCSS %s! Problem in "%s" (line %s): %s'
               % (file_dec, level, css_name, line, ' '.join(message.split())))

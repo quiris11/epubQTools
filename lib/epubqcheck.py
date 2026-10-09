@@ -708,7 +708,8 @@ def list_font_basic_properties(raw_file):
     return font_family, regular, bold, italic
 
 
-def qcheck(root, _file, alter, mod, is_list_fonts, skip_css_mime=False):
+def qcheck(root, _file, alter, mod, is_list_fonts, skip_css_mime=False,
+           skip_css_warnings=False):
     if alter:
         _file_dec = _file + ': '
     else:
@@ -811,7 +812,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts, skip_css_mime=False):
         elif singlefile.lower().endswith('.css'):
             if not skip_css_mime:
                 check_css(epubfile.read(singlefile).decode('utf-8', 'replace'),
-                          singlefile, _file_dec)
+                          singlefile, _file_dec, skip_css_warnings)
             check_urls_in_css(singlefile, epubfile, prepnl, _file_dec)
             # TODO: not a real problem with file (make separate check for it)
             # is_body_family, is_font_face, ff, sfound\

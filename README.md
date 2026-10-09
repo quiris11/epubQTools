@@ -10,7 +10,7 @@ Tools for checking, correcting and hyphenating EPUB files.
 
 ```
 usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]] [--author [Surname, First Name]] [--title [Title]]
-                                                        [--font-dir [DIR]] [--replace-font-family [old,new]] [-a] [-n] [-t] [-q] [-p] [-w] [--list-fonts] [-m] [-e] [-s]
+                                                        [--font-dir [DIR]] [--replace-font-family [old,new]] [-a] [-n] [-t] [-q] [-p] [-w] [-u] [--list-fonts] [-m] [-e] [-s]
                                                         [-r] [-c] [--skip-justify] [--left] [--replace-font-files] [--remove-colors]
                                                         [--remove-fonts] [-k] [-d] [-f] [--fix-missing-container] [--book-margin [NUMBER]]
                                                         directory
@@ -38,6 +38,8 @@ options:
   -q, --qcheck          validate files with qcheck internal tool
   -p, --epubcheck       validate epub files with EpubCheck 4 tool
   -w, --skip-css-mime   do not report CSS errors and warnings and non-standard font media types (only with -q)
+  -u, --skip-css-warnings
+                        do not report CSS warnings, only CSS errors (only with -q)
   --list-fonts          list all fonts in EPUB (only with -q)
   -m, --mod             validate only _moh.epub files (works only with -q or -p)
   -e, --epub            fix and hyphenate original epub files to _moh.epub files
@@ -77,7 +79,7 @@ in e-book readers (not for CSS 2.1 validity - vendor prefixes and modern propert
   `:`, an unexpected `}`, unknown property names (typos; list of known properties from MDN in
   `lib/resources/css_properties.txt`), a non-breaking or other unusual space in a value (outside
   quotes), a missing semicolon, more than 4 values in `margin`/`padding`
-* `CSS WARNING!` - may cause problems in some readers: `!important` on `font-size`,
+* `CSS WARNING!` (silenced with `-u`) - may cause problems in some readers: `!important` on `font-size`,
   `font-family`, `line-height`, `color` or `background-color`, `position: fixed/absolute`,
   `display: flex/grid`, `vh/vw/vmin/vmax` units, a color on `body`/`html`, `@import`
 
