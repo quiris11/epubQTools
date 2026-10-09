@@ -1937,9 +1937,10 @@ def remove_jacket(opftree, rootepubdir):
 def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
     item = opftree.xpath('//opf:item[@href="' + file_rel_to_opf + '"]',
                          namespaces=OPFNS)[0]
-    item_ncx = opftree.xpath('//opf:itemref[@idref="' + item.get('id') + '"]',
-                             namespaces=OPFNS)[0]
-    item_ncx.getparent().remove(item_ncx)
+    # the file does not have to be in the spine
+    for item_ncx in opftree.xpath('//opf:itemref[@idref="' + item.get('id') +
+                                  '"]', namespaces=OPFNS):
+        item_ncx.getparent().remove(item_ncx)
     item.getparent().remove(item)
     os.remove(os.path.join(rootepubdir, file_rel_to_opf))
 
