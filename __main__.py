@@ -407,12 +407,18 @@ def main():
                 print(f + ': OK!')
                 print('')
 
-        for e in os.listdir(os.path.join(args.tools)):
-            if e.startswith('epubcheck-5.'):
-                epubcheckstr = os.path.splitext(e)[0]
-                break
-            else:
-                epubcheckstr = ''
+        def version_key(name):
+            return [int(x) if x.isdigit() else 0
+                    for x in name[len('epubcheck-'):-len('.zip')].split('.')]
+
+        # only ZIP files (an unpacked 'epubcheck-5.x.y' folder may be next
+        # to it); the newest version wins
+        zips = sorted((e for e in os.listdir(args.tools)
+                       if e.startswith('epubcheck-5.') and
+                       e.lower().endswith('.zip') and
+                       os.path.isfile(os.path.join(args.tools, e))),
+                      key=version_key)
+        epubcheckstr = os.path.splitext(zips[-1])[0] if zips else ''
         epubcheckjar = 'epubcheck.jar'
 
         print('')
@@ -425,12 +431,12 @@ def main():
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
         except FileNotFoundError:
-            sys.exit('Java is NOT installed. Giving up...')
+            sys.exit('! CRITICAL! Java is NOT installed. Giving up...')
         try:
             echpzipfile = zipfile.ZipFile(os.path.join(args.tools,
                                           epubcheckstr + '.zip'))
         except FileNotFoundError:
-            sys.exit(epubcheckstr + 'EpubCheck 5.x ZIP file not found '
+            sys.exit('! CRITICAL! EpubCheck 5.x ZIP file not found '
                      'in directory: "' + args.tools + '" Giving up...')
         echp_temp = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
         echpzipfile.extractall(echp_temp)
