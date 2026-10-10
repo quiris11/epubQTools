@@ -6,6 +6,8 @@
 #
 
 
+import base64
+import binascii
 import hashlib
 import logging
 import os
@@ -68,6 +70,7 @@ MY_LANGUAGE2 = 'pl-PL'
 HYPHEN_MARK = '\u00AD'
 FONT_SIZE_1PX_RE = re.compile(
     r'font-size\s*:\s*1px\s*!important', re.IGNORECASE)
+HIDDEN_DIV_TEXT_RE = re.compile(r'[A-Za-z0-9_-]+')
 
 HOME = os.path.expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
@@ -1927,7 +1930,10 @@ def convert_dl_to_ul(opftree, rootepubdir):
             f.write(raw)
 
 
-def remove_trailing_wm_div(xhtree):
+def remove_trailing_wm_div(xhtree, hidden_names, file_name):
+    """Remove a hidden div (font-size: 1px) from the end of <body>. Its text
+    is a class name in CSS files - it is added to hidden_names, to remove the
+    class rules later."""
     for body in xhtree.xpath('//xhtml:body', namespaces=XHTMLNS):
         children = list(body)
         if not children:
@@ -1943,6 +1949,16 @@ def remove_trailing_wm_div(xhtree):
         tail_is_empty = not (last.tail and last.tail.strip())
 
         if is_div and style_matches and style_is_minimal and tail_is_empty:
+            # the text may be hyphenated already
+            text = ''.join(last.itertext()).replace(HYPHEN_MARK, '').strip()
+            if HIDDEN_DIV_TEXT_RE.fullmatch(text):
+                hidden_names.add(text)
+                decoded = decode_b64_name(text)
+                print('* Removed hidden div from "%s": %s%s' %
+                      (file_name, text,
+                       ' -> ' + decoded if decoded is not None else ''))
+            else:
+                print('* Removed hidden div from "%s"' % file_name)
             remove_node(last)
 
 
@@ -1968,7 +1984,7 @@ def remove_wm_info(opftree, rootepubdir):
                     alltext == ''
                 ):
                     remove_file_from_epub(i.get('href'), opftree, rootepubdir)
-                    print('* Watermark info page removed: ' + i.get('href'))
+                    print('* Needless info page removed: ' + i.get('href'))
     return opftree
 
 
@@ -1994,7 +2010,7 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
 
 def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                        is_reset_css, opf_dir_abs, is_xml_ext_fixed, book_lang,
-                       dont_hyph_headers):
+                       dont_hyph_headers, hidden_names):
     global qfixerr
     try:
         with open(xhfile, 'r', encoding='utf-8') as content_file:
@@ -2062,7 +2078,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                 i[-1][0].text is None and
                 i[-1][0].tail is None
             ):
-                print('* Removing WM remaining <div><span/></div>...')
+                print('* Removing hidden <div><span/></div>...')
                 remove_node(i[-1])
         except Exception:
             continue
@@ -2108,7 +2124,8 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
             remove_node(parent)
 
     # new wm: div font-size:1px !important at the and of <body>
-    remove_trailing_wm_div(xhtree)
+    remove_trailing_wm_div(xhtree, hidden_names,
+                           os.path.relpath(xhfile, opf_dir_abs))
     
     # remove meta charsets
     _metacharsets = xhtree.xpath('//xhtml:meta[@charset="utf-8"]',
@@ -2267,10 +2284,11 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         print('* Hyphenating texts...')
         if dont_hyph_headers:
             print('* ... except headers...')
+    hidden_names = set()
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, link_reset_css, skip_hyph, opf_dir_abs,
                            is_reset_css, opf_dir_abs, is_xml_ext_fixed,
-                           book_lang, dont_hyph_headers)
+                           book_lang, dont_hyph_headers, hidden_names)
     opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
     opftree = fix_nav_in_cover_file(opftree, opf_dir_abs)
@@ -2285,6 +2303,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         print('* Replacing "text-align: justify" with "text-align: left" in '
               'all CSS files...')
         modify_css_align(opftree, opf_dir_abs, 'left', del_colors)
+    remove_hidden_div_classes(opftree, opf_dir_abs, hidden_names)
+    remove_hidden_div_texts_from_images(opftree, opf_dir_abs, hidden_names)
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'wb') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
@@ -2350,6 +2370,88 @@ def modify_css_align(opftree, opfdir, mode, del_colors):
                 cf.write(cc)
         except IOError:
             pass
+
+
+def decode_b64_name(name):
+    """Return the decoded text if the name is base64, else None."""
+    try:
+        text = base64.b64decode(name + '=' * (-len(name) % 4),
+                                validate=True).decode('utf-8')
+    except (binascii.Error, UnicodeDecodeError):
+        return None
+    return text if text.isprintable() else None
+
+
+def remove_hidden_div_classes(opftree, opfdir, hidden_names):
+    """Remove rules of classes named with the texts of the hidden divs in
+    XHTML files from all CSS files."""
+    if not hidden_names:
+        return
+    print('* Removing classes of hidden divs from all CSS files...')
+    # a rule with a single class selector only: .NAME { ... }, starting at
+    # the beginning of a line or just after }, {, ; or a comment (so that
+    # e.g. ".a .NAME { }" is not touched)
+    rule_re = re.compile(
+        r'(?m)(^|[{};]|\*/)[ \t]*\.(%s)(?![\w-])\s*\{[^{}]*\}[ \t]*\n?'
+        % '|'.join(re.escape(n) for n in sorted(hidden_names))
+    )
+    cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
+                             namespaces=OPFNS)
+    for c in cssitems:
+        removed = []
+
+        def repl(m):
+            removed.append(m.group(2))
+            # keep the character before the rule
+            return m.group(1)
+
+        css_path = os.path.join(opfdir, c.get('href'))
+        try:
+            with open(css_path, 'r', encoding='utf-8') as cf:
+                css_text = cf.read()
+        except (IOError, UnicodeDecodeError) as e:
+            print('! WARNING! Unable to read CSS file "%s": %s' %
+                  (c.get('href'), e))
+            continue
+        new_css_text = rule_re.sub(repl, css_text)
+        if not removed:
+            continue
+        for name in removed:
+            decoded = decode_b64_name(name)
+            print('* Removed class from "%s": .%s%s' %
+                  (c.get('href'), name,
+                   ' -> ' + decoded if decoded is not None else ''))
+        try:
+            with open(css_path, 'w', encoding='utf-8') as cf:
+                cf.write(new_css_text)
+        except IOError as e:
+            print('! WARNING! Unable to write CSS file "%s": %s' %
+                  (c.get('href'), e))
+
+
+def remove_hidden_div_texts_from_images(opftree, opfdir, hidden_names):
+    """Remove the texts of the hidden divs in XHTML files appended to JPEG
+    files after the end of image marker."""
+    for i in opftree.xpath('//opf:item[@media-type="image/jpeg"]',
+                           namespaces=OPFNS):
+        img_path = os.path.join(opfdir, i.get('href'))
+        try:
+            with open(img_path, 'rb') as f:
+                data = f.read()
+        except IOError:
+            continue
+        eoi = data.rfind(b'\xff\xd9')
+        if eoi == -1:
+            continue
+        name = data[eoi + 2:].strip().decode('ascii', errors='replace')
+        if name not in hidden_names:
+            continue
+        with open(img_path, 'wb') as f:
+            f.write(data[:eoi + 2])
+        decoded = decode_b64_name(name)
+        print('* Removed appended text from image "%s": %s%s' %
+              (i.get('href'), name,
+               ' -> ' + decoded if decoded is not None else ''))
 
 
 def html_cover_first(opftree):

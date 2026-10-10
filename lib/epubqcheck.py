@@ -447,7 +447,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
             _watermarks = etree.XPath('//*[starts-with(text(),"===")]',
                                       namespaces=XHTMLNS)(_xhtmlsoup)
             if len(_watermarks) > 0:
-                print(_file_dec + 'Potential problematic WM found ("===")...')
+                print(_file_dec + 'Potential problematic text found ("===")...')
                 _wmfound = True
 
         if metcharfound is False:
