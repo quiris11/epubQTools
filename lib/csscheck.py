@@ -20,6 +20,7 @@ WARNING! - may cause problems in some readers:
     @import
 """
 
+import re
 import sys
 from pkgutil import get_data
 
@@ -59,12 +60,15 @@ IMPORTANT_PROPERTIES = {'font-size', 'font-family', 'line-height', 'color',
 
 
 def serialize_without_strings(tokens):
-    """Value text with quoted strings left out (an unusual space inside
-    a string, e.g. in a font name, is valid)."""
+    """Value text with quoted strings and unquoted URLs left out (an unusual
+    space inside a string, e.g. in a font name, or in a file name is
+    valid)."""
     parts = []
     for t in tokens:
         if t.type == 'string':
             parts.append('""')
+        elif t.type == 'url':
+            parts.append('url()')
         elif t.type == 'function':
             parts.append(t.name + '(' +
                          serialize_without_strings(t.arguments) + ')')
@@ -185,3 +189,100 @@ def check_css(css_text, css_name, file_dec, skip_warnings=False):
                             tinycss2.serialize(nested.prelude).strip(),
                             KNOWN_PROPERTIES)
     return len(found)
+
+
+URL_START_RE = re.compile(r'(?<![\w\\-])url\(\s*(?!["\'])', re.IGNORECASE)
+
+
+def _unusual_spaces_in_value(text, start):
+    """Positions of unusual spaces in the value of a declaration that
+    starts at text[start], outside strings, comments, escapes and unquoted
+    URLs. The value ends at ";" or at the end of the enclosing block."""
+    found = []
+    depth = 0
+    in_value = False
+    i = start
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if text.startswith('/*', i):
+            end = text.find('*/', i + 2)
+            i = n if end == -1 else end + 2
+            continue
+        if ch in '"\'':
+            i += 1
+            while i < n and text[i] not in (ch, '\n', '\r', '\f'):
+                i += 2 if text[i] == '\\' else 1
+            i += 1
+            continue
+        if ch == '\\':
+            i += 2
+            continue
+        url = URL_START_RE.match(text, i)
+        if url:
+            end = text.find(')', url.end())
+            i = n if end == -1 else end + 1
+            continue
+        if ch in '([{':
+            depth += 1
+        elif ch in ')]}':
+            depth -= 1
+            if depth < 0:
+                break
+        elif ch == ';' and depth == 0:
+            break
+        elif ch == ':' and depth == 0:
+            in_value = True
+        elif ch in UNUSUAL_SPACES and in_value:
+            found.append(i)
+        i += 1
+    return found
+
+
+def fix_unusual_spaces(css_text):
+    """Replace unusual spaces (e.g. U+00A0) with normal spaces in the values
+    of the declarations reported by check_css (the declarations dropped by
+    readers). Strings, comments, unquoted URLs and selectors are not
+    touched, the rest of the text stays as it is. Returns the new text and
+    the number of replaced characters."""
+    # offsets of line starts as counted by tinycss2
+    line_starts = [0] + [m.end() for m in
+                         re.finditer(r'\r\n|[\r\n\f]', css_text)]
+    positions = set()
+
+    def fix_declarations(content):
+        for d in tinycss2.parse_blocks_contents(
+                content, skip_whitespace=True, skip_comments=True):
+            if not isinstance(d, Declaration):
+                continue
+            unquoted = serialize_without_strings(d.value)
+            if not any(ch in unquoted for ch in UNUSUAL_SPACES):
+                continue
+            start = line_starts[d.source_line - 1] + d.source_column - 1
+            # skip names written with escapes (the position is not sure)
+            if (css_text[start:start + len(d.name)].lower() !=
+                    d.lower_name):
+                continue
+            positions.update(_unusual_spaces_in_value(css_text, start))
+
+    def fix_rules(rules):
+        for rule in rules:
+            if isinstance(rule, QualifiedRule):
+                fix_declarations(rule.content)
+            elif isinstance(rule, AtRule) and rule.content is not None:
+                keyword = rule.lower_at_keyword
+                if keyword in ('font-face', 'page'):
+                    fix_declarations(rule.content)
+                elif keyword in ('media', 'supports'):
+                    fix_rules(tinycss2.parse_rule_list(
+                        rule.content, skip_whitespace=True,
+                        skip_comments=True))
+
+    fix_rules(tinycss2.parse_stylesheet(css_text, skip_whitespace=True,
+                                        skip_comments=True))
+    if not positions:
+        return css_text, 0
+    chars = list(css_text)
+    for i in positions:
+        chars[i] = ' '
+    return ''.join(chars), len(positions)

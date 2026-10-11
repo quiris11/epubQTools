@@ -26,6 +26,7 @@ from pkgutil import get_data
 from urllib.parse import unquote
 from itertools import cycle
 from lib.htmlconstants import entities
+from lib.csscheck import fix_unusual_spaces
 from lib.hyphenator import Hyphenator
 from lib.beautify_book import beautify_book
 from functools import reduce
@@ -2240,6 +2241,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
 
     opftree = fix_mismatched_covers(opftree, opf_dir_abs)
 
+    fix_css_unusual_spaces(opftree, opf_dir_abs)
+
     # parse encryption.xml file
     enc_file = os.path.join(_tempdir, 'META-INF', 'encryption.xml')
     if os.path.exists(enc_file):
@@ -2380,6 +2383,34 @@ def decode_b64_name(name):
     except (binascii.Error, UnicodeDecodeError):
         return None
     return text if text.isprintable() else None
+
+
+def fix_css_unusual_spaces(opftree, opfdir):
+    """Replace unusual spaces (e.g. U+00A0) in CSS values with normal spaces,
+    so the declarations are not dropped by readers."""
+    cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
+                             namespaces=OPFNS)
+    for c in cssitems:
+        css_path = os.path.join(opfdir, c.get('href'))
+        try:
+            # newline='' keeps the original line endings
+            with open(css_path, 'r', encoding='utf-8', newline='') as cf:
+                css_text = cf.read()
+        except (IOError, UnicodeDecodeError) as e:
+            print('! WARNING! Unable to read CSS file "%s": %s' %
+                  (c.get('href'), e))
+            continue
+        new_css_text, count = fix_unusual_spaces(css_text)
+        if not count:
+            continue
+        print('* Replaced %d non-breaking or other unusual spaces with '
+              'normal spaces in CSS values in "%s"' % (count, c.get('href')))
+        try:
+            with open(css_path, 'w', encoding='utf-8', newline='') as cf:
+                cf.write(new_css_text)
+        except IOError as e:
+            print('! WARNING! Unable to write CSS file "%s": %s' %
+                  (c.get('href'), e))
 
 
 def remove_hidden_div_classes(opftree, opfdir, hidden_names):
