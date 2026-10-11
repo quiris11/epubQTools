@@ -390,19 +390,42 @@ def system_font_dirs():
     return dirs
 
 
+def find_file_in_dir(file_name, directory, recursive):
+    """Path of file_name in directory or None. An exact name match has
+    priority over a case-insensitive one (installed fonts are often renamed
+    to lower case, e.g. texgyreschola-bold.otf)."""
+    if not os.path.isdir(directory):
+        return None
+    if os.path.isfile(os.path.join(directory, file_name)):
+        return os.path.join(directory, file_name)
+    if recursive:
+        walk = list(os.walk(directory))
+    else:
+        walk = [(directory, [], os.listdir(directory))]
+    for root, dirs, files in walk:
+        if file_name in files:
+            return os.path.join(root, file_name)
+    lower_name = file_name.lower()
+    for root, dirs, files in walk:
+        for f in sorted(files):
+            if f.lower() == lower_name:
+                return os.path.join(root, f)
+    return None
+
+
 def find_font_file(file_name, fontdir):
-    """Path of a font file named file_name or None. The user font directory
-    (--font-dir) has priority, then user and system font directories."""
-    if fontdir and os.path.isfile(os.path.join(fontdir, file_name)):
-        return os.path.join(fontdir, file_name)
+    """Path of a font file named file_name (case-insensitive) or None.
+    The user font directory (--font-dir) has priority, then user and system
+    font directories."""
+    if fontdir:
+        found = find_file_in_dir(file_name, fontdir, False)
+        if found:
+            return found
     recursive = sys.platform.startswith('linux')
     for font_dir in system_font_dirs():
-        if os.path.isfile(os.path.join(font_dir, file_name)):
-            return os.path.join(font_dir, file_name)
-        if recursive and os.path.isdir(font_dir):
-            for root, dirs, files in os.walk(font_dir):
-                if file_name in files:
-                    return os.path.join(root, file_name)
+        found = find_file_in_dir(file_name, font_dir, recursive)
+        if found:
+            return found
     return None
 
 

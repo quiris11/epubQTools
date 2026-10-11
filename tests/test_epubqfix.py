@@ -3,13 +3,16 @@
 # This file is part of epubQTools, licensed under GNU Affero GPLv3 or later.
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
+import os
 import struct
+import tempfile
 import unittest
 import zlib
 
 from lxml import etree
 
-from lib.epubqfix import (ClassStyles, decode_b64_name, image_data_end, is_hiding_style,
+from lib.epubqfix import (ClassStyles, decode_b64_name, find_file_in_dir,
+                          image_data_end, is_hiding_style,
                           most_common, remove_trailing_hidden_div,
                           strip_nav_aria_labels)
 
@@ -165,3 +168,24 @@ class StripNavAriaLabelsTest(unittest.TestCase):
     def test_unchanged(self):
         raw = '<navx aria-label="x"><nav id="toc">'
         self.assertEqual(strip_nav_aria_labels(raw), (raw, 0))
+
+
+class FindFileInDirTest(unittest.TestCase):
+
+    def test_case_insensitive(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.mkdir(os.path.join(d, 'sub'))
+            path = os.path.join(d, 'sub', 'texgyreschola-bold.otf')
+            open(path, 'w').close()
+            self.assertEqual(
+                find_file_in_dir('TeXGyreSchola-Bold.otf', d, True), path)
+            self.assertIsNone(
+                find_file_in_dir('TeXGyreSchola-Bold.otf', d, False))
+            self.assertIsNone(find_file_in_dir('Other.otf', d, True))
+
+    def test_exact_match_first(self):
+        with tempfile.TemporaryDirectory() as d:
+            for name in ('font.otf', 'Font.otf'):
+                open(os.path.join(d, name), 'w').close()
+            self.assertEqual(find_file_in_dir('Font.otf', d, False),
+                             os.path.join(d, 'Font.otf'))
