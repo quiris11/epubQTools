@@ -1758,6 +1758,22 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             newlang.text = MY_LANGUAGE
             metadata.insert(0, newlang)
 
+    # remove multiple meta covers, keep the one pointing to an image item
+    metacovers = soup.xpath('//opf:meta[@name="cover"]', namespaces=OPFNS)
+    if len(metacovers) > 1:
+        keep = metacovers[0]
+        for mc in metacovers:
+            if soup.xpath('//opf:item[@id=$id and '
+                          'starts-with(@media-type, "image/")]',
+                          namespaces=OPFNS, id=mc.get('content', '')):
+                keep = mc
+                break
+        print('* Removing multiple meta cover definitions, keeping '
+              '"%s"...' % keep.get('content'))
+        for mc in metacovers:
+            if mc is not keep:
+                mc.getparent().remove(mc)
+
     # add missing meta cover and cover reference guide element
     metacovers = etree.XPath('//opf:meta[@name="cover"]',
                              namespaces=OPFNS)(soup)
