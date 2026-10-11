@@ -102,10 +102,21 @@ def check_css(css_text, css_name, file_dec, skip_warnings=False):
                     report('ERROR', d.source_line,
                            'syntax error: ' + d.message)
                 continue
+            if isinstance(d, QualifiedRule):
+                # CSS nesting: a rule inside a rule
+                check_declarations(d.content,
+                                   tinycss2.serialize(d.prelude).strip(),
+                                   KNOWN_PROPERTIES)
+                continue
+            if isinstance(d, AtRule):
+                if (d.lower_at_keyword in ('media', 'supports') and
+                        d.content is not None):
+                    check_declarations(d.content, selector, known)
+                continue
             if not isinstance(d, Declaration):
                 continue
             name = d.lower_name
-            value = tinycss2.serialize(d.value).strip()
+            value = tinycss2.serialize(d.value).strip(' \t\r\n\f')
             tokens = [t for t in d.value
                       if t.type not in ('whitespace', 'comment')]
             text = '%s { %s: %s%s }' % (selector, d.name, value,
@@ -239,29 +250,66 @@ def _unusual_spaces_in_value(text, start):
     return found
 
 
+# a property name, possibly with escapes
+NAME_RE = re.compile(r'(?:[\w-]|\\(?:[0-9a-fA-F]{1,6}(?:\r\n|[ \t\r\n\f])?|'
+                     r'[^\r\n\f0-9a-fA-F]))+')
+ZERO_WIDTH_SPACE = '\u200b'
+
+
+def _space_replacement(text, i):
+    """A zero width space inside a word (e.g. "bo[U+200B]ld") or next to a
+    space or a separator is removed, between e.g. "1em" and "2em" it is
+    replaced with a space. Other unusual spaces are replaced with a
+    space."""
+    if text[i] != ZERO_WIDTH_SPACE:
+        return ' '
+    before = text[i - 1] if i > 0 else ' '
+    after = text[i + 1] if i + 1 < len(text) else ' '
+    if (before.isalpha() and after.isalpha()) or any(
+            c.isspace() or c in ':;,()!{}' or c in UNUSUAL_SPACES
+            for c in (before, after)):
+        return ''
+    return ' '
+
+
 def fix_unusual_spaces(css_text):
     """Replace unusual spaces (e.g. U+00A0) with normal spaces in the values
     of the declarations reported by check_css (the declarations dropped by
-    readers). Strings, comments, unquoted URLs and selectors are not
-    touched, the rest of the text stays as it is. Returns the new text and
-    the number of replaced characters."""
+    readers), also in nested rules. Strings, comments, unquoted URLs and
+    selectors are not touched, the rest of the text stays as it is. Returns
+    the new text and the number of replaced characters."""
     # offsets of line starts as counted by tinycss2
     line_starts = [0] + [m.end() for m in
                          re.finditer(r'\r\n|[\r\n\f]', css_text)]
     positions = set()
 
+    def name_at(start):
+        """The property name (with escapes resolved) at text[start]."""
+        m = NAME_RE.match(css_text, start)
+        if not m:
+            return None
+        token = tinycss2.parse_one_component_value(m.group())
+        return token.value if token.type == 'ident' else None
+
     def fix_declarations(content):
         for d in tinycss2.parse_blocks_contents(
                 content, skip_whitespace=True, skip_comments=True):
+            if isinstance(d, QualifiedRule):
+                fix_declarations(d.content)
+                continue
+            if isinstance(d, AtRule):
+                if (d.lower_at_keyword in ('media', 'supports') and
+                        d.content is not None):
+                    fix_declarations(d.content)
+                continue
             if not isinstance(d, Declaration):
                 continue
             unquoted = serialize_without_strings(d.value)
             if not any(ch in unquoted for ch in UNUSUAL_SPACES):
                 continue
             start = line_starts[d.source_line - 1] + d.source_column - 1
-            # skip names written with escapes (the position is not sure)
-            if (css_text[start:start + len(d.name)].lower() !=
-                    d.lower_name):
+            # make sure the position is right
+            if name_at(start) != d.name:
                 continue
             positions.update(_unusual_spaces_in_value(css_text, start))
 
@@ -284,5 +332,5 @@ def fix_unusual_spaces(css_text):
         return css_text, 0
     chars = list(css_text)
     for i in positions:
-        chars[i] = ' '
+        chars[i] = _space_replacement(css_text, i)
     return ''.join(chars), len(positions)
