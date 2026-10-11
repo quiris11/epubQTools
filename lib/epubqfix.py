@@ -29,6 +29,7 @@ from lib.htmlconstants import entities
 from lib.csscheck import fix_unusual_spaces, remove_class_rules
 from lib.hyphenator import Hyphenator
 from lib.beautify_book import beautify_book
+from collections import Counter
 from functools import reduce
 
 try:
@@ -1700,6 +1701,12 @@ def append_hyphen_css_file(opftree, tempdir):
     return opftree, False
 
 
+def most_common(lst):
+    """Most frequent element; on a tie the one that occurs first, so the
+    result does not depend on the string hash seed."""
+    return Counter(lst).most_common(1)[0][0]
+
+
 def append_reset_css_file(opftree, tempdir, del_fonts,
                           html_margin, skip_hyph):
 
@@ -1707,9 +1714,6 @@ def append_reset_css_file(opftree, tempdir, del_fonts,
         return reduce(lambda acc, elem: acc[:-1] + [acc[-1] + elem]
                       if elem == sep else acc + [elem],
                       re.split("(%s)" % re.escape(sep), s), [])
-
-    def most_common(lst):
-        return max(set(lst), key=lst.count)
 
     is_reset_css = is_body_family = is_calibre_class = False
     ff = ''

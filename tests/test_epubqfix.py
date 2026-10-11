@@ -10,7 +10,7 @@ import zlib
 from lxml import etree
 
 from lib.epubqfix import (decode_b64_name, image_data_end, is_hiding_style,
-                          remove_trailing_hidden_div)
+                          most_common, remove_trailing_hidden_div)
 
 XHTML = ('<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Text</p>%s'
          '</body></html>')
@@ -100,6 +100,11 @@ class HelpersTest(unittest.TestCase):
     def test_decode_b64_name(self):
         self.assertEqual(decode_b64_name(NAME), '79166719553028')
         self.assertIsNone(decode_b64_name('my_class'))
+
+    def test_most_common_tie_takes_first(self):
+        self.assertEqual(most_common(['serif', 'a', 'a', 'serif']), 'serif')
+        self.assertEqual(most_common(['a', 'serif', 'serif', 'a']), 'a')
+        self.assertEqual(most_common(['a', 'b', 'b']), 'b')
 
 
 if __name__ == '__main__':

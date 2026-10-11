@@ -11,6 +11,7 @@ import sys
 import re
 import shutil
 import logging
+from collections import Counter
 from lib.epubqcheck import list_font_basic_properties
 from urllib.parse import unquote
 
@@ -445,7 +446,8 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
 
 
 def most_common(lst):
-    return max(set(lst), key=lst.count)
+    # on a tie the first element wins (independent of the string hash seed)
+    return Counter(lst).most_common(1)[0][0]
 
 
 def write_file_changes_back(tree, file_path):
