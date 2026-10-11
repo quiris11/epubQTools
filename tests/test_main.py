@@ -57,6 +57,17 @@ class CommandLineTest(unittest.TestCase):
                     for f in found:
                         os.remove(os.path.join(d, f))
 
+    def test_log_directory_named_1(self):
+        # run_eqt runs in self.dir, so '1' is self.dir/1
+        log_dir = os.path.join(self.dir, '1')
+        os.makedirs(log_dir)
+        result = self.run_eqt('-i', '-l', '1', self.dir)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            len([f for f in os.listdir(log_dir) if f.endswith('.log')]), 1)
+        self.assertFalse(
+            [f for f in os.listdir(self.dir) if f.endswith('.log')])
+
     def test_missing_directory(self):
         result = self.run_eqt('-q')
         self.assertEqual(result.returncode, 2)

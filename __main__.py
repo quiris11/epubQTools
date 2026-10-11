@@ -59,7 +59,10 @@ directory_arg = parser.add_argument("directory",
 parser.add_argument("--tools", nargs='?', metavar="DIR",
                     help="path to additional tools: kindlegen, "
                     "epubcheck zip (default: " + user_tools_dir + ")")
-parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
+# -l without a value; an object, so any DIR (also '1') can be given
+LOG_IN_BOOK_DIR = object()
+parser.add_argument('-l', '--log', nargs='?', metavar='DIR',
+                    const=LOG_IN_BOOK_DIR,
                     help='path to directory to write log file. If DIR is '
                     ' omitted write log to directory with epub files')
 parser.add_argument('-i', '--individual', nargs='?', metavar='NR',
@@ -195,9 +198,10 @@ def parse_arguments(argv):
         for dest in sorted(('log', 'tools'), key=lambda d: last.get(d, -1),
                            reverse=True):
             value = getattr(args, dest)
-            if value is not None and value != '1':
+            if value is not None and value is not LOG_IN_BOOK_DIR:
                 args.directory = value
-                setattr(args, dest, '1' if dest == 'log' else None)
+                setattr(args, dest,
+                        LOG_IN_BOOK_DIR if dest == 'log' else None)
                 break
         else:
             parser.error('the following arguments are required: directory')
@@ -381,10 +385,10 @@ def main():
               'with -e.')
     if args.left and not args.epub:
         print('! WARNING! --left was ignored because it works only with -e.')
-    if args.log == '1':
+    if args.log is LOG_IN_BOOK_DIR:
         st = datetime.now().strftime('%Y%m%d%H%M%S')
         sys.stdout = Logger(os.path.join(uni_dir, 'eQT-' + st + '.log'))
-    elif args.log != '1' and args.log is not None:
+    elif args.log is not None:
         st = datetime.now().strftime('%Y%m%d%H%M%S')
         sys.stdout = Logger(os.path.join(args.log, 'eQT-' + st + '.log'))
     ind_file = ind_root = None

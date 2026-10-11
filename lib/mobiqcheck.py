@@ -261,15 +261,17 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--ebok",
                         help="replace PDOC to EBOK (experimental)",
                         action="store_true")
-    parser.add_argument('--log', nargs='?', metavar='DIR', const='1',
+    log_in_book_dir = object()      # --log without a value
+    parser.add_argument('--log', nargs='?', metavar='DIR',
+                        const=log_in_book_dir,
                         help='path to directory to write log file. If DIR is '
                         ' omitted write log to directory with epub files')
     args = parser.parse_args()
 
-    if args.log == '1':
+    if args.log is log_in_book_dir:
         st = datetime.now().strftime('%Y%m%d%H%M%S')
         sys.stdout = Logger(os.path.join(args.directory, 'eQM-' + st + '.log'))
-    elif args.log != '1' and args.log is not None:
+    elif args.log is not None:
         st = datetime.now().strftime('%Y%m%d%H%M%S')
         sys.stdout = Logger(os.path.join(args.log, 'eQM-' + st + '.log'))
 
