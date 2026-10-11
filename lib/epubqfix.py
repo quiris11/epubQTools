@@ -2475,16 +2475,16 @@ def html_cover_first(opftree):
     return opftree
 
 
-def qfix(root, f, *args):
+def qfix(root, f, moh_dir, *args):
     """Process one book. An unexpected error stops only this book, not the
     whole batch: it is reported, temporary files are removed and a partly
-    written _moh file is deleted."""
-    newfile = os.path.join(root, os.path.splitext(f)[0] + '_moh.epub')
+    written _moh file is deleted. The _moh file is written to moh_dir."""
+    newfile = os.path.join(moh_dir, os.path.splitext(f)[0] + '_moh.epub')
     mtime_before = (os.path.getmtime(newfile) if os.path.exists(newfile)
                     else None)
     tempdirs_before = list(open_tempdirs)
     try:
-        return _qfix(root, f, *args)
+        return _qfix(root, f, moh_dir, *args)
     except Exception:
         print('')
         print('! CRITICAL! Unexpected error while processing "%s":' % f)
@@ -2499,7 +2499,7 @@ def qfix(root, f, *args):
         return 1
 
 
-def _qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
+def _qfix(root, f, moh_dir, _forced, _replacefonts, _resetmargins, zbf,
          skip_hyph, arg_justify, arg_left, del_colors, del_fonts,
          fontdir, fix_container_only, html_margin, dont_hyph_headers,
          pair_family):
@@ -2507,7 +2507,7 @@ def _qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
     qfixerr = False
     newfile = os.path.splitext(f)[0] + '_moh.epub'
     if not _forced:
-        if os.path.isfile(os.path.join(root, newfile)):
+        if os.path.isfile(os.path.join(moh_dir, newfile)):
             print('* Skipping previously generated _moh file: ' +
                   newfile)
             return 0
@@ -2541,7 +2541,8 @@ def _qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
             arg_justify, arg_left, fontdir, del_colors,
             del_fonts, html_margin, dont_hyph_headers)
         if not is_failed:
-            pack_epub(os.path.join(root, newfile), _tempdir)
+            os.makedirs(moh_dir, exist_ok=True)
+            pack_epub(os.path.join(moh_dir, newfile), _tempdir)
         else:
             qfixerr = True
         if qfixerr:
@@ -2550,4 +2551,4 @@ def _qfix(root, f, _forced, _replacefonts, _resetmargins, zbf,
             print('FINISH qfix for: ' + f)
     clean_temp(_tempdir)
     if not fix_container_only and not is_failed:
-        beautify_book(root, f, fontdir, pair_family)
+        beautify_book(moh_dir, f, fontdir, pair_family)

@@ -52,7 +52,7 @@ def epubqcompare():
         return 0
     epubf1 = zipfile.ZipFile(os.path.join(ind_root, ind_file))
     epubf2 = zipfile.ZipFile(os.path.join(
-        ind_root, os.path.splitext(ind_file)[0] + '_moh.epub'))
+        ar.directory, 'MOH', os.path.splitext(ind_file)[0] + '_moh.epub'))
     if ar.list_item == 'nonr':
         print('*** EPUB 1 ***')
         count = 0

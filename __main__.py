@@ -96,7 +96,8 @@ parser.add_argument("-m", "--mod", help="validate only _moh.epub files "
                     "(works only with -q or -p)",
                     action="store_true")
 parser.add_argument("-e", "--epub", help="fix and hyphenate original epub "
-                    "files to _moh.epub files", action="store_true")
+                    "files to _moh.epub files in 'MOH' subfolder",
+                    action="store_true")
 parser.add_argument("-s", "--skip-hyphenate",
                     help="do not hyphenate book (only with -e)",
                     action="store_true")
@@ -148,6 +149,8 @@ parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
 args = parser.parse_args()
 uni_dir = args.directory
 tmpSend2KindDir = '_TEMP_SendToKindle'
+mohDir = 'MOH'
+moh_dir = os.path.join(uni_dir, mohDir)
 
 
 class ColorStream(object):
@@ -380,8 +383,10 @@ def main():
 
     if args.mod and ind_file:
         ind_file_m = os.path.splitext(ind_file)[0] + '_moh.epub'
+        ind_root_m = moh_dir
     else:
         ind_file_m = ind_file
+        ind_root_m = ind_root
 
     if args.qcheck:
         print('')
@@ -397,7 +402,7 @@ def main():
         counter = 0
         if ind_file:
             counter += 1
-            qcheck(ind_root, ind_file_m, args.alter, args.mod, args.list_fonts,
+            qcheck(ind_root_m, ind_file_m, args.alter, args.mod, args.list_fonts,
                    args.skip_font_mime, args.skip_css_warnings)
         else:
             for root, dirs, files in os.walk(uni_dir):
@@ -476,8 +481,8 @@ def main():
 
         if ind_file:
             counter += 1
-            if os.path.exists(os.path.join(ind_root, ind_file_m)):
-                epubchecker(echp_temp, ind_root, ind_file_m, epubcheckstr,
+            if os.path.exists(os.path.join(ind_root_m, ind_file_m)):
+                epubchecker(echp_temp, ind_root_m, ind_file_m, epubcheckstr,
                             epubcheckjar)
             else:
                 print('File "%s" not found...' % ind_file_m)
@@ -503,7 +508,7 @@ def main():
             pass
         if ind_file:
             counter += 1
-            qfix(ind_root, ind_file, args.force, args.replace_font_files,
+            qfix(ind_root, ind_file, moh_dir, args.force, args.replace_font_files,
                  args.skip_reset_css, args.tools, args.skip_hyphenate,
                  args.skip_justify, args.left,
                  args.remove_colors, args.remove_fonts, args.font_dir,
@@ -516,7 +521,7 @@ def main():
                             not f.lower().endswith('_moh.epub') and
                             not f.lower().endswith('_org.epub')):
                         counter += 1
-                        qfix(root, f, args.force, args.replace_font_files,
+                        qfix(root, f, moh_dir, args.force, args.replace_font_files,
                              args.skip_reset_css, args.tools,
                              args.skip_hyphenate, args.skip_justify, args.left,
                              args.remove_colors,
@@ -587,7 +592,7 @@ def main():
         cover_html_found = error_found = False
         if ind_file:
             counter += 1
-            to_mobi(ind_root, os.path.splitext(ind_file)[0] + '_moh.epub',
+            to_mobi(moh_dir, os.path.splitext(ind_file)[0] + '_moh.epub',
                     cover_html_found, error_found)
         else:
             for root, dirs, files in os.walk(uni_dir):
