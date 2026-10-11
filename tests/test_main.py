@@ -37,6 +37,32 @@ class CommandLineTest(unittest.TestCase):
                 self.assertIn('1 ' + os.path.join(self.dir, ''),
                               result.stdout)
 
+    def test_log_or_tools_without_value_before_directory(self):
+        logs = tempfile.mkdtemp(prefix='eqt-logs-')
+        self.addCleanup(shutil.rmtree, logs)
+        for args, log_dir in ((('-i', '-l', self.dir), self.dir),
+                              (('-i', '--log', self.dir), self.dir),
+                              (('-i', '--tools', self.dir), None),
+                              (('-i', '--tools', logs, '-l', self.dir),
+                               self.dir),
+                              (('-i', '-l', logs, self.dir), logs)):
+            with self.subTest(args):
+                result = self.run_eqt(*args)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('1 ' + os.path.join(self.dir, ''),
+                              result.stdout)
+                for d in (self.dir, logs):
+                    found = [f for f in os.listdir(d) if f.endswith('.log')]
+                    self.assertEqual(len(found), d == log_dir, d)
+                    for f in found:
+                        os.remove(os.path.join(d, f))
+
+    def test_missing_directory(self):
+        result = self.run_eqt('-q')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('required: directory', result.stderr)
+        self.assertNotIn('[directory]', result.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()

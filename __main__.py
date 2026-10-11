@@ -54,7 +54,8 @@ else:
 parser = argparse.ArgumentParser()
 parser.add_argument('-V', '--version', action='version',
                     version="%(prog)s (version " + __version__ + ")")
-parser.add_argument("directory", help="Directory with EPUB files stored")
+directory_arg = parser.add_argument("directory",
+                                    help="Directory with EPUB files stored")
 parser.add_argument("--tools", nargs='?', metavar="DIR",
                     help="path to additional tools: kindlegen, "
                     "epubcheck zip (default: " + user_tools_dir + ")")
@@ -171,7 +172,39 @@ def individual_without_number(argv):
     return argv
 
 
-args = parser.parse_args(individual_without_number(sys.argv[1:]))
+def parse_arguments(argv):
+    """Parse argv. '-l books' and '--tools books' without another directory
+    mean the option without a value followed by the directory (the value of
+    the option given last is taken)."""
+    argv = individual_without_number(argv)
+    directory_arg.nargs = '?'
+    try:
+        args = parser.parse_args(argv)
+    finally:
+        directory_arg.nargs = None
+    if args.directory is None:
+        # position of the last -l/--log and --tools in argv
+        last = {}
+        for n, a in enumerate(argv):
+            if a == '--':
+                break
+            if a.startswith('--tools'):
+                last['tools'] = n
+            elif a.startswith(('--log', '-l')):
+                last['log'] = n
+        for dest in sorted(('log', 'tools'), key=lambda d: last.get(d, -1),
+                           reverse=True):
+            value = getattr(args, dest)
+            if value is not None and value != '1':
+                args.directory = value
+                setattr(args, dest, '1' if dest == 'log' else None)
+                break
+        else:
+            parser.error('the following arguments are required: directory')
+    return args
+
+
+args = parse_arguments(sys.argv[1:])
 if not args.tools:
     # the old default (next to the program) still works if the per-user
     # folder was not created
