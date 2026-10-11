@@ -7,8 +7,8 @@ import contextlib
 import io
 import unittest
 
-from lib.csscheck import (check_css, class_rules, fix_unusual_spaces,
-                          remove_class_rules)
+from lib.csscheck import (check_css, class_rules, fix_missing_semicolons,
+                          fix_unusual_spaces, remove_class_rules)
 
 NBSP = ' '
 ZWSP = '​'
@@ -19,6 +19,29 @@ def check(css):
     with contextlib.redirect_stdout(out):
         check_css(css, 'test.css', '* ')
     return out.getvalue()
+
+
+class FixMissingSemicolonsTest(unittest.TestCase):
+
+    def test_known_property(self):
+        self.assertEqual(
+            fix_missing_semicolons('td { border: 0px solid border-collapse: '
+                                   'collapse; padding: 2px }'),
+            ('td { border: 0px solid; border-collapse: collapse; '
+             'padding: 2px }', 1))
+
+    def test_line_break_and_nested_rule(self):
+        self.assertEqual(
+            fix_missing_semicolons('@media screen { p { color: red\n'
+                                   '  margin: 0 } }'),
+            ('@media screen { p { color: red;\n  margin: 0 } }', 1))
+
+    def test_unknown_name_untouched(self):
+        css = ('p { filter: progid:DXImageTransform.Microsoft.Alpha(); '
+               'margin: 0 foo: 1px; color: url(a:b) }')
+        self.assertEqual(fix_missing_semicolons(css), (css, 0))
+        self.assertEqual(check(fix_missing_semicolons(
+            'td { border: 0 solid border-collapse: collapse }')[0]), '')
 
 
 class FixUnusualSpacesTest(unittest.TestCase):

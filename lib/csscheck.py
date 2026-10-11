@@ -413,6 +413,61 @@ def fix_unusual_spaces(css_text, font_families=frozenset()):
     return ''.join(chars), len(positions)
 
 
+def fix_missing_semicolons(css_text):
+    """Insert the missing semicolon before a known property name followed
+    by ':' inside a value ("border: 0 solid border-collapse: collapse" ->
+    "border: 0 solid; border-collapse: collapse"), also in nested rules.
+    Returns the new text and the number of inserted semicolons."""
+    line_starts = [0] + [m.end() for m in
+                         re.finditer(r'\r\n|[\r\n\f]', css_text)]
+    positions = set()
+
+    def fix_declarations(content):
+        for d in tinycss2.parse_blocks_contents(
+                content, skip_whitespace=True, skip_comments=True):
+            if isinstance(d, QualifiedRule):
+                fix_declarations(d.content)
+                continue
+            if isinstance(d, AtRule):
+                if (d.lower_at_keyword in ('media', 'supports') and
+                        d.content is not None):
+                    fix_declarations(d.content)
+                continue
+            if not isinstance(d, Declaration):
+                continue
+            tokens = [t for t in d.value
+                      if t.type not in ('whitespace', 'comment')]
+            # the name follows at least one value token
+            for name, colon in zip(tokens[1:], tokens[2:]):
+                if not (name.type == 'ident' and
+                        name.lower_value in KNOWN_PROPERTIES and
+                        isinstance(colon, LiteralToken) and
+                        colon.value == ':'):
+                    continue
+                start = (line_starts[name.source_line - 1] +
+                         name.source_column - 1)
+                # make sure the position is right
+                if not css_text.startswith(name.value, start):
+                    continue
+                # the semicolon goes just after the previous value
+                while start > 0 and css_text[start - 1] in ' \t\r\n\f':
+                    start -= 1
+                positions.add(start)
+
+    for rule in tinycss2.parse_stylesheet(css_text, skip_whitespace=True,
+                                          skip_comments=True):
+        if isinstance(rule, QualifiedRule):
+            fix_declarations(rule.content)
+        elif (isinstance(rule, AtRule) and rule.content is not None and
+              rule.lower_at_keyword in ('media', 'supports')):
+            fix_declarations(rule.content)
+    if not positions:
+        return css_text, 0
+    for i in sorted(positions, reverse=True):
+        css_text = css_text[:i] + ';' + css_text[i:]
+    return css_text, len(positions)
+
+
 def _skip_special(text, i):
     """If text[i] starts a comment, a string, an escape or an unquoted URL,
     the index just after it, else None."""
