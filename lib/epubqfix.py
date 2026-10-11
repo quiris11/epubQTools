@@ -16,6 +16,7 @@ import posixpath
 import re
 import tempfile
 import shutil
+import struct
 import subprocess
 import sys
 import zipfile
@@ -415,17 +416,81 @@ def find_file_in_dir(file_name, directory, recursive):
     return None
 
 
+def font_postscript_name(path):
+    """PostScript name (name table, nameID 6) of a TTF/OTF file or None."""
+    try:
+        with open(path, 'rb') as f:
+            header = f.read(12)
+            if header[:4] not in {b'\x00\x01\x00\x00', b'OTTO'}:
+                return None
+            num_tables = struct.unpack('>H', header[4:6])[0]
+            tables = f.read(16 * num_tables)
+            for i in range(num_tables):
+                tag, _, offset, length = struct.unpack(
+                    '>4sIII', tables[16 * i:16 * (i + 1)])
+                if tag == b'name':
+                    f.seek(offset)
+                    name = f.read(length)
+                    break
+            else:
+                return None
+        count, string_offset = struct.unpack('>HH', name[2:6])
+        for i in range(count):
+            platform, encoding, _, name_id, length, offset = struct.unpack(
+                '>HHHHHH', name[6 + 12 * i:18 + 12 * i])
+            if name_id != 6:
+                continue
+            raw = name[string_offset + offset:
+                       string_offset + offset + length]
+            if platform in (0, 3):
+                return raw.decode('utf-16-be', 'ignore')
+            if platform == 1:
+                return raw.decode('latin-1')
+    except (OSError, struct.error):
+        return None
+    return None
+
+
+def normalize_font_name(name):
+    return re.sub(r'[\s_-]', '', name).lower()
+
+
+def find_font_by_postscript_name(file_name, directory, recursive):
+    """Path of a TTF/OTF font whose PostScript name matches the base name of
+    file_name or None. Installed fonts often have different file names than
+    the embedded ones (e.g. Cambria-Italic.ttf is installed as
+    cambriai.ttf)."""
+    if not os.path.isdir(directory):
+        return None
+    wanted = normalize_font_name(os.path.splitext(file_name)[0])
+    if recursive:
+        walk = os.walk(directory)
+    else:
+        walk = [(directory, [], os.listdir(directory))]
+    for root, dirs, files in walk:
+        for f in sorted(files):
+            if not f.lower().endswith(('.ttf', '.otf')):
+                continue
+            ps_name = font_postscript_name(os.path.join(root, f))
+            if ps_name and normalize_font_name(ps_name) == wanted:
+                return os.path.join(root, f)
+    return None
+
+
 def find_font_file(file_name, fontdir):
     """Path of a font file named file_name (case-insensitive) or None.
     The user font directory (--font-dir) has priority, then user and system
-    font directories."""
-    if fontdir:
-        found = find_file_in_dir(file_name, fontdir, False)
+    font directories. When no file name matches, a font with a matching
+    PostScript name is searched for."""
+    recursive = sys.platform.startswith('linux')
+    dirs = [(fontdir, False)] if fontdir else []
+    dirs += [(d, recursive) for d in system_font_dirs()]
+    for directory, rec in dirs:
+        found = find_file_in_dir(file_name, directory, rec)
         if found:
             return found
-    recursive = sys.platform.startswith('linux')
-    for font_dir in system_font_dirs():
-        found = find_file_in_dir(file_name, font_dir, recursive)
+    for directory, rec in dirs:
+        found = find_font_by_postscript_name(file_name, directory, rec)
         if found:
             return found
     return None

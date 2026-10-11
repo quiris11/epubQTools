@@ -12,6 +12,7 @@ import zlib
 from lxml import etree
 
 from lib.epubqfix import (ClassStyles, decode_b64_name, find_file_in_dir,
+                          find_font_by_postscript_name, font_postscript_name,
                           split_extra_cover_images,
                           image_data_end, is_hiding_style,
                           most_common, remove_thin_spaces_after_spaces,
@@ -213,6 +214,36 @@ class FindFileInDirTest(unittest.TestCase):
             self.assertEqual(find_file_in_dir('Font.otf', d, False),
                              os.path.join(d, 'Font.otf'))
 
+
+
+def ttf_with_postscript_name(ps_name):
+    """Minimal TTF: offset table, one table record and a name table."""
+    string = ps_name.encode('utf-16-be')
+    name = (struct.pack('>HHH', 0, 1, 18) +
+            struct.pack('>HHHHHH', 3, 1, 0x409, 6, len(string), 0) + string)
+    return (b'\x00\x01\x00\x00' + struct.pack('>HHHH', 1, 16, 0, 0) +
+            struct.pack('>4sIII', b'name', 0, 28, len(name)) + name)
+
+
+class FindFontByPostscriptNameTest(unittest.TestCase):
+
+    def test_postscript_name(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'cambriai.ttf')
+            with open(path, 'wb') as f:
+                f.write(ttf_with_postscript_name('Cambria-Italic'))
+            self.assertEqual(font_postscript_name(path), 'Cambria-Italic')
+            self.assertEqual(find_font_by_postscript_name(
+                'Cambria-Italic.ttf', d, False), path)
+            self.assertIsNone(find_font_by_postscript_name(
+                'Cambria-Bold.ttf', d, False))
+
+    def test_not_a_font(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'broken.ttf')
+            with open(path, 'wb') as f:
+                f.write(b'\x00\x01\x00\x00\x00\x05')
+            self.assertIsNone(font_postscript_name(path))
 
 class SplitExtraCoverImagesTest(unittest.TestCase):
     OPF = ('<package xmlns="http://www.idpf.org/2007/opf"><metadata>'
