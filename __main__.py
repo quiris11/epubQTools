@@ -247,6 +247,14 @@ class Logger(object):
         pass 
 
 
+def moh_dir_for(root):
+    """Folder for the _moh files of the books in root: the same subfolder
+    path inside 'MOH' (books with the same file name in different subfolders
+    don't overwrite each other's results)."""
+    return os.path.normpath(os.path.join(moh_dir,
+                                         os.path.relpath(root, uni_dir)))
+
+
 def skip_output_dirs(root, dirs, skip=(mohDir, tmpSend2KindDir)):
     """Don't let os.walk descend into the tool's own output folders."""
     if root == uni_dir:
@@ -404,7 +412,7 @@ def main():
 
     if args.mod and ind_file:
         ind_file_m = os.path.splitext(ind_file)[0] + '_moh.epub'
-        ind_root_m = moh_dir
+        ind_root_m = moh_dir_for(ind_root)
     else:
         ind_file_m = ind_file
         ind_root_m = ind_root
@@ -541,7 +549,7 @@ def main():
             pass
         if ind_file:
             counter += 1
-            qfix(ind_root, ind_file, moh_dir, args.force, args.replace_font_files,
+            qfix(ind_root, ind_file, moh_dir_for(ind_root), args.force, args.replace_font_files,
                  args.skip_reset_css, args.tools, args.skip_hyphenate,
                  args.skip_justify, args.left,
                  args.remove_colors, args.remove_fonts, args.font_dir,
@@ -555,7 +563,7 @@ def main():
                             not f.lower().endswith('_moh.epub') and
                             not f.lower().endswith('_org.epub')):
                         counter += 1
-                        qfix(root, f, moh_dir, args.force, args.replace_font_files,
+                        qfix(root, f, moh_dir_for(root), args.force, args.replace_font_files,
                              args.skip_reset_css, args.tools,
                              args.skip_hyphenate, args.skip_justify, args.left,
                              args.remove_colors,
@@ -626,7 +634,7 @@ def main():
         cover_html_found = error_found = False
         if ind_file:
             counter += 1
-            to_mobi(moh_dir, os.path.splitext(ind_file)[0] + '_moh.epub',
+            to_mobi(moh_dir_for(ind_root), os.path.splitext(ind_file)[0] + '_moh.epub',
                     cover_html_found, error_found)
         else:
             for root, dirs, files in os.walk(uni_dir):

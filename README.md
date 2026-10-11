@@ -49,7 +49,7 @@ options:
                         do not report CSS warnings, only CSS errors (only with -q)
   --list-fonts          list all fonts in EPUB (only with -q)
   -m, --mod             validate only _moh.epub files (works only with -q or -p)
-  -e, --epub            fix and hyphenate original epub files to _moh.epub files (saved in 'MOH' subfolder)
+  -e, --epub            fix and hyphenate original epub files to _moh.epub files (saved in 'MOH' subfolder, in the same subfolders as the originals)
   -s, --skip-hyphenate  do not hyphenate book (only with -e)
   -r, --skip-hyphenate-headers
                         do not hyphenate headers like h1, h2, h3...(only with -e)
