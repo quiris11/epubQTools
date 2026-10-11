@@ -9,7 +9,7 @@ import zlib
 
 from lxml import etree
 
-from lib.epubqfix import (decode_b64_name, image_data_end, is_hiding_style,
+from lib.epubqfix import (ClassStyles, decode_b64_name, image_data_end, is_hiding_style,
                           most_common, remove_trailing_hidden_div)
 
 XHTML = ('<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Text</p>%s'
@@ -47,12 +47,12 @@ class ImageDataEndTest(unittest.TestCase):
 
 class RemoveTrailingHiddenDivTest(unittest.TestCase):
 
-    def remove(self, last, hiding_classes=frozenset()):
+    def remove(self, last, css=''):
         tree = etree.fromstring(XHTML % last)
         hidden_divs = {}
         hidden_classes = set()
         remove_trailing_hidden_div(tree, hidden_divs, hidden_classes,
-                                   hiding_classes)
+                                   ClassStyles([css]))
         removed = len(tree[0]) == 1
         return removed, hidden_divs, hidden_classes
 
@@ -71,15 +71,39 @@ class RemoveTrailingHiddenDivTest(unittest.TestCase):
                                  (True, {NAME: 1}, set()))
 
     def test_hiding_class(self):
+        css = '.hide { display: none }'
         self.assertEqual(
-            self.remove('<p class="x hide">%s</p>' % NAME, {'hide'}),
+            self.remove('<p class="x hide">%s</p>' % NAME, css),
             (True, {NAME: 1}, {'x', 'hide'}))
         self.assertEqual(
-            self.remove('<p class="x">%s</p>' % NAME, {'hide'}),
+            self.remove('<p class="x">%s</p>' % NAME, css),
             (False, {}, set()))
         self.assertEqual(
-            self.remove('<p class="hide">Short</p>', {'hide'}),
+            self.remove('<p class="hide">Short</p>', css),
             (False, {}, set()))
+
+    def test_class_styles(self):
+        styles = ClassStyles(['.a { font-size: 0 } p.b { display: none }',
+                              '.a.c { font-size: 1em } .d { display: none } '
+                              '.d { display: block } .e { font-size: 0 '
+                              '!important } @media print { .f { display: '
+                              'none } } .g { visibility: hidden } '
+                              'body .g { visibility: visible }'])
+        for tag, classes, style, hiding in (
+                ('div', ['a'], '', True),
+                ('div', ['a', 'c'], '', False),          # specificity
+                ('div', ['a'], 'font-size: 1em', False),  # inline style
+                ('div', ['x'], 'font-size: 0', True),
+                ('p', ['b'], '', True),
+                ('div', ['b'], '', False),               # other type
+                ('div', ['d'], '', False),               # later rule
+                ('div', ['e'], 'font-size: 1em', True),  # !important
+                ('div', ['e'], 'font-size: 1em !important', False),
+                ('div', ['f'], '', False),               # @media
+                ('div', ['g'], '', False),               # uncertain
+                ('div', ['g'], 'display: none', True)):
+            with self.subTest((tag, classes, style)):
+                self.assertIs(styles.is_hiding(tag, classes, style), hiding)
 
     def test_short_text_is_not_a_class_name(self):
         self.assertEqual(

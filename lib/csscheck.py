@@ -432,37 +432,100 @@ def _selector_classes(tokens):
             b.type == 'ident'}
 
 
-def simple_class_rules(css_text):
-    """(class name, declarations as "prop: value; ...") of the top-level
-    rules for each selector that is a single class, possibly with a type
-    (".NAME", "div.NAME")."""
-    result = []
+# properties that can hide the text of an element
+HIDING_PROPERTIES = {'font-size', 'font', 'display', 'visibility', 'all'}
+
+
+def _declarations(content):
+    """(lowercase property name, value, important) of a block."""
+    return [(d.lower_name, tinycss2.serialize(d.value).strip(), d.important)
+            for d in tinycss2.parse_blocks_contents(
+                content, skip_whitespace=True, skip_comments=True)
+            if isinstance(d, Declaration)]
+
+
+def _compound_selector(tokens):
+    """(type or None, classes) of a selector with only a type and classes
+    (".a", "div.a", ".a.b"), otherwise None."""
+    while tokens and tokens[0].type == 'whitespace':
+        tokens = tokens[1:]
+    while tokens and tokens[-1].type == 'whitespace':
+        tokens = tokens[:-1]
+    tag = None
+    if tokens and tokens[0].type == 'ident':
+        tag, tokens = tokens[0].lower_value, tokens[1:]
+    elif tokens and isinstance(tokens[0], LiteralToken) and \
+            tokens[0].value == '*':
+        tokens = tokens[1:]
+    classes = set()
+    while len(tokens) >= 2 and isinstance(tokens[0], LiteralToken) and \
+            tokens[0].value == '.' and tokens[1].type == 'ident':
+        classes.add(tokens[1].value)
+        tokens = tokens[2:]
+    if tokens or not classes:
+        return None
+    return tag, frozenset(classes)
+
+
+def class_rules(css_text):
+    """Rules for elements with classes, to compute their style. Returns
+    (rules, uncertain):
+    - rules: (type or None, classes, declarations) of the top-level rules
+      for each selector with only a type and classes (".a", "div.a", ".a.b")
+      in the order of the text; declarations as in _declarations,
+    - uncertain: classes used in the other rules (other selectors, in
+      at-rules, nested) that set a property in HIDING_PROPERTIES - the style
+      of an element with such a class can't be computed."""
+    rules = []
+    uncertain = set()
+
+    def mark_uncertain(rule, selector_classes):
+        """Rules in an at-rule or nested in a rule."""
+        if isinstance(rule, QualifiedRule):
+            classes = set(selector_classes)
+            for s in _split_selectors(rule.prelude):
+                classes |= _selector_classes(s)
+            content = tinycss2.parse_blocks_contents(
+                rule.content, skip_whitespace=True, skip_comments=True)
+        elif isinstance(rule, AtRule) and rule.content is not None:
+            classes = selector_classes
+            content = tinycss2.parse_blocks_contents(
+                rule.content, skip_whitespace=True, skip_comments=True)
+        else:
+            return
+        if any(isinstance(d, Declaration) and
+               d.lower_name in HIDING_PROPERTIES for d in content):
+            uncertain.update(classes)
+        for r in content:
+            if not isinstance(r, Declaration):
+                mark_uncertain(r, classes)
+
     for rule in tinycss2.parse_stylesheet(css_text, skip_whitespace=True,
                                           skip_comments=True):
+        if isinstance(rule, AtRule):
+            if rule.content is not None:
+                for r in tinycss2.parse_rule_list(
+                        rule.content, skip_whitespace=True,
+                        skip_comments=True):
+                    mark_uncertain(r, set())
+            continue
         if not isinstance(rule, QualifiedRule):
             continue
-        names = []
+        declarations = _declarations(rule.content)
+        hiding = any(d[0] in HIDING_PROPERTIES for d in declarations)
+        selector_classes = set()
         for s in _split_selectors(rule.prelude):
-            tokens = [t.type if t.type in ('ident', 'whitespace') else
-                      getattr(t, 'value', t.type) for t in s]
-            while tokens and tokens[0] == 'whitespace':
-                tokens.pop(0)
-                s = s[1:]
-            while tokens and tokens[-1] == 'whitespace':
-                tokens.pop()
-                s = s[:-1]
-            if tokens in (['.', 'ident'], ['ident', '.', 'ident']):
-                names.append(s[-1].value)
-        if not names:
-            continue
-        declarations = '; '.join(
-            '%s: %s%s' % (d.name, tinycss2.serialize(d.value).strip(),
-                          ' !important' if d.important else '')
-            for d in tinycss2.parse_blocks_contents(
-                rule.content, skip_whitespace=True, skip_comments=True)
-            if isinstance(d, Declaration))
-        result.extend((name, declarations) for name in names)
-    return result
+            selector_classes |= _selector_classes(s)
+            compound = _compound_selector(s)
+            if compound:
+                rules.append(compound + (declarations,))
+            elif hiding:
+                uncertain.update(_selector_classes(s))
+        for r in tinycss2.parse_blocks_contents(
+                rule.content, skip_whitespace=True, skip_comments=True):
+            if not isinstance(r, Declaration):
+                mark_uncertain(r, selector_classes)
+    return rules, uncertain
 
 
 def remove_class_rules(css_text, names):

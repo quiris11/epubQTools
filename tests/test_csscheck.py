@@ -7,8 +7,8 @@ import contextlib
 import io
 import unittest
 
-from lib.csscheck import (check_css, fix_unusual_spaces, remove_class_rules,
-                          simple_class_rules)
+from lib.csscheck import (check_css, class_rules, fix_unusual_spaces,
+                          remove_class_rules)
 
 NBSP = ' '
 ZWSP = '​'
@@ -123,19 +123,26 @@ class RemoveClassRulesTest(unittest.TestCase):
                          ('p { }\r\n', ['QUJD']))
 
 
-class SimpleClassRulesTest(unittest.TestCase):
+class ClassRulesTest(unittest.TestCase):
 
-    def test_simple_selectors(self):
+    def test_compound_selectors(self):
         self.assertEqual(
-            simple_class_rules('.a { font-size: 1px !important } '
-                               'div.b, p .c, .d:hover, .e.f { display:none }'
-                               ' span.g /* x */ { color: red; .x { a: b } }'),
-            [('a', 'font-size: 1px !important'), ('b', 'display: none'),
-             ('g', 'color: red')])
+            class_rules('.a { font-size: 1px !important } '
+                        'div.b, p .c, .d:hover, .e.F { display:none }'
+                        ' span.g /* x */ { color: red; .x { a: b } }'),
+            ([(None, {'a'}, [('font-size', '1px', True)]),
+              ('div', {'b'}, [('display', 'none', False)]),
+              (None, {'e', 'F'}, [('display', 'none', False)]),
+              ('span', {'g'}, [('color', 'red', False)])],
+             {'c', 'd'}))
 
-    def test_at_rules_skipped(self):
+    def test_uncertain(self):
         self.assertEqual(
-            simple_class_rules('@media print { .a { display: none } }'), [])
+            class_rules('@media print { .a { display: none } .b { color: '
+                        'red } } .c { & .d { font: 0/0 a } } '
+                        '@supports (x: y) { @media all { .e { all: unset '
+                        '} } }'),
+            ([(None, {'c'}, [])], {'a', 'c', 'd', 'e'}))
 
 
 if __name__ == '__main__':

@@ -26,8 +26,7 @@ from pkgutil import get_data
 from urllib.parse import unquote
 from itertools import cycle
 from lib.htmlconstants import entities
-from lib.csscheck import (fix_unusual_spaces, remove_class_rules,
-                          simple_class_rules)
+from lib.csscheck import class_rules, fix_unusual_spaces, remove_class_rules
 from lib.hyphenator import Hyphenator
 from lib.beautify_book import beautify_book
 from collections import Counter
@@ -1952,8 +1951,52 @@ def is_hiding_style(style):
     return False
 
 
+class ClassStyles(object):
+    """Style of an element from the class rules of the CSS files
+    (csscheck.class_rules) and its inline style."""
+
+    def __init__(self, css_texts=()):
+        self.rules = []
+        self.uncertain = set()
+        for css_text in css_texts:
+            rules, uncertain = class_rules(css_text)
+            self.rules.extend(rules)
+            self.uncertain |= uncertain
+
+    def is_hiding(self, tag, classes, style):
+        """True if the style hides the text (is_hiding_style). With a class
+        whose style can't be computed only the inline style counts."""
+        classes = set(classes)
+        if classes & self.uncertain:
+            return is_hiding_style(style)
+        values = {}                 # property -> (rank, value)
+
+        def apply(declarations, specificity, order):
+            for prop, value, important in declarations:
+                rank = (important, specificity, order)
+                if prop not in values or rank >= values[prop][0]:
+                    values[prop] = (rank, value)
+
+        for order, (rule_tag, rule_classes, declarations) in enumerate(
+                self.rules):
+            if rule_classes <= classes and rule_tag in (None, tag):
+                apply(declarations,
+                      (len(rule_classes), rule_tag is not None), order)
+        inline = []
+        for declaration in style.split(';'):
+            prop, _, value = declaration.partition(':')
+            value, important = re.subn(r'\s*!\s*important\s*$', '',
+                                       value.strip(), flags=re.IGNORECASE)
+            inline.append((prop.strip().lower(), value, bool(important)))
+        # inline style wins over the rules (unless they are !important)
+        apply(inline, (float('inf'),), 0)
+        return is_hiding_style('; '.join(
+            '%s: %s' % (prop, value) for prop, (rank, value) in
+            values.items()))
+
+
 def remove_trailing_hidden_div(xhtree, hidden_divs, hidden_classes,
-                               hiding_classes=frozenset()):
+                               class_styles=ClassStyles()):
     """Remove a hidden div from the end of <body>. Its text is a class name
     in CSS files - hidden_divs counts the files with the div for each text
     ('' if it is not a class name), to remove the class rules and to print
@@ -1961,8 +2004,9 @@ def remove_trailing_hidden_div(xhtree, hidden_divs, hidden_classes,
     hidden_classes.
 
     The div has style "font-size: 1px !important" (the text does not
-    matter), or another hiding style (inline or one of hiding_classes) and
-    a text that looks like a class name (a <p> or a <span> is fine too)."""
+    matter), or another hiding style (inline and from the class rules in
+    class_styles) and a text that looks like a class name (a <p> or a <span>
+    is fine too)."""
     for body in xhtree.xpath('//xhtml:body', namespaces=XHTMLNS):
         children = list(body)
         if not children:
@@ -1985,8 +2029,8 @@ def remove_trailing_hidden_div(xhtree, hidden_divs, hidden_classes,
         if not tail_is_empty or not (
                 style_is_minimal or
                 (tag in ('div', 'p', 'span') and not len(last) and
-                 looks_like_name and (is_hiding_style(style) or
-                                      hiding_classes.intersection(classes)))):
+                 looks_like_name and
+                 class_styles.is_hiding(tag, classes, style))):
             continue
         key = text if looks_like_name else ''
         hidden_divs[key] = hidden_divs.get(key, 0) + 1
@@ -1994,10 +2038,9 @@ def remove_trailing_hidden_div(xhtree, hidden_divs, hidden_classes,
         remove_node(last)
 
 
-def find_hiding_classes(opftree, opfdir):
-    """Classes that hide the text (is_hiding_style) in rules like ".NAME"
-    or "div.NAME" in CSS files."""
-    classes = set()
+def find_class_styles(opftree, opfdir):
+    """ClassStyles of the CSS files (in the order of the manifest)."""
+    css_texts = []
     for c in opftree.xpath('//opf:item[@media-type="text/css"]',
                            namespaces=OPFNS):
         try:
@@ -2006,10 +2049,8 @@ def find_hiding_classes(opftree, opfdir):
                 css_text = cf.read()
         except (IOError, UnicodeDecodeError):
             continue
-        classes.update(name for name, declarations in
-                       simple_class_rules(css_text)
-                       if is_hiding_style(declarations))
-    return classes
+        css_texts.append(css_text)
+    return ClassStyles(css_texts)
 
 
 def print_hidden_divs(hidden_divs):
@@ -2085,7 +2126,7 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
 def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                        is_reset_css, opf_dir_abs, is_xml_ext_fixed, book_lang,
                        dont_hyph_headers, hidden_divs, hidden_classes,
-                       hiding_classes):
+                       class_styles):
     global qfixerr
     try:
         with open(xhfile, 'r', encoding='utf-8') as content_file:
@@ -2200,7 +2241,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
     # hidden div at the end of <body>
     remove_trailing_hidden_div(xhtree, hidden_divs, hidden_classes,
-                               hiding_classes)
+                               class_styles)
     
     # remove meta charsets
     _metacharsets = xhtree.xpath('//xhtml:meta[@charset="utf-8"]',
@@ -2363,12 +2404,12 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
             print('* ... except headers...')
     hidden_divs = {}
     hidden_classes = set()
-    hiding_classes = find_hiding_classes(opftree, opf_dir_abs)
+    class_styles = find_class_styles(opftree, opf_dir_abs)
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, link_reset_css, skip_hyph, opf_dir_abs,
                            is_reset_css, opf_dir_abs, is_xml_ext_fixed,
                            book_lang, dont_hyph_headers, hidden_divs,
-                           hidden_classes, hiding_classes)
+                           hidden_classes, class_styles)
     print_hidden_divs(hidden_divs)
     hidden_names = {text for text in hidden_divs if text}
     opftree = remove_info_pages(opftree, opf_dir_abs)
