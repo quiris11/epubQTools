@@ -96,6 +96,12 @@ in e-book readers (not for CSS 2.1 validity - vendor prefixes and modern propert
 * python -m pip install tinycss2
 * python -m pip install pyinstaller (for compilation only)
 
+#### Tests:
+Run from the main folder (with the requirements above installed):
+```
+python -m unittest
+```
+
 #### Compilation tips for creating standalone applications with Pyinstaller tool:
 * build on Mac (with Python 3.7.x from Homebrew):
 ```
