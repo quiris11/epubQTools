@@ -28,7 +28,7 @@ from itertools import cycle
 from lib.htmlconstants import entities
 from lib.csscheck import (class_rules, fix_missing_semicolons,
                           fix_unusual_spaces, font_face_families,
-                          remove_class_rules)
+                          remove_class_rules, remove_page_descriptors)
 from lib.hyphenator import Hyphenator
 from lib.beautify_book import beautify_book
 from collections import Counter
@@ -2524,7 +2524,7 @@ def with_decoded(name):
 def fix_css_values(opftree, opfdir):
     """Replace unusual spaces (e.g. U+00A0) in CSS values with normal spaces
     and insert missing semicolons, so the declarations are not dropped by
-    readers."""
+    readers. Remove @page descriptors (e.g. "size") outside @page."""
     cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
                              namespaces=OPFNS)
     css_texts = []
@@ -2551,7 +2551,11 @@ def fix_css_values(opftree, opfdir):
         if semicolons:
             print('* Inserted %d missing semicolons in CSS values in "%s"'
                   % (semicolons, c.get('href')))
-        if not count and not semicolons:
+        new_css_text, descriptors = remove_page_descriptors(new_css_text)
+        if descriptors:
+            print('* Removed %d @page descriptors (e.g. "size") used outside '
+                  '@page in "%s"' % (descriptors, c.get('href')))
+        if not count and not semicolons and not descriptors:
             continue
         try:
             with open(css_path, 'w', encoding='utf-8', newline='') as cf:

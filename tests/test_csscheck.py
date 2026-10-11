@@ -8,7 +8,8 @@ import io
 import unittest
 
 from lib.csscheck import (check_css, class_rules, fix_missing_semicolons,
-                          fix_unusual_spaces, remove_class_rules)
+                          fix_unusual_spaces, remove_class_rules,
+                          remove_page_descriptors)
 
 NBSP = ' '
 ZWSP = '​'
@@ -42,6 +43,27 @@ class FixMissingSemicolonsTest(unittest.TestCase):
         self.assertEqual(fix_missing_semicolons(css), (css, 0))
         self.assertEqual(check(fix_missing_semicolons(
             'td { border: 0 solid border-collapse: collapse }')[0]), '')
+
+
+class RemovePageDescriptorsTest(unittest.TestCase):
+
+    def test_last_declaration(self):
+        self.assertEqual(
+            remove_page_descriptors('.f-p hr{width:15%;size:2px}p{}'),
+            ('.f-p hr{width:15%;}p{}', 1))
+
+    def test_own_line_and_inline(self):
+        self.assertEqual(
+            remove_page_descriptors('hr {\r\n  size: 2px;\r\n  width: 1em;'
+                                    '\r\n}\r\n@media screen { p { margin: 0;'
+                                    ' SIZE: 1px; color: red } }'),
+            ('hr {\r\n  width: 1em;\r\n}\r\n@media screen { p { margin: 0;'
+             ' color: red } }', 2))
+
+    def test_page_and_strings_untouched(self):
+        css = ('@page { size: A5; } p { content: "size: 1px;"; '
+               'font-size: 1em } div { margin: 0 }')
+        self.assertEqual(remove_page_descriptors(css), (css, 0))
 
 
 class FixUnusualSpacesTest(unittest.TestCase):

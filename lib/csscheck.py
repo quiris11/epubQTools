@@ -468,6 +468,83 @@ def fix_missing_semicolons(css_text):
     return css_text, len(positions)
 
 
+def remove_page_descriptors(css_text):
+    """Remove the @page descriptors (e.g. "size: 2px") used outside @page,
+    where they are not properties and readers ignore them, also in nested
+    rules. Returns the new text and the number of removed declarations."""
+    line_starts = [0] + [m.end() for m in
+                         re.finditer(r'\r\n|[\r\n\f]', css_text)]
+    edits = []
+
+    def declaration_end(i):
+        """Offset just after the ";" ending the declaration that starts at
+        text[i] (or of the "}" closing its block)."""
+        n = len(css_text)
+        depth = 0
+        while i < n:
+            skip = _skip_special(css_text, i)
+            if skip is not None:
+                i = skip
+                continue
+            ch = css_text[i]
+            if ch in '([':
+                depth += 1
+            elif ch in ')]':
+                depth -= 1
+            elif ch == ';' and depth <= 0:
+                return i + 1
+            elif ch == '}' and depth <= 0:
+                return i
+            i += 1
+        return n
+
+    def remove_declarations(content):
+        for d in tinycss2.parse_blocks_contents(
+                content, skip_whitespace=True, skip_comments=True):
+            if isinstance(d, QualifiedRule):
+                remove_declarations(d.content)
+                continue
+            if isinstance(d, AtRule):
+                if (d.lower_at_keyword in ('media', 'supports') and
+                        d.content is not None):
+                    remove_declarations(d.content)
+                continue
+            if (not isinstance(d, Declaration) or
+                    d.lower_name not in PAGE_DESCRIPTORS):
+                continue
+            start = line_starts[d.source_line - 1] + d.source_column - 1
+            # make sure the position is right
+            if not css_text.startswith(d.name, start):
+                continue
+            end = declaration_end(start)
+            line_start = start
+            while line_start > 0 and css_text[line_start - 1] in ' \t':
+                line_start -= 1
+            spaces_end = end
+            while (spaces_end < len(css_text) and
+                   css_text[spaces_end] in ' \t'):
+                spaces_end += 1
+            after = SPACES_AND_LINE_BREAK_RE.match(css_text, end).end()
+            if (after > spaces_end and
+                    css_text[line_start - 1:line_start] in ('', '\n', '\r',
+                                                            '\f')):
+                # a declaration in its own line: the whole line goes
+                edits.append((line_start, after))
+            else:
+                edits.append((start, spaces_end))
+
+    for rule in tinycss2.parse_stylesheet(css_text, skip_whitespace=True,
+                                          skip_comments=True):
+        if isinstance(rule, QualifiedRule):
+            remove_declarations(rule.content)
+        elif (isinstance(rule, AtRule) and rule.content is not None and
+              rule.lower_at_keyword in ('media', 'supports')):
+            remove_declarations(rule.content)
+    for start, end in sorted(edits, reverse=True):
+        css_text = css_text[:start] + css_text[end:]
+    return css_text, len(edits)
+
+
 def _skip_special(text, i):
     """If text[i] starts a comment, a string, an escape or an unquoted URL,
     the index just after it, else None."""
