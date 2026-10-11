@@ -76,6 +76,10 @@ HIDDEN_DIV_TEXT_RE = re.compile(r'[A-Za-z0-9_-]+')
 # a font size that makes a text invisible (0 or at most 1px or 1pt)
 TINY_FONT_SIZE_RE = re.compile(
     r'0+(?:\.0*)?(?:[a-z]+|%)?|(?:0*\.\d+|0*1(?:\.0*)?)(?:px|pt)')
+# start tag of <nav> and its aria-labelledby/aria-label attribute
+NAV_START_TAG_RE = re.compile(r'<nav\b[^>]*>')
+NAV_ARIA_LABEL_RE = re.compile(
+    r'\s+aria-label(?:ledby)?\s*=\s*(?:"[^"]*"|\'[^\']*\')')
 
 HOME = os.path.expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
@@ -540,6 +544,38 @@ def find_epub3_nav_item(opftree):
         if 'nav' in item.get('properties', '').split():
             return item
     return None
+
+
+def strip_nav_aria_labels(raw):
+    """Remove aria-labelledby/aria-label attributes from <nav> start tags.
+    Returns a tuple (new_text, number_of_removed_attributes)."""
+    count = [0]
+
+    def strip(m):
+        tag, n = NAV_ARIA_LABEL_RE.subn('', m.group(0))
+        count[0] += n
+        return tag
+    return NAV_START_TAG_RE.sub(strip, raw), count[0]
+
+
+def remove_nav_aria_labels(opftree, rootepubdir):
+    """EpubCheck doesn't allow aria-labelledby/aria-label on <nav> elements
+    of the EPUB 3 navigation document (the heading inside <nav> stays)."""
+    nav_item = find_epub3_nav_item(opftree)
+    if nav_item is None:
+        return
+    nav_href = unquote(nav_item.get('href'))
+    nav_path = os.path.join(rootepubdir, nav_href)
+    if not os.path.isfile(nav_path):
+        return
+    with open(nav_path, 'r', encoding='utf-8', newline='') as f:
+        raw = f.read()
+    raw, count = strip_nav_aria_labels(raw)
+    if count:
+        print('* Removed %d aria-labelledby/aria-label attribute(s) from '
+              '<nav> elements in "%s"...' % (count, nav_href))
+        with open(nav_path, 'w', encoding='utf-8', newline='') as f:
+            f.write(raw)
 
 
 def build_ncx_navpoints_from_nav_ol(ol_element, counter, depth):
@@ -2417,6 +2453,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = remove_info_pages(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
     opftree = fix_nav_in_cover_file(opftree, opf_dir_abs)
+    remove_nav_aria_labels(opftree, opf_dir_abs)
     remove_text_from_html_cover(opftree, opf_dir_abs)
     if del_fonts:
         opftree = remove_fonts(opftree, opf_dir_abs)

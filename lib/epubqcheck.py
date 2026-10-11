@@ -432,6 +432,13 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
                   ' not well formed: "' + str(e) + '"')
             continue
 
+        if ('nav' in _htmlfiletag.get('properties', '').split() and
+                _xhtmlsoup.xpath('//xhtml:nav[@aria-labelledby or '
+                                 '@aria-label]', namespaces=XHTMLNS)):
+            print('%sERROR! aria-labelledby/aria-label on <nav> in '
+                  'navigation document "%s" (not allowed by EpubCheck; -e '
+                  'removes it)' % (_file_dec, _htmlfilepath))
+
         # build list with body tags with id attributes
         try:
             body_id = etree.XPath('//xhtml:body[@id]',

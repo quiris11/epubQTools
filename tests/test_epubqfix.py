@@ -10,7 +10,8 @@ import zlib
 from lxml import etree
 
 from lib.epubqfix import (ClassStyles, decode_b64_name, image_data_end, is_hiding_style,
-                          most_common, remove_trailing_hidden_div)
+                          most_common, remove_trailing_hidden_div,
+                          strip_nav_aria_labels)
 
 XHTML = ('<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Text</p>%s'
          '</body></html>')
@@ -145,3 +146,22 @@ class HelpersTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class StripNavAriaLabelsTest(unittest.TestCase):
+
+    def test_removed_from_nav_only(self):
+        raw = ('<nav epub:type="toc" id="toc" role="doc-toc" '
+               'aria-labelledby="toc-heading">\r\n'
+               '<h1 id="toc-heading">Spis</h1>\r\n'
+               '<a href="a.xhtml" aria-label="A">A</a></nav>\r\n'
+               "<nav epub:type='landmarks' aria-label='Punkty' hidden=''>")
+        self.assertEqual(strip_nav_aria_labels(raw), (
+            '<nav epub:type="toc" id="toc" role="doc-toc">\r\n'
+            '<h1 id="toc-heading">Spis</h1>\r\n'
+            '<a href="a.xhtml" aria-label="A">A</a></nav>\r\n'
+            "<nav epub:type='landmarks' hidden=''>", 2))
+
+    def test_unchanged(self):
+        raw = '<navx aria-label="x"><nav id="toc">'
+        self.assertEqual(strip_nav_aria_labels(raw), (raw, 0))
