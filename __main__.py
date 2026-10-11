@@ -9,6 +9,7 @@ import argparse
 import atexit
 import codecs
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -66,7 +67,11 @@ parser.add_argument('-l', '--log', nargs='?', metavar='DIR',
                     help='path to directory to write log file. If DIR is '
                     ' omitted write log to directory with epub files')
 parser.add_argument('-i', '--individual', nargs='?', metavar='NR',
-                    const='nonr', help='individual file mode')
+                    const='nonr',
+                    help='individual file mode: without NR select files '
+                    'in the console (or list them if not run in a terminal), '
+                    'NR processes the files with the given numbers, e.g. '
+                    '"3" or "1,3,5-7"')
 parser.add_argument('--author', nargs='?', metavar='Surname, First Name',
                     const='no_author',
                     help='set new author name (only with -i)')
@@ -160,6 +165,25 @@ parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
                     '(only with -e)')
 
 
+def is_number_list(text):
+    """'3' or '1,3,5-7' (the value of -i)."""
+    return re.fullmatch(r'\d+(-\d+)?(,\d+(-\d+)?)*', text) is not None
+
+
+def parse_number_list(text, count):
+    """'1,3,5-7' -> [1, 3, 5, 6, 7] (sorted, without repeats); None if the
+    text is not a number list or a number is not below count."""
+    if not is_number_list(text):
+        return None
+    numbers = set()
+    for part in text.split(','):
+        first, _, last = part.partition('-')
+        numbers.update(range(int(first), int(last or first) + 1))
+    if not numbers or max(numbers) >= count:
+        return None
+    return sorted(numbers)
+
+
 def individual_without_number(argv):
     """'-i books' means -i without a number followed by the directory (with
     nargs='?' argparse would take 'books' as the number)."""
@@ -168,7 +192,7 @@ def individual_without_number(argv):
         if a == '--':
             break
         nxt = argv[n + 1]
-        if (a in ('-i', '--individual') and not nxt.isdigit() and
+        if (a in ('-i', '--individual') and not is_number_list(nxt) and
                 not nxt.startswith('-') and nxt != 'nonr'):
             argv.insert(n + 1, 'nonr')
             break
@@ -358,6 +382,129 @@ def individual_files():
     return sorted(find_original_files(), key=key)
 
 
+def number_list(numbers):
+    """[1, 3, 5, 6, 7] -> '1,3,5-7' (the reverse of parse_number_list)."""
+    parts = []
+    for n in numbers:
+        if parts and parts[-1][1] == n - 1:
+            parts[-1][1] = n
+        else:
+            parts.append([n, n])
+    return ','.join(str(a) if a == b else '%d-%d' % (a, b) for a, b in parts)
+
+
+def select_files(files):
+    """Checklist of files in the console: returns the numbers of the
+    selected files ([] if cancelled)."""
+    import curses
+
+    lines = []                      # (text, file number or None)
+    last_dir = None
+    for nr, (root, f) in enumerate(files):
+        rel_dir = os.path.relpath(root, uni_dir)
+        if rel_dir != last_dir and rel_dir != os.curdir:
+            if lines:
+                lines.append(('', None))
+            lines.append(('[' + rel_dir + ']', None))
+        last_dir = rel_dir
+        lines.append((f, nr))
+    file_lines = [n for n, (_, nr) in enumerate(lines) if nr is not None]
+    help_text = ('Up/Down: move  Space: select  a: all  Enter: process  '
+                 'q: cancel')
+
+    def run(scr):
+        try:
+            curses.curs_set(0)
+        except curses.error:
+            pass
+        selected = set()
+        cur = top = 0               # cur: index in file_lines
+        while True:
+            height, width = scr.getmaxyx()
+            view = max(height - 3, 1)
+            line = file_lines[cur]
+            if line < top:
+                # show the subfolder header above the first file in it
+                top = line - 1 if line and lines[line - 1][1] is None \
+                    else line
+            elif line >= top + view:
+                top = line - view + 1
+            scr.erase()
+            title = '%d of %d file(s) selected in: %s' % (
+                len(selected), len(files), os.path.abspath(uni_dir))
+            scr.addnstr(0, 0, title, width - 1, curses.A_BOLD)
+            for row, (text, nr) in enumerate(lines[top:top + view]):
+                if nr is None:
+                    scr.addnstr(row + 1, 0, text, width - 1, curses.A_BOLD)
+                    continue
+                text = '%s %*d  %s' % ('[x]' if nr in selected else '[ ]',
+                                       len(str(len(files) - 1)), nr, text)
+                attr = curses.A_REVERSE if top + row == line else 0
+                scr.addnstr(row + 1, 0, text, width - 1, attr)
+            scr.addnstr(height - 1, 0, help_text, width - 1, curses.A_DIM)
+            scr.refresh()
+            key = scr.getch()
+            if key in (curses.KEY_UP, ord('k')):
+                cur = max(cur - 1, 0)
+            elif key in (curses.KEY_DOWN, ord('j')):
+                cur = min(cur + 1, len(file_lines) - 1)
+            elif key == curses.KEY_PPAGE:
+                cur = max(cur - view, 0)
+            elif key == curses.KEY_NPAGE:
+                cur = min(cur + view, len(file_lines) - 1)
+            elif key == curses.KEY_HOME:
+                cur = 0
+            elif key == curses.KEY_END:
+                cur = len(file_lines) - 1
+            elif key == ord(' '):
+                selected ^= {lines[line][1]}
+                cur = min(cur + 1, len(file_lines) - 1)
+            elif key in (ord('a'), ord('A')):
+                selected = (set() if len(selected) == len(files)
+                            else set(range(len(files))))
+            elif key in (curses.KEY_ENTER, 10, 13):
+                # Enter without a selection processes the current file
+                return sorted(selected) or [lines[line][1]]
+            elif key in (ord('q'), ord('Q')):
+                return []
+
+    sys.stdout.flush()
+    return curses.wrapper(run)
+
+
+def ask_for_files(files):
+    """Numbers of the files to process, typed in (when curses is not
+    available, e.g. on Windows without the windows-curses package)."""
+    list_files(files)
+    while True:
+        try:
+            text = input('File numbers to process (e.g. 1,3,5-7), '
+                         'Enter to cancel: ').replace(' ', '')
+        except EOFError:
+            return []
+        if not text:
+            return []
+        numbers = parse_number_list(text, len(files))
+        if numbers is not None:
+            return numbers
+        print('! ERROR! Wrong file numbers: "%s"' % text)
+
+
+def list_files(files):
+    print('Directory: ' + os.path.abspath(uni_dir))
+    print('')
+    width = len(str(len(files) - 1))
+    last_dir = None
+    for nr, (root, f) in enumerate(files):
+        rel_dir = os.path.relpath(root, uni_dir)
+        if rel_dir != last_dir and rel_dir != os.curdir:
+            print('')
+            print('[' + rel_dir + ']')
+        last_dir = rel_dir
+        print('  %*d  %s' % (width, nr, f))
+    print('')
+
+
 def find_moh_files():
     """(root, file) of the _moh.epub files made by -e, only from 'MOH'. Old
     results are skipped with a warning: next to the originals, and in the
@@ -475,59 +622,67 @@ def main():
     elif args.log is not None:
         st = datetime.now().strftime('%Y%m%d%H%M%S')
         sys.stdout = Logger(os.path.join(args.log, 'eQT-' + st + '.log'))
-    ind_file = ind_root = None
+    ind_files = []                  # (root, file) selected with -i
     if args.individual == 'nonr':
-        print('')
-        print_header('Listing EPUB files for individual mode')
-        print('')
         files = individual_files()
-        print('Directory: ' + os.path.abspath(uni_dir))
-        print('')
-        width = len(str(len(files) - 1))
-        last_dir = None
-        for nr, (root, f) in enumerate(files):
-            rel_dir = os.path.relpath(root, uni_dir)
-            if rel_dir != last_dir and rel_dir != os.curdir:
-                print('')
-                print('[' + rel_dir + ']')
-            last_dir = rel_dir
-            print('  %*d  %s' % (width, nr, f))
-        print('')
-        print('%d file(s). Process one with: -i NR' % len(files))
-        return 0
-    elif args.individual != 'nonr' and args.individual is not None:
-        try:
-            ind_nr = int(args.individual)
-        except ValueError:
-            ind_nr = None
+        if not files:
+            print('* NO epub files found!')
+            return 0
+        if sys.stdin.isatty() and sys.__stdout__.isatty():
+            try:
+                numbers = select_files(files)
+            except ImportError:
+                numbers = ask_for_files(files)
+            if not numbers:
+                print('* No files selected.')
+                return 0
+            ind_files = [files[n] for n in numbers]
+            print('')
+            print_header('Selected EPUB files')
+            print('')
+            for n in numbers:
+                print('  %d  %s' % (n, os.path.normpath(os.path.join(
+                    os.path.relpath(files[n][0], uni_dir), files[n][1]))))
+            print('')
+            print('* The same files: -i ' + number_list(numbers))
+        else:
+            print('')
+            print_header('Listing EPUB files for individual mode')
+            print('')
+            list_files(files)
+            print('%d file(s). Process them with: -i NR (e.g. 3 or 1,3,5-7)'
+                  % len(files))
+            return 0
+    elif args.individual is not None:
         files = individual_files()
-        if ind_nr is not None and 0 <= ind_nr < len(files):
-            ind_root, ind_file = files[ind_nr]
-        if ind_file is None:
+        numbers = parse_number_list(args.individual, len(files))
+        if numbers is None:
             # without this the code below falls back to processing ALL files
             print('! ERROR! File number "%s" not found. Use -i without '
-                  'a number to list files.' % args.individual)
+                  'a number to select or list files.' % args.individual)
             return 1
-    if (
-            (args.author or args.title) and args.individual != 'nonr' and
-            args.individual is not None
-    ):
+        ind_files = [files[n] for n in numbers]
+    if (args.author or args.title) and ind_files:
+        if len(ind_files) > 1:
+            print('! ERROR! --author and --title work only with one file.')
+            return 1
         print('')
         print_header('Processing author or book title')
         print('')
-        fix_name_author(ind_root, ind_file, args.author, args.title)
+        fix_name_author(ind_files[0][0], ind_files[0][1], args.author,
+                        args.title)
 
     if args.rename:
         print('')
         print_header('Renaming EPUBs to "author - title"')
         print('')
         counter = 0
-        if ind_file:
-            counter += 1
-            fdec = ind_file
-            epbzf = zipfile.ZipFile(os.path.join(ind_root, ind_file))
-            opf_root, opf_path = find_opf(epbzf)
-            rename_files(opf_path, ind_root, epbzf, ind_file, fdec)
+        if ind_files:
+            for ind_root, ind_file in ind_files:
+                counter += 1
+                epbzf = zipfile.ZipFile(os.path.join(ind_root, ind_file))
+                opf_root, opf_path = find_opf(epbzf)
+                rename_files(opf_path, ind_root, epbzf, ind_file, ind_file)
         else:
             for root, dirs, files in os.walk(uni_dir):
                 skip_output_dirs(root, dirs)
@@ -547,12 +702,11 @@ def main():
         if counter == 0:
             print('* NO epub files for renaming found!')
 
-    if args.mod and ind_file:
-        ind_file_m = os.path.splitext(ind_file)[0] + '_moh.epub'
-        ind_root_m = moh_dir_for(ind_root)
+    if args.mod:
+        ind_files_m = [(moh_dir_for(r), os.path.splitext(f)[0] + '_moh.epub')
+                       for r, f in ind_files]
     else:
-        ind_file_m = ind_file
-        ind_root_m = ind_root
+        ind_files_m = ind_files
 
     if args.qcheck:
         print('')
@@ -560,10 +714,11 @@ def main():
         if color_stream:
             color_stream.qcheck_mode = True
         counter = 0
-        if ind_file:
-            counter += 1
-            qcheck(ind_root_m, ind_file_m, args.alter, args.mod, args.list_fonts,
-                   args.skip_font_mime, args.skip_css_warnings)
+        if ind_files:
+            for root, f in ind_files_m:
+                counter += 1
+                qcheck(root, f, args.alter, args.mod, args.list_fonts,
+                       args.skip_font_mime, args.skip_css_warnings)
         else:
             for root, f in (find_moh_files() if args.mod else
                             find_original_files()):
@@ -641,13 +796,14 @@ def main():
         echpzipfile.extractall(echp_temp)
         counter = 0
 
-        if ind_file:
-            counter += 1
-            if os.path.exists(os.path.join(ind_root_m, ind_file_m)):
-                epubchecker(echp_temp, ind_root_m, ind_file_m, epubcheckstr,
-                            epubcheckjar)
-            else:
-                print('File "%s" not found...' % ind_file_m)
+        if ind_files:
+            for root, f in ind_files_m:
+                counter += 1
+                if os.path.exists(os.path.join(root, f)):
+                    epubchecker(echp_temp, root, f, epubcheckstr,
+                                epubcheckjar)
+                else:
+                    print('File "%s" not found...' % f)
         else:
             for root, f in (find_moh_files() if args.mod else
                             find_original_files()):
@@ -666,14 +822,16 @@ def main():
             shutil.rmtree(os.path.join(uni_dir, tmpSend2KindDir))
         except FileNotFoundError:
             pass
-        if ind_file:
-            counter += 1
-            qfix(ind_root, ind_file, moh_dir_for(ind_root), args.force, args.replace_font_files,
-                 args.skip_reset_css, args.tools, args.skip_hyphenate,
-                 args.skip_justify, args.left,
-                 args.remove_colors, args.remove_fonts, args.font_dir,
-                 args.fix_missing_container, args.book_margin,
-                 args.skip_hyphenate_headers, args.replace_font_family)
+        if ind_files:
+            for ind_root, ind_file in ind_files:
+                counter += 1
+                qfix(ind_root, ind_file, moh_dir_for(ind_root), args.force,
+                     args.replace_font_files,
+                     args.skip_reset_css, args.tools, args.skip_hyphenate,
+                     args.skip_justify, args.left,
+                     args.remove_colors, args.remove_fonts, args.font_dir,
+                     args.fix_missing_container, args.book_margin,
+                     args.skip_hyphenate_headers, args.replace_font_family)
         else:
             for root, dirs, files in os.walk(uni_dir):
                 skip_output_dirs(root, dirs)
@@ -751,10 +909,12 @@ def main():
         compression = '-c2' if args.huffdic else '-c1'
         counter = 0
         cover_html_found = error_found = False
-        if ind_file:
-            counter += 1
-            to_mobi(moh_dir_for(ind_root), os.path.splitext(ind_file)[0] + '_moh.epub',
-                    cover_html_found, error_found)
+        if ind_files:
+            for ind_root, ind_file in ind_files:
+                counter += 1
+                to_mobi(moh_dir_for(ind_root),
+                        os.path.splitext(ind_file)[0] + '_moh.epub',
+                        cover_html_found, error_found)
         else:
             for root, f in find_moh_files():
                 counter += 1
@@ -769,7 +929,7 @@ def main():
                      'Send to Kindle')
         print('')
 
-        if ind_file:
+        if ind_files:
             print('* Not supported in individual file mode.')
         else:
             dest_dir = os.path.join(uni_dir, tmpSend2KindDir)

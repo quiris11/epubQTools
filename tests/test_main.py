@@ -52,6 +52,20 @@ class CommandLineTest(unittest.TestCase):
                       result.stdout)
         self.assertIn('8 file(s)', result.stdout)
 
+    def test_individual_number_list(self):
+        # x.epub in a and b are numbers 0 and 1; --author needs one file
+        for nr in ('0,1', '0-1', '1,0'):
+            with self.subTest(nr):
+                result = self.run_eqt('-i', nr, '--author', 'A, B', self.dir)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn('work only with one file', result.stdout)
+        for nr in ('2', '0,2', '1-3'):
+            with self.subTest(nr):
+                result = self.run_eqt('-i', nr, self.dir)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn('File number "%s" not found' % nr,
+                              result.stdout)
+
     def test_log_or_tools_without_value_before_directory(self):
         logs = tempfile.mkdtemp(prefix='eqt-logs-')
         self.addCleanup(shutil.rmtree, logs)

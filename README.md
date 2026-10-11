@@ -31,7 +31,8 @@ options:
   --tools [DIR]         path to additional tools: kindlegen, epubcheck zip (default: ~/.local/share/epubQTools)
   -l, --log [DIR]       path to directory to write log file. If DIR is omitted write log to directory with epub files
   -i, --individual [NR]
-                        individual file mode
+                        individual file mode: without NR select files in the console (or list them if not run in a terminal), NR
+                        processes the files with the given numbers, e.g. "3" or "1,3,5-7"
   --author [Surname, First Name]
                         set new author name (only with -i)
   --title [Title]       set new book title (only with -i
