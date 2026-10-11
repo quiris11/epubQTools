@@ -12,6 +12,7 @@ import zlib
 from lxml import etree
 
 from lib.epubqfix import (ClassStyles, decode_b64_name, find_file_in_dir,
+                          split_extra_cover_images,
                           image_data_end, is_hiding_style,
                           most_common, remove_trailing_hidden_div,
                           strip_nav_aria_labels)
@@ -189,3 +190,35 @@ class FindFileInDirTest(unittest.TestCase):
                 open(os.path.join(d, name), 'w').close()
             self.assertEqual(find_file_in_dir('Font.otf', d, False),
                              os.path.join(d, 'Font.otf'))
+
+
+class SplitExtraCoverImagesTest(unittest.TestCase):
+    OPF = ('<package xmlns="http://www.idpf.org/2007/opf"><metadata>'
+           '<meta name="cover" content="ci"/></metadata><manifest>'
+           '<item id="ci" href="images/cover_image.jpg"/></manifest>'
+           '</package>')
+
+    def imgs(self, html):
+        tree = etree.fromstring(XHTML % html)
+        return tree, tree.xpath('//x:img', namespaces={
+            'x': 'http://www.w3.org/1999/xhtml'})
+
+    def test_extra_image_moved(self):
+        tree, imgs = self.imgs(
+            '<div><div class="img"><img src="images/cover_image.jpg"/></div>'
+            '<div class="img"><img src="images/cover.jpg"/></div></div>')
+        docs = split_extra_cover_images(imgs, etree.fromstring(self.OPF))
+        self.assertEqual([i.get('src') for i in imgs],
+                         ['images/cover_image.jpg'])
+        self.assertNotIn(b'cover.jpg', etree.tostring(tree))
+        self.assertEqual(len(docs), 1)
+        body = docs[0].find('{http://www.w3.org/1999/xhtml}body')
+        self.assertEqual(len(body), 1)
+        self.assertEqual(body[0].get('class'), 'img')
+        self.assertEqual(body[0][0].get('src'), 'images/cover.jpg')
+
+    def test_meta_cover_not_in_html(self):
+        tree, imgs = self.imgs('<img src="a.jpg"/><img src="b.jpg"/>')
+        self.assertIsNone(split_extra_cover_images(
+            imgs, etree.fromstring(self.OPF)))
+        self.assertEqual(len(imgs), 2)

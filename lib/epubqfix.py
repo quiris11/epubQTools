@@ -8,9 +8,11 @@
 
 import base64
 import binascii
+import copy
 import hashlib
 import logging
 import os
+import posixpath
 import re
 import tempfile
 import shutil
@@ -1208,6 +1210,12 @@ def fix_mismatched_covers(opftree, tempdir):
         len_svg_images = len(allsvgimgs)
     else:
         len_svg_images = 0
+    if len(allimgs) > 1:
+        new_docs = split_extra_cover_images(allimgs, opftree)
+        if new_docs:
+            write_cover_xhtml(xhtmltree, cover_xhtml_file, opftree)
+            add_cover_image_pages(new_docs, refcvs[0].get('href'), opftree,
+                                  tempdir)
     if len(allimgs) != 1 and len_svg_images != 1:
         print('! ERROR! HTML cover should have only one image. Giving up...')
         qfixerr = True
@@ -1244,16 +1252,99 @@ def fix_mismatched_covers(opftree, tempdir):
                 html_cover_img_file, meta_cover_image_file
             )
         )
-        with open(cover_xhtml_file, 'wb') as f:
-            f.write(etree.tostring(
-                xhtmltree,
-                pretty_print=True,
-                xml_declaration=True,
-                standalone=False,
-                encoding='utf-8',
-                doctype=set_dtd(opftree))
-            )
+        write_cover_xhtml(xhtmltree, cover_xhtml_file, opftree)
     return opftree
+
+
+def write_cover_xhtml(xhtmltree, cover_xhtml_file, opftree):
+    with open(cover_xhtml_file, 'wb') as f:
+        f.write(etree.tostring(
+            xhtmltree,
+            pretty_print=True,
+            xml_declaration=True,
+            standalone=False,
+            encoding='utf-8',
+            doctype=set_dtd(opftree))
+        )
+
+
+def split_extra_cover_images(allimgs, opftree):
+    """In an HTML cover with several <img> keep only the meta cover image and
+    move every other image (with its wrapper, e.g. <div class="img">) to its
+    own copy of the cover document. Returns the list of new documents (in
+    order) and leaves allimgs with the kept image only, or returns None
+    (nothing changed) unless exactly one image is the meta cover."""
+    meta = opftree.xpath('//opf:meta[@name="cover"]', namespaces=OPFNS)
+    if not meta:
+        return None
+    items = opftree.xpath('//opf:item[@id=$id]', namespaces=OPFNS,
+                          id=meta[0].get('content'))
+    if not items:
+        return None
+    meta_file = items[0].get('href').split('/')[-1]
+    keep = [i for i in allimgs
+            if (i.get('src') or '').split('/')[-1] == meta_file]
+    if len(keep) != 1:
+        return None
+    root = keep[0].getroottree().getroot()
+    new_docs = []
+    for img in allimgs:
+        if img is keep[0]:
+            continue
+        # move the wrapper which contains only this image
+        node = img
+        parent = node.getparent()
+        while (len(parent) == 1 and not (parent.text or '').strip() and
+               etree.QName(parent).localname not in ('body', 'html')):
+            node = parent
+            parent = node.getparent()
+        remove_node(node)
+        node.tail = None
+        doc = copy.deepcopy(root)
+        body = doc.find('{http://www.w3.org/1999/xhtml}body')
+        for child in list(body):
+            body.remove(child)
+        body.text = None
+        body.append(node)
+        new_docs.append(doc)
+    allimgs[:] = keep
+    return new_docs
+
+
+def add_cover_image_pages(new_docs, cover_href, opftree, tempdir):
+    """Save documents split from the HTML cover next to it and add them to
+    the manifest and to the spine right after the cover."""
+    cover_href = cover_href.split('#')[0]
+    cover_dir, cover_name = posixpath.split(cover_href)
+    stem, ext = os.path.splitext(cover_name)
+    manifest = opftree.xpath('//opf:manifest', namespaces=OPFNS)[0]
+    spine = opftree.xpath('//opf:spine', namespaces=OPFNS)[0]
+    ids = set(opftree.xpath('//opf:item/@id', namespaces=OPFNS))
+    cover_ids = opftree.xpath('//opf:item[@href=$href]/@id',
+                              namespaces=OPFNS, href=cover_href)
+    position = 0
+    for index, itemref in enumerate(spine):
+        if cover_ids and itemref.get('idref') == cover_ids[0]:
+            position = index + 1
+    number = 2
+    for doc in new_docs:
+        while True:
+            href = posixpath.join(cover_dir,
+                                  '%s-image%d%s' % (stem, number, ext))
+            item_id = 'epubQTools-cover-image%d' % number
+            number += 1
+            if (item_id not in ids and
+                    not os.path.exists(os.path.join(tempdir, href))):
+                break
+        write_cover_xhtml(doc, os.path.join(tempdir, href), opftree)
+        etree.SubElement(manifest, '{http://www.idpf.org/2007/opf}item',
+                         id=item_id, href=href,
+                         attrib={'media-type': 'application/xhtml+xml'})
+        itemref = etree.Element('{http://www.idpf.org/2007/opf}itemref',
+                                idref=item_id)
+        spine.insert(position, itemref)
+        position += 1
+        print('* Moved extra image from HTML cover to: ' + href)
 
 
 def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
