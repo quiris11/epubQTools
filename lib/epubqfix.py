@@ -76,6 +76,8 @@ MY_LANGUAGE = 'pl'
 MY_LANGUAGE2 = 'pl-PL'
 HYPHEN_MARK = '\u00AD'
 HIDDEN_DIV_TEXT_RE = re.compile(r'[A-Za-z0-9_-]+')
+# classes of the reset spans of marked texts (a Legimi watermark)
+MARKED_CLASSES = ('black', 'black-fore', 'black2', 'dark-gray', 'dark-gray2')
 # a font size that makes a text invisible (0 or at most 1px or 1pt)
 TINY_FONT_SIZE_RE = re.compile(
     r'0+(?:\.0*)?(?:[a-z]+|%)?|(?:0*\.\d+|0*1(?:\.0*)?)(?:px|pt)')
@@ -2612,9 +2614,8 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
             continue
 
     # remove reset spans of marked texts
-    marked_classes = ('black', 'black-fore', 'black2', 'dark-gray', 'dark-gray2')
     deltag = "epubqtoolsdelme"  # bogus temporary tag
-    for i in marked_classes:
+    for i in MARKED_CLASSES:
         marked_spans = etree.XPath("//xhtml:span[contains(@class, 'reset') "
                                "and contains(@class, '" + i + "')]",
                                namespaces=XHTMLNS)(xhtree)
@@ -2848,16 +2849,20 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         print('* Replacing "text-align: justify" with "text-align: left" in '
               'all CSS files...')
         modify_css_align(opftree, opf_dir_abs, 'left', del_colors)
-    if hidden_classes:
-        # classes of the hidden divs not used by other elements
+    image_names = remove_hidden_div_texts_from_images(opftree, opf_dir_abs,
+                                                      hidden_names)
+    # classes of the hidden divs, named with the texts appended to images
+    # and of the removed reset spans, not used by other elements
+    extra_classes = (hidden_classes | (image_names - hidden_names) |
+                     set(MARKED_CLASSES))
+    if extra_classes:
         used = used_classes(_xhtml_files)
         if used is not None:
-            hidden_classes -= used
+            extra_classes -= used
         else:
-            hidden_classes = set()
+            extra_classes = set()
     remove_hidden_div_classes(opftree, opf_dir_abs,
-                              hidden_names | hidden_classes)
-    remove_hidden_div_texts_from_images(opftree, opf_dir_abs, hidden_names)
+                              hidden_names | extra_classes)
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'wb') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
@@ -3039,8 +3044,9 @@ def image_data_end(data):
 
 
 def remove_hidden_div_texts_from_images(opftree, opfdir, hidden_names):
-    """Remove the texts of the hidden divs in XHTML files appended to image
-    files (JPEG, PNG, GIF, WebP) after the end of the image data."""
+    """Remove the texts of the hidden divs in XHTML files (or base64 names,
+    if a book has no hidden divs) appended to image files (JPEG, PNG, GIF,
+    WebP) after the end of the image data. Return the removed texts."""
     removed_from = {}
     for i in opftree.xpath('//opf:item[starts-with(@media-type, "image/")]',
                            namespaces=OPFNS):
@@ -3054,7 +3060,9 @@ def remove_hidden_div_texts_from_images(opftree, opfdir, hidden_names):
         if end is None:
             continue
         name = data[end:].strip().decode('ascii', errors='replace')
-        if name not in hidden_names:
+        if name not in hidden_names and not (
+                len(name) >= 8 and HIDDEN_DIV_TEXT_RE.fullmatch(name) and
+                decode_b64_name(name) is not None):
             continue
         with open(img_path, 'wb') as f:
             f.write(data[:end])
@@ -3062,6 +3070,7 @@ def remove_hidden_div_texts_from_images(opftree, opfdir, hidden_names):
     for name, hrefs in sorted(removed_from.items()):
         print('* Removed appended text %s from images: %s' %
               (with_decoded(name), ', '.join(hrefs)))
+    return set(removed_from)
 
 
 def html_cover_first(opftree):
