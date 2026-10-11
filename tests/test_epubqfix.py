@@ -14,8 +14,8 @@ from lxml import etree
 from lib.epubqfix import (ClassStyles, decode_b64_name, find_file_in_dir,
                           split_extra_cover_images,
                           image_data_end, is_hiding_style,
-                          most_common, remove_trailing_hidden_div,
-                          strip_nav_aria_labels)
+                          most_common, remove_thin_spaces_after_spaces,
+                          remove_trailing_hidden_div, strip_nav_aria_labels)
 
 XHTML = ('<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Text</p>%s'
          '</body></html>')
@@ -123,6 +123,28 @@ class RemoveTrailingHiddenDivTest(unittest.TestCase):
                      % NAME):
             with self.subTest(last):
                 self.assertEqual(self.remove(last), (False, {}, set()))
+
+
+class RemoveThinSpacesAfterSpacesTest(unittest.TestCase):
+
+    def remove(self, body):
+        tree = etree.fromstring(
+            '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>a '
+            ' b</title></head><body>%s</body></html>' % body)
+        n = remove_thin_spaces_after_spaces(tree)
+        self.assertEqual(tree[0][0].text, 'a  b')  # <head> untouched
+        return n, etree.tostring(tree[1], encoding='unicode')
+
+    def test_removed_in_text_and_tail(self):
+        n, body = self.remove('<p>Mój  syn <i>i  ja</i> '
+                              ' tu.</p>')
+        self.assertEqual(n, 3)
+        self.assertIn('<p>Mój syn <i>i ja</i> tu.</p>', body)
+
+    def test_other_thin_spaces_kept(self):
+        n, body = self.remove('<p>1 000 a  b</p>')
+        self.assertEqual(n, 0)
+        self.assertIn('1 000 a  b', body)
 
 
 class HelpersTest(unittest.TestCase):

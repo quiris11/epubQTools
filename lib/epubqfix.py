@@ -2190,6 +2190,22 @@ def remove_trailing_hidden_div(xhtree, hidden_divs, hidden_classes,
         remove_node(last)
 
 
+def remove_thin_spaces_after_spaces(xhtree):
+    """Remove thin spaces (U+2009) right after a space in the texts of
+    <body> - together they show as a too wide gap between words. Return the
+    number of removed thin spaces."""
+    removed = 0
+    for body in xhtree.xpath('//xhtml:body', namespaces=XHTMLNS):
+        for el in body.iter():
+            if isinstance(el.tag, str) and el.text:
+                el.text, n = re.subn('  +', ' ', el.text)
+                removed += n
+            if el is not body and el.tail:
+                el.tail, n = re.subn('  +', ' ', el.tail)
+                removed += n
+    return removed
+
+
 def find_class_styles(opftree, opfdir):
     """ClassStyles of the CSS files (in the order of the manifest)."""
     css_texts = []
@@ -2278,7 +2294,7 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
 def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                        is_reset_css, opf_dir_abs, is_xml_ext_fixed, book_lang,
                        dont_hyph_headers, hidden_divs, hidden_classes,
-                       class_styles):
+                       class_styles, thin_space_files):
     global qfixerr
     try:
         with open(xhfile, 'r', encoding='utf-8') as content_file:
@@ -2361,6 +2377,9 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
         for w in marked_spans:
             w.tag = deltag
     etree.strip_tags(xhtree, deltag)  # strip bogus tags with attributes
+    # before fixing conjunctions which would turn some of them into nbsp
+    if remove_thin_spaces_after_spaces(xhtree):
+        thin_space_files.append(xhfile)
     # workaround strange strip tag bug during hyphenation:
     xhtree = etree.fromstring(etree.tostring(xhtree, encoding='utf-8'))
     # print(etree.tostring(xhtree))
@@ -2557,12 +2576,17 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     hidden_divs = {}
     hidden_classes = set()
     class_styles = find_class_styles(opftree, opf_dir_abs)
+    thin_space_files = []
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, link_reset_css, skip_hyph, opf_dir_abs,
                            is_reset_css, opf_dir_abs, is_xml_ext_fixed,
                            book_lang, dont_hyph_headers, hidden_divs,
-                           hidden_classes, class_styles)
+                           hidden_classes, class_styles, thin_space_files)
     print_hidden_divs(hidden_divs)
+    if thin_space_files:
+        print('* Removed thin spaces after spaces in %d %s' %
+              (len(thin_space_files),
+               'file' if len(thin_space_files) == 1 else 'files'))
     hidden_names = {text for text in hidden_divs if text}
     opftree = remove_info_pages(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
