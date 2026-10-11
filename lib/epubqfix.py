@@ -1705,6 +1705,27 @@ def remove_fonts(opftree, rootepubdir):
     return opftree
 
 
+def html_cover_image_hrefs(opftree, tempdir):
+    """Return OPF-relative hrefs of the images in the HTML cover."""
+    refcvs = opftree.xpath('//opf:reference[@type="cover"]', namespaces=OPFNS)
+    if len(refcvs) != 1 or not refcvs[0].get('href'):
+        return []
+    cover_href = refcvs[0].get('href').split('#')[0]
+    try:
+        xhtmltree = etree.parse(os.path.join(tempdir, cover_href),
+                                parser=etree.XMLParser(recover=True))
+    except Exception:
+        return []
+    srcs = etree.XPath('//xhtml:img/@src', namespaces=XHTMLNS)(xhtmltree)
+    srcs += [
+        i.get('{http://www.w3.org/1999/xlink}href')
+        for i in etree.XPath('//svg:image', namespaces=SVGNS)(xhtmltree)
+    ]
+    cover_dir = posixpath.dirname(cover_href)
+    return [posixpath.normpath(posixpath.join(cover_dir, s))
+            for s in srcs if s]
+
+
 def correct_mime_types(_soup):
     _items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(_soup)
     for _item in _items:
@@ -1758,16 +1779,29 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             newlang.text = MY_LANGUAGE
             metadata.insert(0, newlang)
 
-    # remove multiple meta covers, keep the one pointing to an image item
+    # remove multiple meta covers, prefer the one pointing to the image
+    # shown in the HTML cover, then the first one pointing to an image item
     metacovers = soup.xpath('//opf:meta[@name="cover"]', namespaces=OPFNS)
     if len(metacovers) > 1:
-        keep = metacovers[0]
+        html_imgs = html_cover_image_hrefs(soup, tempdir)
+        img_hrefs = []
         for mc in metacovers:
-            if soup.xpath('//opf:item[@id=$id and '
-                          'starts-with(@media-type, "image/")]',
-                          namespaces=OPFNS, id=mc.get('content', '')):
+            items = soup.xpath('//opf:item[@id=$id and '
+                               'starts-with(@media-type, "image/")]',
+                               namespaces=OPFNS, id=mc.get('content', ''))
+            img_hrefs.append(
+                posixpath.normpath(items[0].get('href')) if items else None
+            )
+        keep = metacovers[0]
+        for mc, href in zip(metacovers, img_hrefs):
+            if href is not None and href in html_imgs:
                 keep = mc
                 break
+        else:
+            for mc, href in zip(metacovers, img_hrefs):
+                if href is not None:
+                    keep = mc
+                    break
         print('* Removing multiple meta cover definitions, keeping '
               '"%s"...' % keep.get('content'))
         for mc in metacovers:
