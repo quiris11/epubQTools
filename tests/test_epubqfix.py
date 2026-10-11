@@ -11,8 +11,8 @@ import zlib
 
 from lxml import etree
 
-from lib.epubqfix import (ClassStyles, check_font, decode_b64_name,
-                          find_file_in_dir,
+from lib.epubqfix import (ClassStyles, check_font, convert_ttc_fonts,
+                          decode_b64_name, find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
                           split_extra_cover_images,
                           image_data_end, is_hiding_style,
@@ -257,6 +257,49 @@ class FindFontByPostscriptNameTest(unittest.TestCase):
             with open(path, 'wb') as f:
                 f.write(b'\x00\x01\x00\x00\x00\x05')
             self.assertIsNone(font_postscript_name(path))
+
+
+def ttc_with_postscript_names(*ps_names):
+    """TTC collection of minimal fonts (see ttf_with_postscript_name)."""
+    fonts = [ttf_with_postscript_name(n) for n in ps_names]
+    offset = 12 + 4 * len(fonts)
+    offsets = []
+    data = b''
+    for font in fonts:
+        offsets.append(offset + len(data))
+        name_offset = struct.unpack('>I', font[20:24])[0]
+        data += (font[:20] + struct.pack('>I', offsets[-1] + name_offset) +
+                 font[24:])
+    return (b'ttcf' + struct.pack('>II', 0x10000, len(fonts)) +
+            struct.pack('>%dI' % len(fonts), *offsets) + data)
+
+
+class ConvertTtcFontsTest(unittest.TestCase):
+    OPF = ('<package xmlns="http://www.idpf.org/2007/opf"><manifest>'
+           '<item id="f" href="font/Foo.ttc" media-type="font/collection"/>'
+           '<item id="c" href="style.css" media-type="text/css"/>'
+           '</manifest></package>')
+
+    def test_convert(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.mkdir(os.path.join(d, 'font'))
+            with open(os.path.join(d, 'font', 'Foo.ttc'), 'wb') as f:
+                f.write(ttc_with_postscript_names('Foo-Math', 'Foo'))
+            with open(os.path.join(d, 'style.css'), 'w') as f:
+                f.write('@font-face { src: url("font/Foo.ttc"); }')
+            opftree = etree.ElementTree(etree.fromstring(self.OPF))
+            convert_ttc_fonts(opftree, d)
+            item = opftree.getroot()[0][0]
+            self.assertEqual(item.get('href'), 'font/Foo.ttf')
+            self.assertEqual(item.get('media-type'), 'application/font-sfnt')
+            self.assertFalse(os.path.exists(os.path.join(d, 'font',
+                                                         'Foo.ttc')))
+            path = os.path.join(d, 'font', 'Foo.ttf')
+            self.assertEqual(check_font(path)[0], True)
+            self.assertEqual(font_postscript_name(path), 'Foo')
+            with open(os.path.join(d, 'style.css')) as f:
+                self.assertEqual(f.read(),
+                                 '@font-face { src: url("font/Foo.ttf"); }')
 
 class SplitExtraCoverImagesTest(unittest.TestCase):
     OPF = ('<package xmlns="http://www.idpf.org/2007/opf"><metadata>'

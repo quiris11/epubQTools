@@ -417,6 +417,22 @@ def find_file_in_dir(file_name, directory, recursive):
     return None
 
 
+def name_table_postscript_name(name):
+    """PostScript name (nameID 6) from raw name table data or None."""
+    count, string_offset = struct.unpack('>HH', name[2:6])
+    for i in range(count):
+        platform, encoding, _, name_id, length, offset = struct.unpack(
+            '>HHHHHH', name[6 + 12 * i:18 + 12 * i])
+        if name_id != 6:
+            continue
+        raw = name[string_offset + offset:string_offset + offset + length]
+        if platform in (0, 3):
+            return raw.decode('utf-16-be', 'ignore')
+        if platform == 1:
+            return raw.decode('latin-1')
+    return None
+
+
 def font_postscript_name(path):
     """PostScript name (name table, nameID 6) of a TTF/OTF file or None."""
     try:
@@ -431,25 +447,72 @@ def font_postscript_name(path):
                     '>4sIII', tables[16 * i:16 * (i + 1)])
                 if tag == b'name':
                     f.seek(offset)
-                    name = f.read(length)
-                    break
-            else:
-                return None
-        count, string_offset = struct.unpack('>HH', name[2:6])
-        for i in range(count):
-            platform, encoding, _, name_id, length, offset = struct.unpack(
-                '>HHHHHH', name[6 + 12 * i:18 + 12 * i])
-            if name_id != 6:
-                continue
-            raw = name[string_offset + offset:
-                       string_offset + offset + length]
-            if platform in (0, 3):
-                return raw.decode('utf-16-be', 'ignore')
-            if platform == 1:
-                return raw.decode('latin-1')
+                    return name_table_postscript_name(f.read(length))
     except (OSError, struct.error):
         return None
     return None
+
+
+def sfnt_table_records(data, offset):
+    """Table records (tag, checksum, offset, length) of the font whose
+    offset table starts at offset in data."""
+    num_tables = struct.unpack('>H', data[offset + 4:offset + 6])[0]
+    return [struct.unpack('>4sIII', data[offset + 12 + 16 * i:
+                                         offset + 28 + 16 * i])
+            for i in range(num_tables)]
+
+
+def ttc_face_offsets(data):
+    """Offsets of the fonts in a TTC collection."""
+    num_fonts = struct.unpack('>I', data[8:12])[0]
+    return list(struct.unpack('>%dI' % num_fonts,
+                              data[12:12 + 4 * num_fonts]))
+
+
+def ttc_face_postscript_name(data, offset):
+    for tag, _, table_offset, length in sfnt_table_records(data, offset):
+        if tag == b'name':
+            return name_table_postscript_name(
+                data[table_offset:table_offset + length])
+    return None
+
+
+def sfnt_checksum(data):
+    data += b'\x00' * (-len(data) % 4)
+    return sum(struct.unpack('>%dI' % (len(data) // 4), data)) & 0xFFFFFFFF
+
+
+def extract_ttc_face(data, offset):
+    """Standalone TTF/OTF built from the font at offset in TTC data.
+    DSIG is dropped, because the signature is not valid for the new file."""
+    records = [r for r in sfnt_table_records(data, offset)
+               if r[0] != b'DSIG']
+    records.sort(key=lambda r: r[0])
+    num_tables = len(records)
+    entry_selector = num_tables.bit_length() - 1
+    search_range = 16 * 2 ** entry_selector
+    header = data[offset:offset + 4] + struct.pack(
+        '>HHHH', num_tables, search_range, entry_selector,
+        num_tables * 16 - search_range)
+    table_offset = 12 + 16 * num_tables
+    directory = b''
+    body = b''
+    head_offset = None
+    for tag, checksum, src_offset, length in records:
+        table = data[src_offset:src_offset + length]
+        if tag == b'head':
+            head_offset = table_offset + len(body)
+            table = table[:8] + b'\x00' * 4 + table[12:]
+            checksum = sfnt_checksum(table)
+        directory += struct.pack('>4sIII', tag, checksum,
+                                 table_offset + len(body), length)
+        body += table + b'\x00' * (-length % 4)
+    font = header + directory + body
+    if head_offset is not None:
+        adjustment = (0xB1B0AFBA - sfnt_checksum(font)) & 0xFFFFFFFF
+        font = (font[:head_offset + 8] + struct.pack('>I', adjustment) +
+                font[head_offset + 12:])
+    return font
 
 
 def normalize_font_name(name):
@@ -543,6 +606,69 @@ def find_and_replace_fonts(opftree, rootepubdir, fontdir):
                 item.get('href').lower().endswith('.ttf')):
             actual_font_path = os.path.join(rootepubdir, item.get('href'))
             replace_font(actual_font_path, fontdir)
+
+
+def convert_ttc_fonts(opftree, rootepubdir):
+    """Replace TTC collections (not supported by e-book readers) with the
+    TTF/OTF font whose PostScript name matches the file name (the first font
+    of the collection otherwise) and update references in OPF and CSS."""
+    for item in etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree):
+        href = item.get('href')
+        if not href.lower().endswith('.ttc'):
+            continue
+        path = os.path.join(rootepubdir, href)
+        try:
+            with open(path, 'rb') as f:
+                data = f.read()
+        except (OSError, IOError):
+            continue
+        if data[:4] != b'ttcf':
+            continue
+        new_href = href[:-4] + '.ttf'
+        new_path = os.path.join(rootepubdir, new_href)
+        if os.path.exists(new_path):
+            print('! WARNING! TTC font "%s" not converted. File "%s" '
+                  'already exists.' % (href, new_href))
+            continue
+        try:
+            offsets = ttc_face_offsets(data)
+            wanted = normalize_font_name(
+                os.path.splitext(os.path.basename(href))[0])
+            face = offsets[0]
+            for offset in offsets:
+                ps_name = ttc_face_postscript_name(data, offset)
+                if ps_name and normalize_font_name(ps_name) == wanted:
+                    face = offset
+                    break
+            font = extract_ttc_face(data, face)
+        except (struct.error, IndexError):
+            print('! WARNING! TTC font "%s" not converted. Unable to read '
+                  'the collection.' % href)
+            continue
+        with open(new_path, 'wb') as f:
+            f.write(font)
+        os.remove(path)
+        item.set('href', new_href)
+        item.set('media-type', 'application/font-sfnt')
+        old_name = os.path.basename(href)
+        url_re = re.compile(r'(url\(\s*["\']?[^)"\']*?)' +
+                            re.escape(old_name) + r'(?=["\']?\s*\))', re.I)
+        for c in opftree.xpath('//opf:item[@media-type="text/css"]',
+                               namespaces=OPFNS):
+            css_path = os.path.join(rootepubdir, c.get('href'))
+            try:
+                with open(css_path, encoding='utf-8') as f:
+                    css = f.read()
+            except (OSError, IOError, UnicodeDecodeError):
+                continue
+            new_css = url_re.sub(
+                lambda m: m.group(1) + old_name[:-4] + '.ttf', css)
+            if new_css != css:
+                with open(css_path, 'w', encoding='utf-8') as f:
+                    f.write(new_css)
+        print('* Converted TTC font collection "%s" to "%s" (font "%s").'
+              % (href, new_href,
+                 ttc_face_postscript_name(data, face) or 'first'))
 
 
 def xml2html_extension(opftree, rootepubdir):
@@ -2611,6 +2737,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
 
     if _replacefonts:
         find_and_replace_fonts(opftree, opf_dir_abs, fontdir)
+    convert_ttc_fonts(opftree, opf_dir_abs)
     try:
         book_lang = opftree.xpath("//dc:language", namespaces=DCNS)[0].text
     except IndexError:
