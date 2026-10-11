@@ -41,6 +41,17 @@ class FixUnusualSpacesTest(unittest.TestCase):
                      'margin: 1em' + ZWSP + '2em; padding:' + ZWSP + ' 0 }'),
             'p { font-weight: bold; margin: 1em 2em; padding: 0 }')
 
+    def test_zero_width_space_between_letters(self):
+        for value, fixed in (('#fff' + ZWSP + 'solid', '#fff solid'),
+                             ('red' + ZWSP + 'solid', 'red solid'),
+                             ('#fff' + ZWSP + 'fff', '#ffffff'),
+                             ('10p' + ZWSP + 'x', '10px'),
+                             ('sol' + ZWSP + 'id red', 'solid red'),
+                             ('fo' + ZWSP + 'o', 'foo')):
+            with self.subTest(value):
+                self.assertEqual(self.fix('p { border: 1px %s }' % value),
+                                 'p { border: 1px %s }' % fixed)
+
     def test_escaped_property_name(self):
         self.assertEqual(self.fix('p { col\\6f r: red' + NBSP + '; }'),
                          'p { col\\6f r: red ; }')

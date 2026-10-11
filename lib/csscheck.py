@@ -253,21 +253,50 @@ def _unusual_spaces_in_value(text, start):
 # a property name, possibly with escapes
 NAME_RE = re.compile(r'(?:[\w-]|\\(?:[0-9a-fA-F]{1,6}(?:\r\n|[ \t\r\n\f])?|'
                      r'[^\r\n\f0-9a-fA-F]))+')
-ZERO_WIDTH_SPACE = '\u200b'
+ZERO_WIDTH_SPACE = '​'
+# keywords allowed in values (colors, border styles, font weights etc.)
+VALUE_KEYWORDS = {
+    line.strip() for line in
+    get_data('lib', 'resources/css_value_keywords.txt').decode('utf-8')
+    .splitlines() if line.strip() and not line.startswith('#')
+}
+VALUE_WORD_RE = re.compile(
+    r'#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|'
+    r'[+-]?(?:\d+\.?\d*|\.\d+)(?:%|[a-z]+)?', re.IGNORECASE)
+
+
+def _is_separator(c):
+    return c.isspace() or c in ':;,()!{}/' or c in UNUSUAL_SPACES
+
+
+def _is_value_word(word):
+    """A keyword, a hex color or a number (with a unit)."""
+    return (word.lower() in VALUE_KEYWORDS or
+            VALUE_WORD_RE.fullmatch(word) is not None)
 
 
 def _space_replacement(text, i):
     """A zero width space inside a word (e.g. "bo[U+200B]ld") or next to a
-    space or a separator is removed, between e.g. "1em" and "2em" it is
-    replaced with a space. Other unusual spaces are replaced with a
-    space."""
+    space or a separator is removed, between two words (e.g. "1em" and
+    "2em", "#fff" and "solid") it is replaced with a space. Other unusual
+    spaces are replaced with a space."""
     if text[i] != ZERO_WIDTH_SPACE:
         return ' '
     before = text[i - 1] if i > 0 else ' '
     after = text[i + 1] if i + 1 < len(text) else ' '
-    if (before.isalpha() and after.isalpha()) or any(
-            c.isspace() or c in ':;,()!{}' or c in UNUSUAL_SPACES
-            for c in (before, after)):
+    if _is_separator(before) or _is_separator(after):
+        return ''
+    if before.isalpha() and after.isalpha():
+        start = i
+        while start > 0 and not _is_separator(text[start - 1]):
+            start -= 1
+        end = i + 1
+        while end < len(text) and not _is_separator(text[end]):
+            end += 1
+        left, right = text[start:i], text[i + 1:end]
+        if (not _is_value_word(left + right) and _is_value_word(left) and
+                _is_value_word(right)):
+            return ' '
         return ''
     return ' '
 
