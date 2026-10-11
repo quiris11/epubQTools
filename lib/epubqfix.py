@@ -2460,10 +2460,28 @@ def remove_hidden_div_classes(opftree, opfdir, hidden_names):
                   (c.get('href'), e))
 
 
+def image_data_end(data):
+    """Offset of the end of the image data in a JPEG, PNG, GIF or WebP file
+    (anything after it is not a part of the image), or None."""
+    if data.startswith(b'\xff\xd8'):
+        eoi = data.rfind(b'\xff\xd9')
+        return None if eoi == -1 else eoi + 2
+    if data.startswith(b'\x89PNG\r\n\x1a\n'):
+        iend = data.rfind(b'IEND')
+        # the IEND chunk type is followed by its CRC
+        return None if iend == -1 else iend + 8
+    if data.startswith((b'GIF87a', b'GIF89a')):
+        trailer = data.rfind(b';')
+        return None if trailer == -1 else trailer + 1
+    if data.startswith(b'RIFF') and data[8:12] == b'WEBP':
+        return 8 + int.from_bytes(data[4:8], 'little')
+    return None
+
+
 def remove_hidden_div_texts_from_images(opftree, opfdir, hidden_names):
-    """Remove the texts of the hidden divs in XHTML files appended to JPEG
-    files after the end of image marker."""
-    for i in opftree.xpath('//opf:item[@media-type="image/jpeg"]',
+    """Remove the texts of the hidden divs in XHTML files appended to image
+    files (JPEG, PNG, GIF, WebP) after the end of the image data."""
+    for i in opftree.xpath('//opf:item[starts-with(@media-type, "image/")]',
                            namespaces=OPFNS):
         img_path = os.path.join(opfdir, i.get('href'))
         try:
@@ -2471,14 +2489,14 @@ def remove_hidden_div_texts_from_images(opftree, opfdir, hidden_names):
                 data = f.read()
         except IOError:
             continue
-        eoi = data.rfind(b'\xff\xd9')
-        if eoi == -1:
+        end = image_data_end(data)
+        if end is None:
             continue
-        name = data[eoi + 2:].strip().decode('ascii', errors='replace')
+        name = data[end:].strip().decode('ascii', errors='replace')
         if name not in hidden_names:
             continue
         with open(img_path, 'wb') as f:
-            f.write(data[:eoi + 2])
+            f.write(data[:end])
         decoded = decode_b64_name(name)
         print('* Removed appended text from image "%s": %s%s' %
               (i.get('href'), name,
