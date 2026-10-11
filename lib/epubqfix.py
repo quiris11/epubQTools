@@ -26,7 +26,7 @@ from pkgutil import get_data
 from urllib.parse import unquote
 from itertools import cycle
 from lib.htmlconstants import entities
-from lib.csscheck import fix_unusual_spaces
+from lib.csscheck import fix_unusual_spaces, remove_class_rules
 from lib.hyphenator import Hyphenator
 from lib.beautify_book import beautify_book
 from functools import reduce
@@ -2419,32 +2419,19 @@ def remove_hidden_div_classes(opftree, opfdir, hidden_names):
     if not hidden_names:
         return
     print('* Removing classes of hidden divs from all CSS files...')
-    # a rule with a single class selector only: .NAME { ... }, starting at
-    # the beginning of a line or just after }, {, ; or a comment (so that
-    # e.g. ".a .NAME { }" is not touched)
-    rule_re = re.compile(
-        r'(?m)(^|[{};]|\*/)[ \t]*\.(%s)(?![\w-])\s*\{[^{}]*\}[ \t]*\n?'
-        % '|'.join(re.escape(n) for n in sorted(hidden_names))
-    )
     cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
                              namespaces=OPFNS)
     for c in cssitems:
-        removed = []
-
-        def repl(m):
-            removed.append(m.group(2))
-            # keep the character before the rule
-            return m.group(1)
-
         css_path = os.path.join(opfdir, c.get('href'))
         try:
-            with open(css_path, 'r', encoding='utf-8') as cf:
+            # newline='' keeps the original line endings
+            with open(css_path, 'r', encoding='utf-8', newline='') as cf:
                 css_text = cf.read()
         except (IOError, UnicodeDecodeError) as e:
             print('! WARNING! Unable to read CSS file "%s": %s' %
                   (c.get('href'), e))
             continue
-        new_css_text = rule_re.sub(repl, css_text)
+        new_css_text, removed = remove_class_rules(css_text, hidden_names)
         if not removed:
             continue
         for name in removed:
@@ -2453,7 +2440,7 @@ def remove_hidden_div_classes(opftree, opfdir, hidden_names):
                   (c.get('href'), name,
                    ' -> ' + decoded if decoded is not None else ''))
         try:
-            with open(css_path, 'w', encoding='utf-8') as cf:
+            with open(css_path, 'w', encoding='utf-8', newline='') as cf:
                 cf.write(new_css_text)
         except IOError as e:
             print('! WARNING! Unable to write CSS file "%s": %s' %

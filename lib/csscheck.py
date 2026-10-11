@@ -334,3 +334,158 @@ def fix_unusual_spaces(css_text):
     for i in positions:
         chars[i] = _space_replacement(css_text, i)
     return ''.join(chars), len(positions)
+
+
+def _skip_special(text, i):
+    """If text[i] starts a comment, a string, an escape or an unquoted URL,
+    the index just after it, else None."""
+    n = len(text)
+    ch = text[i]
+    if text.startswith('/*', i):
+        end = text.find('*/', i + 2)
+        return n if end == -1 else end + 2
+    if ch in '"\'':
+        i += 1
+        while i < n and text[i] not in (ch, '\n', '\r', '\f'):
+            i += 2 if text[i] == '\\' else 1
+        return i + 1
+    if ch == '\\':
+        return i + 2
+    url = URL_START_RE.match(text, i)
+    if url:
+        end = text.find(')', url.end())
+        return n if end == -1 else end + 1
+    return None
+
+
+SPACES_AND_LINE_BREAK_RE = re.compile(r'[ \t]*(?:\r\n|[\r\n\f])?')
+
+
+def _block_bounds(text, start):
+    """Offsets of "{" and of the matching "}" (or the end of the text) of
+    the rule that starts at text[start]."""
+    n = len(text)
+    i = start
+    depth = 0
+    opening = None
+    while i < n:
+        skip = _skip_special(text, i)
+        if skip is not None:
+            i = skip
+            continue
+        if text[i] == '{':
+            if opening is None:
+                opening = i
+            depth += 1
+        elif text[i] == '}' and opening is not None:
+            depth -= 1
+            if depth == 0:
+                return opening, i
+        i += 1
+    return opening, n - 1
+
+
+def _split_selectors(prelude):
+    """The selectors (lists of tokens) of a selector list."""
+    selectors = [[]]
+    for t in prelude:
+        if isinstance(t, LiteralToken) and t.value == ',':
+            selectors.append([])
+        else:
+            selectors[-1].append(t)
+    return selectors
+
+
+def _selector_classes(tokens):
+    """Class names used in a selector."""
+    return {b.value for a, b in zip(tokens, tokens[1:])
+            if isinstance(a, LiteralToken) and a.value == '.' and
+            b.type == 'ident'}
+
+
+def remove_class_rules(css_text, names):
+    """Remove the rules whose every selector uses one of the class names
+    (e.g. ".NAME", "div.NAME", ".a .NAME", ".NAME, .NAME2 p") and remove
+    such selectors from the other rules ("p, .NAME" -> "p"). @media and
+    @supports rules left empty are removed too. The rest of the text stays
+    as it is. Returns the new text and the removed class names (sorted)."""
+    line_starts = [0] + [m.end() for m in
+                         re.finditer(r'\r\n|[\r\n\f]', css_text)]
+    edits = []
+    removed = set()
+
+    def offset(node):
+        return line_starts[node.source_line - 1] + node.source_column - 1
+
+    def delete(start, end):
+        """Delete text[start:end] with spaces before it and spaces and one
+        line break after it."""
+        while start > 0 and css_text[start - 1] in ' \t':
+            start -= 1
+        end = SPACES_AND_LINE_BREAK_RE.match(css_text, end).end()
+        edits.append((start, end, ''))
+
+    def process(rules, nested=False):
+        """Edit the rules (nested: in a rule); returns True if all of them
+        are removed."""
+        all_removed = True
+        for rule in rules:
+            if isinstance(rule, ParseError):
+                all_removed = False
+            elif isinstance(rule, QualifiedRule):
+                selectors = _split_selectors(rule.prelude)
+                kept = [s for s in selectors
+                        if not _selector_classes(s) & names]
+                start = offset(rule)
+                if len(kept) == len(selectors):
+                    all_removed = False
+                    process_nested(rule)
+                    continue
+                for s in selectors:
+                    removed.update(_selector_classes(s) & names)
+                opening, closing = _block_bounds(css_text, start)
+                if opening is None:
+                    all_removed = False
+                elif not kept:
+                    delete(start, closing + 1)
+                else:
+                    all_removed = False
+                    edits.append((start, opening, ', '.join(
+                        tinycss2.serialize(s).strip() for s in kept) + ' '))
+                    process_nested(rule)
+            elif (isinstance(rule, AtRule) and rule.content is not None and
+                    rule.lower_at_keyword in ('media', 'supports')):
+                before = len(edits)
+                if nested:
+                    # declarations and rules
+                    inner = tinycss2.parse_blocks_contents(
+                        rule.content, skip_whitespace=True,
+                        skip_comments=True)
+                else:
+                    inner = tinycss2.parse_rule_list(
+                        rule.content, skip_whitespace=True,
+                        skip_comments=True)
+                if process(inner, nested) and inner:
+                    # replace the edits of the nested rules
+                    del edits[before:]
+                    start = offset(rule)
+                    delete(start, _block_bounds(css_text, start)[1] + 1)
+                else:
+                    all_removed = False
+            else:
+                all_removed = False
+        return all_removed
+
+    def process_nested(rule):
+        """Rules nested in a rule (CSS nesting)."""
+        process([r for r in tinycss2.parse_blocks_contents(
+            rule.content, skip_whitespace=True, skip_comments=True)
+            if not isinstance(r, Declaration)], True)
+
+    process(tinycss2.parse_stylesheet(css_text, skip_whitespace=True,
+                                      skip_comments=True))
+    if not edits:
+        return css_text, []
+    for start, end, new in sorted(edits, reverse=True):
+        css_text = css_text[:start] + new + css_text[end:]
+    return css_text, sorted(removed)
