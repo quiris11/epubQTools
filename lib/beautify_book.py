@@ -19,7 +19,8 @@ try:
     from lxml import etree
     import css_parser
 except ImportError as e:
-    sys.exit('! CRITICAL! ' + e)
+    sys.exit('! CRITICAL! ' + str(e) + ' (install with: '
+             'python -m pip install lxml css_parser)')
 
 HOME = os.path.expanduser("~")
 DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
