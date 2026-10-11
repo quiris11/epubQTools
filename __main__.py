@@ -315,6 +315,59 @@ def skip_output_dirs(root, dirs, skip=(mohDir, tmpSend2KindDir)):
         dirs[:] = [d for d in dirs if d not in skip]
 
 
+def find_original_files():
+    """(root, file) of the original EPUB files (not in the output folders)."""
+    found = []
+    for root, dirs, files in os.walk(uni_dir):
+        skip_output_dirs(root, dirs)
+        for f in files:
+            if f.lower().endswith('.epub') and not f.lower().endswith(
+                    '_moh.epub'):
+                found.append((root, f))
+    return found
+
+
+def find_moh_files():
+    """(root, file) of the _moh.epub files made by -e, only from 'MOH'. Old
+    results are skipped with a warning: next to the originals, and in the
+    flat 'MOH' of older versions (the original is in another subfolder)."""
+    originals = {}                  # lowercase name without .epub -> dirs
+    outside = []
+    for root, dirs, files in os.walk(uni_dir):
+        skip_output_dirs(root, dirs)
+        for f in files:
+            fl = f.lower()
+            if fl.endswith('_moh.epub'):
+                outside.append(os.path.join(root, f))
+            elif fl.endswith('.epub') and not fl.endswith('_org.epub'):
+                originals.setdefault(fl[:-len('.epub')], set()).add(
+                    os.path.normpath(root))
+    found = []
+    stale = []
+    for root, dirs, files in os.walk(moh_dir):
+        dirs.sort()
+        org_root = os.path.normpath(
+            os.path.join(uni_dir, os.path.relpath(root, moh_dir)))
+        for f in sorted(files):
+            fl = f.lower()
+            if not fl.endswith('_moh.epub'):
+                continue
+            org_dirs = originals.get(fl[:-len('_moh.epub')])
+            if org_dirs and org_root not in org_dirs:
+                stale.append(os.path.join(root, f))
+            else:
+                found.append((root, f))
+    for paths, where in ((outside, 'outside the "%s" folder' % mohDir),
+                         (stale, 'in the "%s" folder with the original in '
+                          'another subfolder' % mohDir)):
+        if paths:
+            print('! WARNING! Skipped %d old _moh.epub file(s) %s (move or '
+                  'delete them):' % (len(paths), where))
+            for p in paths:
+                print('  - ' + p)
+    return found
+
+
 def _stage_moh_epub(src_path, dest_dir, stats):
     """
     Copy one '..._moh.epub' file into the (already-created, already-empty)
@@ -476,27 +529,17 @@ def main():
         print_header('Checking with internal qcheck tool')
         if color_stream:
             color_stream.qcheck_mode = True
-        if args.mod:
-            fe = '_moh.epub'
-            nfe = '_org.epub'
-            out_skip = (tmpSend2KindDir,)
-        else:
-            fe = '.epub'
-            nfe = '_moh.epub'
-            out_skip = (mohDir, tmpSend2KindDir)
         counter = 0
         if ind_file:
             counter += 1
             qcheck(ind_root_m, ind_file_m, args.alter, args.mod, args.list_fonts,
                    args.skip_font_mime, args.skip_css_warnings)
         else:
-            for root, dirs, files in os.walk(uni_dir):
-                skip_output_dirs(root, dirs, out_skip)
-                for f in files:
-                    if f.lower().endswith(fe) and not f.lower().endswith(nfe):
-                        counter += 1
-                        qcheck(root, f, args.alter, args.mod, args.list_fonts,
-                               args.skip_font_mime, args.skip_css_warnings)
+            for root, f in (find_moh_files() if args.mod else
+                            find_original_files()):
+                counter += 1
+                qcheck(root, f, args.alter, args.mod, args.list_fonts,
+                       args.skip_font_mime, args.skip_css_warnings)
         if color_stream:
             sys.stdout.flush()
             color_stream.qcheck_mode = False
@@ -563,14 +606,6 @@ def main():
                      '" Giving up...')
         echp_temp = tempfile.mkdtemp(suffix='', prefix='quiris-tmp-')
         echpzipfile.extractall(echp_temp)
-        if args.mod:
-            fe = '_moh.epub'
-            nfe = '_org.epub'
-            out_skip = (tmpSend2KindDir,)
-        else:
-            fe = '.epub'
-            nfe = '_moh.epub'
-            out_skip = (mohDir, tmpSend2KindDir)
         counter = 0
 
         if ind_file:
@@ -581,13 +616,10 @@ def main():
             else:
                 print('File "%s" not found...' % ind_file_m)
         else:
-            for root, dirs, files in os.walk(uni_dir):
-                skip_output_dirs(root, dirs, out_skip)
-                for f in files:
-                    if f.lower().endswith(fe) and not f.lower().endswith(nfe):
-                        counter += 1
-                        epubchecker(echp_temp, root, f, epubcheckstr,
-                                    epubcheckjar)
+            for root, f in (find_moh_files() if args.mod else
+                            find_original_files()):
+                counter += 1
+                epubchecker(echp_temp, root, f, epubcheckstr, epubcheckjar)
         shutil.rmtree(echp_temp, ignore_errors=True)
         if counter == 0:
             print('')
@@ -691,13 +723,9 @@ def main():
             to_mobi(moh_dir_for(ind_root), os.path.splitext(ind_file)[0] + '_moh.epub',
                     cover_html_found, error_found)
         else:
-            for root, dirs, files in os.walk(uni_dir):
-                skip_output_dirs(root, dirs, (tmpSend2KindDir,))
-                for f in files:
-                    cover_html_found = error_found = False
-                    if f.lower().endswith('_moh.epub'):
-                        counter += 1
-                        to_mobi(root, f, cover_html_found, error_found)
+            for root, f in find_moh_files():
+                counter += 1
+                to_mobi(root, f, False, False)
         if counter == 0:
             print('')
             print('* NO *_moh.epub files for converting found!')
@@ -720,12 +748,8 @@ def main():
 
             stats = {'copied': 0, 'missing': 0, 'renamed': 0}
 
-            for root, dirs, files in os.walk(uni_dir):
-                # don't descend into the staging folder itself
-                skip_output_dirs(root, dirs, (tmpSend2KindDir,))
-                for f in files:
-                    if f.lower().endswith('_moh.epub'):
-                        _stage_moh_epub(os.path.join(root, f), dest_dir, stats)
+            for root, f in find_moh_files():
+                _stage_moh_epub(os.path.join(root, f), dest_dir, stats)
 
             if stats['copied'] == 0 and stats['missing'] == 0:
                 print('* NO MOH files for copy and rename found!')

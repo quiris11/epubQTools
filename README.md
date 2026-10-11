@@ -69,6 +69,10 @@ options:
                         Add left and right book margin to reset CSS file (only with -e)
 ```
 
+`-m`, `-k` and `-t` use only the _moh.epub files in the 'MOH' subfolder. Old results of earlier
+versions (next to the originals, or directly in 'MOH' for books from subfolders) are skipped and
+listed in a warning.
+
 #### Output messages:
 * `* text` - information
 * `! WARNING! text` - warning, the book is processed

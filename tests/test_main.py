@@ -68,6 +68,24 @@ class CommandLineTest(unittest.TestCase):
         self.assertFalse(
             [f for f in os.listdir(self.dir) if f.endswith('.log')])
 
+    def test_old_moh_files_skipped(self):
+        def touch(*path):
+            os.makedirs(os.path.join(self.dir, *path[:-1]), exist_ok=True)
+            open(os.path.join(self.dir, *path), 'wb').close()
+        touch('a', 'A - T.epub')
+        touch('MOH', 'a', 'A - T_moh.epub')
+        touch('MOH', 'A - T_moh.epub')          # flat MOH of older versions
+        touch('a', 'A - T_moh.epub')            # next to the original
+        touch('MOH', 'A - U_moh.epub')          # original deleted: kept
+        result = self.run_eqt('-t', self.dir)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            sorted(os.listdir(os.path.join(self.dir, 'TS2K'))),
+            ['T.epub', 'U.epub'])
+        for path in (('MOH', 'A - T_moh.epub'), ('a', 'A - T_moh.epub')):
+            self.assertIn('  - ' + os.path.join(self.dir, *path),
+                          result.stdout)
+
     def test_missing_directory(self):
         result = self.run_eqt('-q')
         self.assertEqual(result.returncode, 2)
