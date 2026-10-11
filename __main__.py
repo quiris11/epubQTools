@@ -340,7 +340,9 @@ def skip_output_dirs(root, dirs, skip=(mohDir, tmpSend2KindDir)):
 
 
 def find_original_files():
-    """(root, file) of the original EPUB files (not in the output folders)."""
+    """(root, file) of the original EPUB files (not in the output folders),
+    sorted alphabetically: files from the given directory first, then
+    subfolders. -i NR numbers files in this order."""
     found = []
     for root, dirs, files in os.walk(uni_dir):
         skip_output_dirs(root, dirs)
@@ -348,7 +350,7 @@ def find_original_files():
             if f.lower().endswith('.epub') and not f.lower().endswith(
                     '_moh.epub'):
                 found.append((root, f))
-    return found
+    return sorted(found, key=files_sort_key(uni_dir))
 
 
 # Polish alphabet order: "ą" after "a", "ł" after "l", "ż" after "ź" etc.
@@ -371,15 +373,15 @@ def pl_sort_key(text):
     return key, text
 
 
-def individual_files():
-    """find_original_files() sorted alphabetically: files from the given
-    directory first, then subfolders. -i NR numbers files in this order."""
+def files_sort_key(base_dir):
+    """Sort key of (root, file) in Polish alphabet order: files from
+    base_dir first, then subfolders."""
     def key(found):
-        rel_dir = os.path.relpath(found[0], uni_dir)
+        rel_dir = os.path.relpath(found[0], base_dir)
         parts = [] if rel_dir == os.curdir else rel_dir.split(os.sep)
         return ([pl_sort_key(p) for p in parts],
                 pl_sort_key(os.path.splitext(found[1])[0]))
-    return sorted(find_original_files(), key=key)
+    return key
 
 
 def number_list(numbers):
@@ -523,10 +525,9 @@ def find_moh_files():
     found = []
     stale = []
     for root, dirs, files in os.walk(moh_dir):
-        dirs.sort()
         org_root = os.path.normpath(
             os.path.join(uni_dir, os.path.relpath(root, moh_dir)))
-        for f in sorted(files):
+        for f in files:
             fl = f.lower()
             if not fl.endswith('_moh.epub'):
                 continue
@@ -541,9 +542,9 @@ def find_moh_files():
         if paths:
             print('! WARNING! Skipped %d old _moh.epub file(s) %s (move or '
                   'delete them):' % (len(paths), where))
-            for p in paths:
+            for p in sorted(paths):
                 print('  - ' + p)
-    return found
+    return sorted(found, key=files_sort_key(moh_dir))
 
 
 def _stage_moh_epub(src_path, dest_dir, stats):
@@ -624,7 +625,7 @@ def main():
         sys.stdout = Logger(os.path.join(args.log, 'eQT-' + st + '.log'))
     ind_files = []                  # (root, file) selected with -i
     if args.individual == 'nonr':
-        files = individual_files()
+        files = find_original_files()
         if not files:
             print('* NO epub files found!')
             return 0
@@ -654,7 +655,7 @@ def main():
                   % len(files))
             return 0
     elif args.individual is not None:
-        files = individual_files()
+        files = find_original_files()
         numbers = parse_number_list(args.individual, len(files))
         if numbers is None:
             # without this the code below falls back to processing ALL files
@@ -684,21 +685,15 @@ def main():
                 opf_root, opf_path = find_opf(epbzf)
                 rename_files(opf_path, ind_root, epbzf, ind_file, ind_file)
         else:
-            for root, dirs, files in os.walk(uni_dir):
-                skip_output_dirs(root, dirs)
-                for f in files:
-                    fdec = f
-                    if f.lower().endswith('.epub') and not f.lower().endswith(
-                            '_moh.epub'):
-                        counter += 1
-                        try:
-                            epbzf = zipfile.ZipFile(os.path.join(root, f))
-                        except zipfile.BadZipfile as e:
-                            print('! CRITICAL! Problem with file "%s": %s' % (
-                                f, e))
-                            continue
-                        opf_root, opf_path = find_opf(epbzf)
-                        rename_files(opf_path, root, epbzf, f, fdec)
+            for root, f in find_original_files():
+                counter += 1
+                try:
+                    epbzf = zipfile.ZipFile(os.path.join(root, f))
+                except zipfile.BadZipfile as e:
+                    print('! CRITICAL! Problem with file "%s": %s' % (f, e))
+                    continue
+                opf_root, opf_path = find_opf(epbzf)
+                rename_files(opf_path, root, epbzf, f, f)
         if counter == 0:
             print('* NO epub files for renaming found!')
 
@@ -833,21 +828,19 @@ def main():
                      args.fix_missing_container, args.book_margin,
                      args.skip_hyphenate_headers, args.replace_font_family)
         else:
-            for root, dirs, files in os.walk(uni_dir):
-                skip_output_dirs(root, dirs)
-                for f in files:
-                    if (f.lower().endswith('.epub') and
-                            not f.lower().endswith('_moh.epub') and
-                            not f.lower().endswith('_org.epub')):
-                        counter += 1
-                        qfix(root, f, moh_dir_for(root), args.force, args.replace_font_files,
-                             args.skip_reset_css, args.tools,
-                             args.skip_hyphenate, args.skip_justify, args.left,
-                             args.remove_colors,
-                             args.remove_fonts, args.font_dir,
-                             args.fix_missing_container,
-                             args.book_margin, args.skip_hyphenate_headers,
-                             args.replace_font_family)
+            for root, f in find_original_files():
+                if f.lower().endswith('_org.epub'):
+                    continue
+                counter += 1
+                qfix(root, f, moh_dir_for(root), args.force,
+                     args.replace_font_files,
+                     args.skip_reset_css, args.tools,
+                     args.skip_hyphenate, args.skip_justify, args.left,
+                     args.remove_colors,
+                     args.remove_fonts, args.font_dir,
+                     args.fix_missing_container,
+                     args.book_margin, args.skip_hyphenate_headers,
+                     args.replace_font_family)
         if counter == 0:
             print('')
             print('* NO epub files for fixing found!')
