@@ -53,6 +53,23 @@ class FixUnusualSpacesTest(unittest.TestCase):
                 self.assertEqual(self.fix('p { border: 1px %s }' % value),
                                  'p { border: 1px %s }' % fixed)
 
+    def test_zero_width_space_in_font_family(self):
+        font_face = ('@font-face { font-family: "Linux Libertine"; } '
+                     '@font-face { font-family: Bookerly; } ')
+        for value, fixed in (
+                ('Linux' + ZWSP + 'Libertine, serif',
+                 'Linux Libertine, serif'),
+                ('Book' + ZWSP + 'erly', 'Bookerly'),
+                ('Times' + ZWSP + 'New Roman', 'TimesNew Roman')):
+            with self.subTest(value):
+                self.assertEqual(
+                    self.fix(font_face + 'p { font-family: %s }' % value),
+                    font_face + 'p { font-family: %s }' % fixed)
+        self.assertEqual(
+            fix_unusual_spaces('p { font: 12px Linux' + ZWSP + 'Libertine }',
+                               {'linux libertine'})[0],
+            'p { font: 12px Linux Libertine }')
+
     def test_escaped_property_name(self):
         self.assertEqual(self.fix('p { col\\6f r: red' + NBSP + '; }'),
                          'p { col\\6f r: red ; }')

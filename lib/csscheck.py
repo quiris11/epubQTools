@@ -275,10 +275,52 @@ def _is_value_word(word):
             VALUE_WORD_RE.fullmatch(word) is not None)
 
 
-def _space_replacement(text, i):
+def _normalized_name(name):
+    return ' '.join(name.replace(ZERO_WIDTH_SPACE, '').split()).lower()
+
+
+def font_face_families(css_text):
+    """Font family names (normalized) of the @font-face rules."""
+    families = set()
+    for rule in tinycss2.parse_stylesheet(css_text, skip_whitespace=True,
+                                          skip_comments=True):
+        if (isinstance(rule, AtRule) and rule.content is not None and
+                rule.lower_at_keyword == 'font-face'):
+            for prop, value, important in _declarations(rule.content):
+                if prop == 'font-family':
+                    families.add(_normalized_name(value.strip('"\'')))
+    return families
+
+
+def _font_family_replacement(text, i, families):
+    """For a zero width space in a font family name: ' ' if only the name
+    with a space is one of families, '' if the name without it is, None if
+    neither. The name is the end of the list item ("12px Linux Libertine"
+    in the font shorthand)."""
+    start = i
+    while start > 0 and text[start - 1] not in ',:;{}()':
+        start -= 1
+    end = i + 1
+    while end < len(text) and text[end] not in ',;{}()!':
+        end += 1
+
+    def known(name):
+        name = _normalized_name(name)
+        return any(name == f or name.endswith(' ' + f) for f in families)
+
+    left, right = text[start:i], text[i + 1:end]
+    if known(left + right):
+        return ''
+    if known(left + ' ' + right):
+        return ' '
+    return None
+
+
+def _space_replacement(text, i, families=frozenset()):
     """A zero width space inside a word (e.g. "bo[U+200B]ld") or next to a
     space or a separator is removed, between two words (e.g. "1em" and
-    "2em", "#fff" and "solid") it is replaced with a space. Other unusual
+    "2em", "#fff" and "solid", "Linux" and "Libertine" with "Linux
+    Libertine" in families) it is replaced with a space. Other unusual
     spaces are replaced with a space."""
     if text[i] != ZERO_WIDTH_SPACE:
         return ' '
@@ -287,6 +329,9 @@ def _space_replacement(text, i):
     if _is_separator(before) or _is_separator(after):
         return ''
     if before.isalpha() and after.isalpha():
+        replacement = _font_family_replacement(text, i, families)
+        if replacement is not None:
+            return replacement
         start = i
         while start > 0 and not _is_separator(text[start - 1]):
             start -= 1
@@ -301,12 +346,14 @@ def _space_replacement(text, i):
     return ' '
 
 
-def fix_unusual_spaces(css_text):
+def fix_unusual_spaces(css_text, font_families=frozenset()):
     """Replace unusual spaces (e.g. U+00A0) with normal spaces in the values
     of the declarations reported by check_css (the declarations dropped by
     readers), also in nested rules. Strings, comments, unquoted URLs and
-    selectors are not touched, the rest of the text stays as it is. Returns
-    the new text and the number of replaced characters."""
+    selectors are not touched, the rest of the text stays as it is.
+    font_families: font_face_families of the other CSS files of the book
+    (the ones of css_text are added). Returns the new text and the number
+    of replaced characters."""
     # offsets of line starts as counted by tinycss2
     line_starts = [0] + [m.end() for m in
                          re.finditer(r'\r\n|[\r\n\f]', css_text)]
@@ -359,9 +406,10 @@ def fix_unusual_spaces(css_text):
                                         skip_comments=True))
     if not positions:
         return css_text, 0
+    families = set(font_families) | font_face_families(css_text)
     chars = list(css_text)
     for i in positions:
-        chars[i] = _space_replacement(css_text, i)
+        chars[i] = _space_replacement(css_text, i, families)
     return ''.join(chars), len(positions)
 
 

@@ -26,7 +26,8 @@ from pkgutil import get_data
 from urllib.parse import unquote
 from itertools import cycle
 from lib.htmlconstants import entities
-from lib.csscheck import class_rules, fix_unusual_spaces, remove_class_rules
+from lib.csscheck import (class_rules, fix_unusual_spaces, font_face_families,
+                          remove_class_rules)
 from lib.hyphenator import Hyphenator
 from lib.beautify_book import beautify_book
 from collections import Counter
@@ -2524,17 +2525,22 @@ def fix_css_unusual_spaces(opftree, opfdir):
     so the declarations are not dropped by readers."""
     cssitems = opftree.xpath('//opf:item[@media-type="text/css"]',
                              namespaces=OPFNS)
+    css_texts = []
     for c in cssitems:
         css_path = os.path.join(opfdir, c.get('href'))
         try:
             # newline='' keeps the original line endings
             with open(css_path, 'r', encoding='utf-8', newline='') as cf:
-                css_text = cf.read()
+                css_texts.append((c, css_path, cf.read()))
         except (IOError, UnicodeDecodeError) as e:
             print('! WARNING! Unable to read CSS file "%s": %s' %
                   (c.get('href'), e))
-            continue
-        new_css_text, count = fix_unusual_spaces(css_text)
+    # font names of all files decide about zero width spaces
+    families = set()
+    for c, css_path, css_text in css_texts:
+        families |= font_face_families(css_text)
+    for c, css_path, css_text in css_texts:
+        new_css_text, count = fix_unusual_spaces(css_text, families)
         if not count:
             continue
         print('* Replaced %d non-breaking or other unusual spaces with '
