@@ -68,14 +68,14 @@ def unquote_urls(tree):
     return tree
 
 
-def check_wm_info(singf, tree, epub, _file_dec):
+def check_info_page(singf, tree, epub, _file_dec):
     alltexts = etree.XPath('//xhtml:body//text()',
                            namespaces=XHTMLNS)(tree)
     alltext = ' '.join(alltexts)
     alltext = alltext.replace('\u00AD', '').strip()
     if (alltext == 'Plik jest zabezpieczony znakiem wodnym' or
             'Ten ebook jest chroniony znakiem wodnym' in alltext):
-        print('%sWM info file found "%s"' % (_file_dec, singf))
+        print('%sNeedless info page found "%s"' % (_file_dec, singf))
 
 
 def check_display_none(singf, tree, epub, _file_dec, cont_src_list):
@@ -402,7 +402,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
     _htmlfiletags = etree.XPath(
         '//opf:item[@media-type="application/xhtml+xml"]', namespaces=OPFNS
     )(opftree)
-    _linkfound = _unbfound = _ufound = _wmfound = metcharfound = False
+    _linkfound = _unbfound = _ufound = _markerfound = metcharfound = False
     body_id_list = []
     for _htmlfiletag in _htmlfiletags:
         _htmlfilepath = _htmlfiletag.get('href')
@@ -443,12 +443,12 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
                 _htmlfilepath
             ) + '#' + body_id.get('id'))
 
-        if _wmfound is False:
-            _watermarks = etree.XPath('//*[starts-with(text(),"===")]',
-                                      namespaces=XHTMLNS)(_xhtmlsoup)
-            if len(_watermarks) > 0:
+        if _markerfound is False:
+            _markers = etree.XPath('//*[starts-with(text(),"===")]',
+                                   namespaces=XHTMLNS)(_xhtmlsoup)
+            if len(_markers) > 0:
                 print(_file_dec + 'Potential problematic text found ("===")...')
-                _wmfound = True
+                _markerfound = True
 
         if metcharfound is False:
             _metacharsets = etree.XPath('//xhtml:meta[@charset="utf-8"]',
@@ -829,7 +829,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts, skip_font_mime=False,
                 sftree = None
             if sftree is not None:
                 check_urls(singlefile, sftree, prepnl, _file_dec)
-                check_wm_info(singlefile, sftree, epubfile, _file_dec)
+                check_info_page(singlefile, sftree, epubfile, _file_dec)
                 check_display_none(singlefile, sftree, epubfile, _file_dec,
                                    cont_src_list)
     if is_body_family:

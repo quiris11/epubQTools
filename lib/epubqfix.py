@@ -1947,7 +1947,7 @@ def is_hiding_style(style):
     return False
 
 
-def remove_trailing_wm_div(xhtree, hidden_divs, hidden_classes):
+def remove_trailing_hidden_div(xhtree, hidden_divs, hidden_classes):
     """Remove a hidden div from the end of <body>. Its text is a class name
     in CSS files - hidden_divs counts the files with the div for each text
     ('' if it is not a class name), to remove the class rules and to print
@@ -2009,19 +2009,20 @@ def used_classes(xhtml_files):
     return classes
 
 
-def remove_wm_info(opftree, rootepubdir):
-    wmfiles = ['watermark.', 'default-info.', 'generated.', 'platon_wm.',
-               'cover-special.', 'default-info-epub3.']
+def remove_info_pages(opftree, rootepubdir):
+    """Remove needless info pages (e.g. about a watermark)."""
+    info_files = ['watermark.', 'default-info.', 'generated.', 'platon_wm.',
+                  'cover-special.', 'default-info-epub3.']
     items = opftree.xpath('//opf:item', namespaces=OPFNS)
-    for wmf in wmfiles:
+    for info_file in info_files:
         for i in items:
-            if wmf in i.get('href'):
+            if info_file in i.get('href'):
                 try:
-                    wmtree = etree.parse(os.path.join(rootepubdir,
+                    info_tree = etree.parse(os.path.join(rootepubdir,
                                                       i.get('href')))
                 except Exception:
                     continue
-                alltexts = wmtree.xpath('//xhtml:body//text()',
+                alltexts = info_tree.xpath('//xhtml:body//text()',
                                         namespaces=XHTMLNS)
                 alltext = ' '.join(alltexts)
                 alltext = alltext.replace('\u00AD', '').strip()
@@ -2108,7 +2109,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
             qfixerr = True
             return 1
 
-    # remove WM remainings
+    # remove a hidden <div><span/></div> at the end of <body>
     for i in etree.XPath("//xhtml:body", namespaces=XHTMLNS)(xhtree):
         try:
             if (
@@ -2130,14 +2131,14 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
         except Exception:
             continue
 
-    # remove WM reset spans
-    wm_classes = ('black', 'black-fore', 'black2', 'dark-gray', 'dark-gray2')
+    # remove reset spans of marked texts
+    marked_classes = ('black', 'black-fore', 'black2', 'dark-gray', 'dark-gray2')
     deltag = "epubqtoolsdelme"  # bogus temporary tag
-    for i in wm_classes:
-        wm_spans = etree.XPath("//xhtml:span[contains(@class, 'reset') "
+    for i in marked_classes:
+        marked_spans = etree.XPath("//xhtml:span[contains(@class, 'reset') "
                                "and contains(@class, '" + i + "')]",
                                namespaces=XHTMLNS)(xhtree)
-        for w in wm_spans:
+        for w in marked_spans:
             w.tag = deltag
     etree.strip_tags(xhtree, deltag)  # strip bogus tags with attributes
     # workaround strange strip tag bug during hyphenation:
@@ -2153,25 +2154,25 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     if _resetmargins and not is_reset_css:
         xhtree = append_reset_css(xhtree, xhfile, opf_path, opftree)
     xhtree = modify_problematic_styles(xhtree)
-    _wmarks = xhtree.xpath('//xhtml:span[starts-with(text(), "===")]',
+    markers = xhtree.xpath('//xhtml:span[starts-with(text(), "===")]',
                            namespaces=XHTMLNS)
-    wm2s = xhtree.xpath(
+    hidden_divs2 = xhtree.xpath(
         '//xhtml:div[@style="padding:0;border:0;text-indent:0;'
         'line-height:normal;margin:0 1cm 0.5cm 1cm;font-size:0pt;'
         'color:#FFFFFF;text-decoration:none;text-align:left;'
         'background:none;display:none;"]',
         namespaces=XHTMLNS
     )
-    for wm in wm2s:
-        remove_node(wm)
-    for wm in _wmarks:
-        parent = wm.getparent()
-        remove_node(wm)
+    for hd in hidden_divs2:
+        remove_node(hd)
+    for m in markers:
+        parent = m.getparent()
+        remove_node(m)
         if ''.join(parent.itertext()) == '' and len(parent) == 0:
             remove_node(parent)
 
-    # new wm: div font-size:1px !important at the and of <body>
-    remove_trailing_wm_div(xhtree, hidden_divs, hidden_classes)
+    # hidden div at the end of <body>
+    remove_trailing_hidden_div(xhtree, hidden_divs, hidden_classes)
     
     # remove meta charsets
     _metacharsets = xhtree.xpath('//xhtml:meta[@charset="utf-8"]',
@@ -2341,7 +2342,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
                            hidden_classes)
     print_hidden_divs(hidden_divs)
     hidden_names = {text for text in hidden_divs if text}
-    opftree = remove_wm_info(opftree, opf_dir_abs)
+    opftree = remove_info_pages(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
     opftree = fix_nav_in_cover_file(opftree, opf_dir_abs)
     remove_text_from_html_cover(opftree, opf_dir_abs)
