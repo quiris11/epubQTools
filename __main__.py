@@ -154,7 +154,24 @@ parser.add_argument("--fix-missing-container",
 parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
                     help='Add left and right book margin to reset CSS file '
                     '(only with -e)')
-args = parser.parse_args()
+
+
+def individual_without_number(argv):
+    """'-i books' means -i without a number followed by the directory (with
+    nargs='?' argparse would take 'books' as the number)."""
+    argv = list(argv)
+    for n, a in enumerate(argv[:-1]):
+        if a == '--':
+            break
+        nxt = argv[n + 1]
+        if (a in ('-i', '--individual') and not nxt.isdigit() and
+                not nxt.startswith('-') and nxt != 'nonr'):
+            argv.insert(n + 1, 'nonr')
+            break
+    return argv
+
+
+args = parser.parse_args(individual_without_number(sys.argv[1:]))
 if not args.tools:
     # the old default (next to the program) still works if the per-user
     # folder was not created
