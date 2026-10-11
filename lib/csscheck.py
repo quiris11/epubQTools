@@ -432,6 +432,39 @@ def _selector_classes(tokens):
             b.type == 'ident'}
 
 
+def simple_class_rules(css_text):
+    """(class name, declarations as "prop: value; ...") of the top-level
+    rules for each selector that is a single class, possibly with a type
+    (".NAME", "div.NAME")."""
+    result = []
+    for rule in tinycss2.parse_stylesheet(css_text, skip_whitespace=True,
+                                          skip_comments=True):
+        if not isinstance(rule, QualifiedRule):
+            continue
+        names = []
+        for s in _split_selectors(rule.prelude):
+            tokens = [t.type if t.type in ('ident', 'whitespace') else
+                      getattr(t, 'value', t.type) for t in s]
+            while tokens and tokens[0] == 'whitespace':
+                tokens.pop(0)
+                s = s[1:]
+            while tokens and tokens[-1] == 'whitespace':
+                tokens.pop()
+                s = s[:-1]
+            if tokens in (['.', 'ident'], ['ident', '.', 'ident']):
+                names.append(s[-1].value)
+        if not names:
+            continue
+        declarations = '; '.join(
+            '%s: %s%s' % (d.name, tinycss2.serialize(d.value).strip(),
+                          ' !important' if d.important else '')
+            for d in tinycss2.parse_blocks_contents(
+                rule.content, skip_whitespace=True, skip_comments=True)
+            if isinstance(d, Declaration))
+        result.extend((name, declarations) for name in names)
+    return result
+
+
 def remove_class_rules(css_text, names):
     """Remove the rules whose every selector uses one of the class names
     (e.g. ".NAME", "div.NAME", ".a .NAME", ".NAME, .NAME2 p") and remove

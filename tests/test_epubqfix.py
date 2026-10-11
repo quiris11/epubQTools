@@ -47,11 +47,12 @@ class ImageDataEndTest(unittest.TestCase):
 
 class RemoveTrailingHiddenDivTest(unittest.TestCase):
 
-    def remove(self, last):
+    def remove(self, last, hiding_classes=frozenset()):
         tree = etree.fromstring(XHTML % last)
         hidden_divs = {}
         hidden_classes = set()
-        remove_trailing_hidden_div(tree, hidden_divs, hidden_classes)
+        remove_trailing_hidden_div(tree, hidden_divs, hidden_classes,
+                                   hiding_classes)
         removed = len(tree[0]) == 1
         return removed, hidden_divs, hidden_classes
 
@@ -68,6 +69,17 @@ class RemoveTrailingHiddenDivTest(unittest.TestCase):
             with self.subTest(last):
                 self.assertEqual(self.remove(last % NAME),
                                  (True, {NAME: 1}, set()))
+
+    def test_hiding_class(self):
+        self.assertEqual(
+            self.remove('<p class="x hide">%s</p>' % NAME, {'hide'}),
+            (True, {NAME: 1}, {'x', 'hide'}))
+        self.assertEqual(
+            self.remove('<p class="x">%s</p>' % NAME, {'hide'}),
+            (False, {}, set()))
+        self.assertEqual(
+            self.remove('<p class="hide">Short</p>', {'hide'}),
+            (False, {}, set()))
 
     def test_short_text_is_not_a_class_name(self):
         self.assertEqual(

@@ -7,7 +7,8 @@ import contextlib
 import io
 import unittest
 
-from lib.csscheck import check_css, fix_unusual_spaces, remove_class_rules
+from lib.csscheck import (check_css, fix_unusual_spaces, remove_class_rules,
+                          simple_class_rules)
 
 NBSP = ' '
 ZWSP = '​'
@@ -120,6 +121,21 @@ class RemoveClassRulesTest(unittest.TestCase):
     def test_crlf_kept(self):
         self.assertEqual(self.remove('.QUJD { }\r\np { }\r\n'),
                          ('p { }\r\n', ['QUJD']))
+
+
+class SimpleClassRulesTest(unittest.TestCase):
+
+    def test_simple_selectors(self):
+        self.assertEqual(
+            simple_class_rules('.a { font-size: 1px !important } '
+                               'div.b, p .c, .d:hover, .e.f { display:none }'
+                               ' span.g /* x */ { color: red; .x { a: b } }'),
+            [('a', 'font-size: 1px !important'), ('b', 'display: none'),
+             ('g', 'color: red')])
+
+    def test_at_rules_skipped(self):
+        self.assertEqual(
+            simple_class_rules('@media print { .a { display: none } }'), [])
 
 
 if __name__ == '__main__':
