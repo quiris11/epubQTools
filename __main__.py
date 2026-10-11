@@ -235,6 +235,12 @@ class Logger(object):
         pass 
 
 
+def skip_output_dirs(root, dirs, skip=(mohDir, tmpSend2KindDir)):
+    """Don't let os.walk descend into the tool's own output folders."""
+    if root == uni_dir:
+        dirs[:] = [d for d in dirs if d not in skip]
+
+
 def _stage_moh_epub(src_path, dest_dir, stats):
     """
     Copy one '..._moh.epub' file into the (already-created, already-empty)
@@ -318,6 +324,7 @@ def main():
         print('')
         counter = 0
         for root, dirs, files in os.walk(uni_dir):
+            skip_output_dirs(root, dirs)
             for f in files:
                 if f.lower().endswith('.epub') and not f.lower().endswith(
                         '_moh.epub'):
@@ -331,6 +338,7 @@ def main():
             ind_nr = None
         counter = 0
         for root, dirs, files in os.walk(uni_dir):
+            skip_output_dirs(root, dirs)
             for f in files:
                 if f.lower().endswith('.epub') and not f.lower().endswith(
                         '_moh.epub'):
@@ -365,6 +373,7 @@ def main():
             rename_files(opf_path, ind_root, epbzf, ind_file, fdec)
         else:
             for root, dirs, files in os.walk(uni_dir):
+                skip_output_dirs(root, dirs)
                 for f in files:
                     fdec = f
                     if f.lower().endswith('.epub') and not f.lower().endswith(
@@ -396,9 +405,11 @@ def main():
         if args.mod:
             fe = '_moh.epub'
             nfe = '_org.epub'
+            out_skip = (tmpSend2KindDir,)
         else:
             fe = '.epub'
             nfe = '_moh.epub'
+            out_skip = (mohDir, tmpSend2KindDir)
         counter = 0
         if ind_file:
             counter += 1
@@ -406,6 +417,7 @@ def main():
                    args.skip_font_mime, args.skip_css_warnings)
         else:
             for root, dirs, files in os.walk(uni_dir):
+                skip_output_dirs(root, dirs, out_skip)
                 for f in files:
                     if f.lower().endswith(fe) and not f.lower().endswith(nfe):
                         counter += 1
@@ -474,9 +486,11 @@ def main():
         if args.mod:
             fe = '_moh.epub'
             nfe = '_org.epub'
+            out_skip = (tmpSend2KindDir,)
         else:
             fe = '.epub'
             nfe = '_moh.epub'
+            out_skip = (mohDir, tmpSend2KindDir)
         counter = 0
 
         if ind_file:
@@ -488,6 +502,7 @@ def main():
                 print('File "%s" not found...' % ind_file_m)
         else:
             for root, dirs, files in os.walk(uni_dir):
+                skip_output_dirs(root, dirs, out_skip)
                 for f in files:
                     if f.lower().endswith(fe) and not f.lower().endswith(nfe):
                         counter += 1
@@ -516,6 +531,7 @@ def main():
                  args.skip_hyphenate_headers, args.replace_font_family)
         else:
             for root, dirs, files in os.walk(uni_dir):
+                skip_output_dirs(root, dirs)
                 for f in files:
                     if (f.lower().endswith('.epub') and
                             not f.lower().endswith('_moh.epub') and
@@ -596,6 +612,7 @@ def main():
                     cover_html_found, error_found)
         else:
             for root, dirs, files in os.walk(uni_dir):
+                skip_output_dirs(root, dirs, (tmpSend2KindDir,))
                 for f in files:
                     cover_html_found = error_found = False
                     if f.lower().endswith('_moh.epub'):
@@ -625,7 +642,7 @@ def main():
 
             for root, dirs, files in os.walk(uni_dir):
                 # don't descend into the staging folder itself
-                dirs[:] = [d for d in dirs if d != tmpSend2KindDir]
+                skip_output_dirs(root, dirs, (tmpSend2KindDir,))
                 for f in files:
                     if f.lower().endswith('_moh.epub'):
                         _stage_moh_epub(os.path.join(root, f), dest_dir, stats)
