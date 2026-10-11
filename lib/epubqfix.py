@@ -69,9 +69,10 @@ else:
 MY_LANGUAGE = 'pl'
 MY_LANGUAGE2 = 'pl-PL'
 HYPHEN_MARK = '\u00AD'
-FONT_SIZE_1PX_RE = re.compile(
-    r'font-size\s*:\s*1px\s*!important', re.IGNORECASE)
 HIDDEN_DIV_TEXT_RE = re.compile(r'[A-Za-z0-9_-]+')
+# a font size that makes a text invisible (0 or at most 1px or 1pt)
+TINY_FONT_SIZE_RE = re.compile(
+    r'0+(?:\.0*)?(?:[a-z]+|%)?|(?:0*\.\d+|0*1(?:\.0*)?)(?:px|pt)')
 
 HOME = os.path.expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
@@ -1931,36 +1932,77 @@ def convert_dl_to_ul(opftree, rootepubdir):
             f.write(raw)
 
 
-def remove_trailing_wm_div(xhtree, hidden_names, file_name):
-    """Remove a hidden div (font-size: 1px) from the end of <body>. Its text
-    is a class name in CSS files - it is added to hidden_names, to remove the
-    class rules later."""
+def is_hiding_style(style):
+    """True if the inline style makes the text invisible: font size of at
+    most 1px, display: none or visibility: hidden."""
+    for declaration in style.split(';'):
+        prop, _, value = declaration.partition(':')
+        prop = prop.strip().lower()
+        value = re.sub(r'\s*!\s*important\s*$', '', value.strip().lower(),
+                       flags=re.IGNORECASE)
+        if ((prop == 'font-size' and TINY_FONT_SIZE_RE.fullmatch(value)) or
+                (prop == 'display' and value == 'none') or
+                (prop == 'visibility' and value == 'hidden')):
+            return True
+    return False
+
+
+def remove_trailing_wm_div(xhtree, hidden_names, hidden_classes, file_name):
+    """Remove a hidden div from the end of <body>. Its text is a class name
+    in CSS files - it is added to hidden_names, to remove the class rules
+    later. The class attributes of the div are added to hidden_classes.
+
+    The div has style "font-size: 1px !important" (the text does not
+    matter), or another hiding style and a text that looks like a class
+    name (a <p> or a <span> is fine too)."""
     for body in xhtree.xpath('//xhtml:body', namespaces=XHTMLNS):
         children = list(body)
         if not children:
             continue
         last = children[-1]
-        is_div = etree.QName(last).localname == 'div'
+        if not isinstance(last.tag, str):
+            continue
+        tag = etree.QName(last).localname
         style = (last.get('style') or '').strip()
-        style_matches = bool(FONT_SIZE_1PX_RE.search(style))
         style_stripped = re.sub(r'\s+', '', style).rstrip(';')
-        style_is_minimal = style_stripped.lower() in (
-            'font-size:1px!important',
-        )
+        style_is_minimal = (tag == 'div' and style_stripped.lower() ==
+                            'font-size:1px!important')
         tail_is_empty = not (last.tail and last.tail.strip())
+        # the text may be hyphenated already
+        text = ''.join(last.itertext()).replace(HYPHEN_MARK, '').strip()
+        looks_like_name = (len(text) >= 8 and
+                           bool(HIDDEN_DIV_TEXT_RE.fullmatch(text)))
 
-        if is_div and style_matches and style_is_minimal and tail_is_empty:
-            # the text may be hyphenated already
-            text = ''.join(last.itertext()).replace(HYPHEN_MARK, '').strip()
-            if HIDDEN_DIV_TEXT_RE.fullmatch(text):
-                hidden_names.add(text)
-                decoded = decode_b64_name(text)
-                print('* Removed hidden div from "%s": %s%s' %
-                      (file_name, text,
-                       ' -> ' + decoded if decoded is not None else ''))
-            else:
-                print('* Removed hidden div from "%s"' % file_name)
-            remove_node(last)
+        if not tail_is_empty or not (
+                style_is_minimal or
+                (tag in ('div', 'p', 'span') and not len(last) and
+                 looks_like_name and is_hiding_style(style))):
+            continue
+        if looks_like_name:
+            hidden_names.add(text)
+            decoded = decode_b64_name(text)
+            print('* Removed hidden div from "%s": %s%s' %
+                  (file_name, text,
+                   ' -> ' + decoded if decoded is not None else ''))
+        else:
+            print('* Removed hidden div from "%s"' % file_name)
+        hidden_classes.update((last.get('class') or '').split())
+        remove_node(last)
+
+
+def used_classes(xhtml_files):
+    """Class names used in the XHTML files, or None if a file can't be
+    read."""
+    classes = set()
+    for xhfile in xhtml_files:
+        try:
+            tree = etree.parse(xhfile)
+        except (IOError, etree.XMLSyntaxError):
+            return None
+        for el in tree.iter():
+            if isinstance(el.tag, str):
+                classes.update((el.get('class') or '').split())
+    return classes
 
 
 def remove_wm_info(opftree, rootepubdir):
@@ -2011,7 +2053,7 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
 
 def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                        is_reset_css, opf_dir_abs, is_xml_ext_fixed, book_lang,
-                       dont_hyph_headers, hidden_names):
+                       dont_hyph_headers, hidden_names, hidden_classes):
     global qfixerr
     try:
         with open(xhfile, 'r', encoding='utf-8') as content_file:
@@ -2125,7 +2167,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
             remove_node(parent)
 
     # new wm: div font-size:1px !important at the and of <body>
-    remove_trailing_wm_div(xhtree, hidden_names,
+    remove_trailing_wm_div(xhtree, hidden_names, hidden_classes,
                            os.path.relpath(xhfile, opf_dir_abs))
     
     # remove meta charsets
@@ -2288,10 +2330,12 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         if dont_hyph_headers:
             print('* ... except headers...')
     hidden_names = set()
+    hidden_classes = set()
     for s in _xhtml_files:
         process_xhtml_file(s, opftree, link_reset_css, skip_hyph, opf_dir_abs,
                            is_reset_css, opf_dir_abs, is_xml_ext_fixed,
-                           book_lang, dont_hyph_headers, hidden_names)
+                           book_lang, dont_hyph_headers, hidden_names,
+                           hidden_classes)
     opftree = remove_wm_info(opftree, opf_dir_abs)
     opftree = html_cover_first(opftree)
     opftree = fix_nav_in_cover_file(opftree, opf_dir_abs)
@@ -2306,7 +2350,15 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         print('* Replacing "text-align: justify" with "text-align: left" in '
               'all CSS files...')
         modify_css_align(opftree, opf_dir_abs, 'left', del_colors)
-    remove_hidden_div_classes(opftree, opf_dir_abs, hidden_names)
+    if hidden_classes:
+        # classes of the hidden divs not used by other elements
+        used = used_classes(_xhtml_files)
+        if used is not None:
+            hidden_classes -= used
+        else:
+            hidden_classes = set()
+    remove_hidden_div_classes(opftree, opf_dir_abs,
+                              hidden_names | hidden_classes)
     remove_hidden_div_texts_from_images(opftree, opf_dir_abs, hidden_names)
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'wb') as f:
