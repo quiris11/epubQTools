@@ -493,7 +493,14 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
         ncxstr = _epubfile.read(os.path.relpath(os.path.join(_folder,
                                 ncxfile)).replace('\\', '/'))
     except (IndexError, KeyError):
-        print('%sCRITICAL! NCX file is missing...' % (_file_dec))
+        if opftree.xpath('//opf:package[starts-with(@version, "3")]'
+                         '/opf:manifest/opf:item[contains(concat(" ", '
+                         'normalize-space(@properties), " "), " nav ")]',
+                         namespaces=OPFNS):
+            print('%sWARNING! NCX file is missing (valid in EPUB 3; -e '
+                  'generates it from the navigation document)' % _file_dec)
+        else:
+            print('%sCRITICAL! NCX file is missing...' % (_file_dec))
         ncxstr = '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" />'
     try:
         ncxtree = etree.fromstring(ncxstr)
