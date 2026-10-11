@@ -327,6 +327,37 @@ def find_original_files():
     return found
 
 
+# Polish alphabet order: "ą" after "a", "ł" after "l", "ż" after "ź" etc.
+PL_ALPHABET = 'aąbcćdeęfghijklłmnńoópqrsśtuvwxyzźż'
+PL_ORDER = {c: i for i, c in enumerate(PL_ALPHABET)}
+
+
+def pl_sort_key(text):
+    """Case-insensitive sort key in Polish alphabet order. Non-letters go
+    before letters, other accented letters right after their base letter."""
+    key = []
+    for c in text.casefold():
+        base = unicodedata.normalize('NFD', c)[0]
+        if c in PL_ORDER:
+            key.append((1, PL_ORDER[c], 0))
+        elif base in PL_ORDER:
+            key.append((1, PL_ORDER[base], ord(c)))
+        else:
+            key.append((0, ord(c), 0))
+    return key, text
+
+
+def individual_files():
+    """find_original_files() sorted alphabetically: files from the given
+    directory first, then subfolders. -i NR numbers files in this order."""
+    def key(found):
+        rel_dir = os.path.relpath(found[0], uni_dir)
+        parts = [] if rel_dir == os.curdir else rel_dir.split(os.sep)
+        return ([pl_sort_key(p) for p in parts],
+                pl_sort_key(os.path.splitext(found[1])[0]))
+    return sorted(find_original_files(), key=key)
+
+
 def find_moh_files():
     """(root, file) of the _moh.epub files made by -e, only from 'MOH'. Old
     results are skipped with a warning: next to the originals, and in the
@@ -449,30 +480,29 @@ def main():
         print('')
         print_header('Listing EPUB files for individual mode')
         print('')
-        counter = 0
-        for root, dirs, files in os.walk(uni_dir):
-            skip_output_dirs(root, dirs)
-            for f in files:
-                if f.lower().endswith('.epub') and not f.lower().endswith(
-                        '_moh.epub'):
-                    print(counter, os.path.join(root, f))
-                    counter += 1
+        files = individual_files()
+        print('Directory: ' + os.path.abspath(uni_dir))
+        print('')
+        width = len(str(len(files) - 1))
+        last_dir = None
+        for nr, (root, f) in enumerate(files):
+            rel_dir = os.path.relpath(root, uni_dir)
+            if rel_dir != last_dir and rel_dir != os.curdir:
+                print('')
+                print('[' + rel_dir + ']')
+            last_dir = rel_dir
+            print('  %*d  %s' % (width, nr, f))
+        print('')
+        print('%d file(s). Process one with: -i NR' % len(files))
         return 0
     elif args.individual != 'nonr' and args.individual is not None:
         try:
             ind_nr = int(args.individual)
         except ValueError:
             ind_nr = None
-        counter = 0
-        for root, dirs, files in os.walk(uni_dir):
-            skip_output_dirs(root, dirs)
-            for f in files:
-                if f.lower().endswith('.epub') and not f.lower().endswith(
-                        '_moh.epub'):
-                    if counter == ind_nr:
-                        ind_file = f
-                        ind_root = root
-                    counter += 1
+        files = individual_files()
+        if ind_nr is not None and 0 <= ind_nr < len(files):
+            ind_root, ind_file = files[ind_nr]
         if ind_file is None:
             # without this the code below falls back to processing ALL files
             print('! ERROR! File number "%s" not found. Use -i without '

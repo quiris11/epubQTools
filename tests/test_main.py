@@ -34,8 +34,23 @@ class CommandLineTest(unittest.TestCase):
             with self.subTest(args):
                 result = self.run_eqt(*args)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn('1 ' + os.path.join(self.dir, ''),
-                              result.stdout)
+                self.assertIn('[b]\n  1  x.epub', result.stdout)
+
+    def test_individual_list_alphabetical(self):
+        for name in ('Żak.epub', 'zebra.epub', 'Łoś.epub', 'lis.epub',
+                     'Ala.epub', 'Ala 2.epub'):
+            open(os.path.join(self.dir, name), 'wb').close()
+        result = self.run_eqt('-i', self.dir)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        listed = [line.split(None, 1)[1] for line in
+                  result.stdout.splitlines()
+                  if line.startswith('  ') and line.split()[0].isdigit()]
+        self.assertEqual(listed, ['Ala.epub', 'Ala 2.epub', 'lis.epub',
+                                  'Łoś.epub', 'zebra.epub', 'Żak.epub',
+                                  'x.epub', 'x.epub'])
+        self.assertIn('[a]\n  6  x.epub\n\n[b]\n  7  x.epub',
+                      result.stdout)
+        self.assertIn('8 file(s)', result.stdout)
 
     def test_log_or_tools_without_value_before_directory(self):
         logs = tempfile.mkdtemp(prefix='eqt-logs-')
@@ -49,8 +64,7 @@ class CommandLineTest(unittest.TestCase):
             with self.subTest(args):
                 result = self.run_eqt(*args)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn('1 ' + os.path.join(self.dir, ''),
-                              result.stdout)
+                self.assertIn('[b]\n  1  x.epub', result.stdout)
                 for d in (self.dir, logs):
                     found = [f for f in os.listdir(d) if f.endswith('.log')]
                     self.assertEqual(len(found), d == log_dir, d)
