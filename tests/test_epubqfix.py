@@ -11,7 +11,8 @@ import zlib
 
 from lxml import etree
 
-from lib.epubqfix import (ClassStyles, decode_b64_name, find_file_in_dir,
+from lib.epubqfix import (ClassStyles, check_font, decode_b64_name,
+                          find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
                           split_extra_cover_images,
                           image_data_end, is_hiding_style,
@@ -224,6 +225,18 @@ def ttf_with_postscript_name(ps_name):
     return (b'\x00\x01\x00\x00' + struct.pack('>HHHH', 1, 16, 0, 0) +
             struct.pack('>4sIII', b'name', 0, 28, len(name)) + name)
 
+
+class CheckFontTest(unittest.TestCase):
+
+    def test_signatures(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'font')
+            for signature, expected in ((b'\x00\x01\x00\x00', True),
+                                        (b'OTTO', True), (b'ttcf', True),
+                                        (b'\x12\x34\x56\x78', False)):
+                with open(path, 'wb') as f:
+                    f.write(signature + b'\x00' * 8)
+                self.assertEqual(check_font(path), (expected, signature))
 
 class FindFontByPostscriptNameTest(unittest.TestCase):
 

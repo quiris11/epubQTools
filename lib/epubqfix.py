@@ -285,7 +285,8 @@ def check_font(path):
     with open(path, 'rb') as f:
         raw = f.read()
     signature = raw[:4]
-    return (signature in {b'\x00\x01\x00\x00', b'OTTO'}, signature)
+    return (signature in {b'\x00\x01\x00\x00', b'OTTO', b'ttcf'},
+            signature)
 
 
 # based on calibri work
@@ -480,8 +481,8 @@ def find_font_by_postscript_name(file_name, directory, recursive):
 def find_font_file(file_name, fontdir):
     """Path of a font file named file_name (case-insensitive) or None.
     The user font directory (--font-dir) has priority, then user and system
-    font directories. When no file name matches, a font with a matching
-    PostScript name is searched for."""
+    font directories. When no file name matches, a TTF/OTF font with a
+    matching PostScript name is searched for (not for TTC collections)."""
     recursive = sys.platform.startswith('linux')
     dirs = [(fontdir, False)] if fontdir else []
     dirs += [(d, recursive) for d in system_font_dirs()]
@@ -489,6 +490,8 @@ def find_font_file(file_name, fontdir):
         found = find_file_in_dir(file_name, directory, rec)
         if found:
             return found
+    if file_name.lower().endswith('.ttc'):
+        return None
     for directory, rec in dirs:
         found = find_font_by_postscript_name(file_name, directory, rec)
         if found:
@@ -518,7 +521,7 @@ def decrypt_font(path, key, method, fontdir):
         print('FAILED!')
     else:
         print('OK! Decrypted.')
-    if not is_font and not ('.ttc' in path):
+    if not is_font:
         print('* Starting replace procedure for encrypted file "%s" with font'
               ' from system directory...' % os.path.basename(path), end=' ')
         substitute = find_font_file(os.path.basename(path), fontdir)

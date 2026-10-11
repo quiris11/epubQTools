@@ -51,7 +51,8 @@ def check_font(path):
     with open(path, 'rb') as f:
         raw = f.read()
     signature = raw[:4]
-    return (signature in {b'\x00\x01\x00\x00', b'OTTO'}, signature)
+    return (signature in {b'\x00\x01\x00\x00', b'OTTO', b'ttcf'},
+            signature)
 
 
 # based on calibri work
