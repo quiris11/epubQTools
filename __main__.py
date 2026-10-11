@@ -41,15 +41,23 @@ if not hasattr(sys, 'frozen'):
 else:
     q_cwd = os.path.join(os.getcwd(), os.path.dirname(sys.executable))
 
+# per-user folder with kindlegen and epubcheck zip
+if sys.platform == 'win32':
+    user_tools_dir = os.path.join(
+        os.environ.get('LOCALAPPDATA', os.path.expanduser('~')), __appname__)
+else:
+    user_tools_dir = os.path.join(
+        os.environ.get('XDG_DATA_HOME') or
+        os.path.join(os.path.expanduser('~'), '.local', 'share'), __appname__)
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-V', '--version', action='version',
                     version="%(prog)s (version " + __version__ + ")")
 parser.add_argument("directory", help="Directory with EPUB files stored")
-parser.add_argument("--tools", nargs='?',
-                    default=q_cwd, metavar="DIR",
+parser.add_argument("--tools", nargs='?', metavar="DIR",
                     help="path to additional tools: kindlegen, "
-                    "epubcheck zip")
+                    "epubcheck zip (default: " + user_tools_dir + ")")
 parser.add_argument('-l', '--log', nargs='?', metavar='DIR', const='1',
                     help='path to directory to write log file. If DIR is '
                     ' omitted write log to directory with epub files')
@@ -147,6 +155,10 @@ parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
                     help='Add left and right book margin to reset CSS file '
                     '(only with -e)')
 args = parser.parse_args()
+if not args.tools:
+    # the old default (next to the program) still works if the per-user
+    # folder was not created
+    args.tools = user_tools_dir if os.path.isdir(user_tools_dir) else q_cwd
 uni_dir = args.directory
 tmpSend2KindDir = 'TS2K'
 mohDir = 'MOH'

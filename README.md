@@ -7,6 +7,13 @@ Tools for checking, correcting and hyphenating EPUB files.
 * **kindlegen** (only unpacked binary is needed): http://www.amazon.com/kindleformat/kindlegen
 * **epubcheck (zip file)** (Java installed is required for run it): https://github.com/IDPF/epubcheck/releases
 
+Put both into the per-user tools folder (or point to another folder with `--tools DIR`):
+* Linux/macOS: `~/.local/share/epubQTools/` (`$XDG_DATA_HOME/epubQTools/` if set)
+* Windows: `%LOCALAPPDATA%\epubQTools\`
+
+If this folder does not exist, the folder next to the program is used (as in older versions).
+kindlegen is also looked up in `PATH`.
+
 
 ```
 usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]] [--author [Surname, First Name]] [--title [Title]]
@@ -21,7 +28,7 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   -V, --version         show program's version number and exit
-  --tools [DIR]         path to additional tools: kindlegen, epubcheck zip
+  --tools [DIR]         path to additional tools: kindlegen, epubcheck zip (default: ~/.local/share/epubQTools)
   -l, --log [DIR]       path to directory to write log file. If DIR is omitted write log to directory with epub files
   -i, --individual [NR]
                         individual file mode
