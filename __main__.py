@@ -929,27 +929,29 @@ def main():
                      'Send to Kindle')
         print('')
 
+        dest_dir = os.path.join(uni_dir, tmpSend2KindDir)
+
+        # Always start from a clean staging folder: wipe it if it exists,
+        # then recreate it empty.
+        shutil.rmtree(dest_dir, ignore_errors=True)
+        os.makedirs(dest_dir)
+
+        stats = {'copied': 0, 'missing': 0, 'renamed': 0}
+
         if ind_files:
-            print('* Not supported in individual file mode.')
+            moh_files = [(moh_dir_for(r), os.path.splitext(f)[0] + '_moh.epub')
+                         for r, f in ind_files]
         else:
-            dest_dir = os.path.join(uni_dir, tmpSend2KindDir)
+            moh_files = find_moh_files()
+        for root, f in moh_files:
+            _stage_moh_epub(os.path.join(root, f), dest_dir, stats)
 
-            # Always start from a clean staging folder: wipe it if it exists,
-            # then recreate it empty.
-            shutil.rmtree(dest_dir, ignore_errors=True)
-            os.makedirs(dest_dir)
-
-            stats = {'copied': 0, 'missing': 0, 'renamed': 0}
-
-            for root, f in find_moh_files():
-                _stage_moh_epub(os.path.join(root, f), dest_dir, stats)
-
-            if stats['copied'] == 0 and stats['missing'] == 0:
-                print('* NO MOH files for copy and rename found!')
-            else:
-                print(f'* Done: {stats["copied"]} file(s) copied '
-                      f'({stats["renamed"]} renamed to avoid a naming clash), '
-                      f'{stats["missing"]} skipped due to errors.')
+        if stats['copied'] == 0 and stats['missing'] == 0:
+            print('* NO MOH files for copy and rename found!')
+        else:
+            print(f'* Done: {stats["copied"]} file(s) copied '
+                  f'({stats["renamed"]} renamed to avoid a naming clash), '
+                  f'{stats["missing"]} skipped due to errors.')
 
     if len(sys.argv) == 2:
         parser.print_help()
