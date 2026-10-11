@@ -561,7 +561,10 @@ def main():
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 universal_newlines=True)
             jpout, jperr = jp.communicate()
-            if jperr:
+            # INFO messages (e.g. RSC-004 for obfuscated fonts) are not
+            # problems
+            if any(line.strip() and not line.startswith('INFO(')
+                   for line in jperr.splitlines()):
                 print(f + ': PROBLEMS FOUND...')
                 print('Details:')
                 print(jperr)
