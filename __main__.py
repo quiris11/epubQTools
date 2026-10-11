@@ -549,8 +549,9 @@ def find_moh_files():
 
 def _stage_moh_epub(src_path, dest_dir, stats):
     """
-    Copy one '..._moh.epub' file into the (already-created, already-empty)
-    staging folder, stripping the '_moh' marker from the name.
+    Copy one '..._moh.epub' file into the (already-created) staging folder,
+    stripping the '_moh' marker from the name. A file left there by an
+    earlier run is overwritten.
     """
     fname = os.path.basename(src_path)
 
@@ -567,13 +568,12 @@ def _stage_moh_epub(src_path, dest_dir, stats):
         new_name = new_name[:-len('_moh.epub')] + '.epub'
 
     dest_path = os.path.join(dest_dir, new_name)
-    if os.path.exists(dest_path):
-        # The folder starts empty every run, so this can only mean another
-        # source file already produced this same name earlier in this run.
+    if new_name in stats['staged']:
+        # Another source file already produced this same name in this run.
         # Don't overwrite it -- find a free "Title (2).epub" style name.
         base, ext = os.path.splitext(new_name)
         n = 2
-        while os.path.exists(os.path.join(dest_dir, f'{base} ({n}){ext}')):
+        while f'{base} ({n}){ext}' in stats['staged']:
             n += 1
         new_name = f'{base} ({n}){ext}'
         dest_path = os.path.join(dest_dir, new_name)
@@ -585,6 +585,7 @@ def _stage_moh_epub(src_path, dest_dir, stats):
         print(f'* Copy and rename: "{fname}" to: "{new_name}"')
         shutil.copy2(src_path, dest_path)
         stats['copied'] += 1
+        stats['staged'].add(new_name)
     except FileNotFoundError:
         print(f'! ERROR! "{fname}" not found or already renamed.')
         stats['missing'] += 1
@@ -813,10 +814,11 @@ def main():
         print('')
         print_header('Fixing with internal qfix tool')
         counter = 0
-        try:
-            shutil.rmtree(os.path.join(uni_dir, tmpSend2KindDir))
-        except FileNotFoundError:
-            pass
+        # In individual mode only the selected books are processed, so keep
+        # the files already staged in TS2K for the other books.
+        if not ind_files:
+            shutil.rmtree(os.path.join(uni_dir, tmpSend2KindDir),
+                          ignore_errors=True)
         if ind_files:
             for ind_root, ind_file in ind_files:
                 counter += 1
@@ -924,12 +926,14 @@ def main():
 
         dest_dir = os.path.join(uni_dir, tmpSend2KindDir)
 
-        # Always start from a clean staging folder: wipe it if it exists,
-        # then recreate it empty.
-        shutil.rmtree(dest_dir, ignore_errors=True)
-        os.makedirs(dest_dir)
+        # Start from a clean staging folder, except in individual mode: there
+        # only the selected books are staged, overwriting their old copies
+        # and keeping the files of the other books.
+        if not ind_files:
+            shutil.rmtree(dest_dir, ignore_errors=True)
+        os.makedirs(dest_dir, exist_ok=True)
 
-        stats = {'copied': 0, 'missing': 0, 'renamed': 0}
+        stats = {'copied': 0, 'missing': 0, 'renamed': 0, 'staged': set()}
 
         if ind_files:
             moh_files = [(moh_dir_for(r), os.path.splitext(f)[0] + '_moh.epub')

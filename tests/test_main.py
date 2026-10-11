@@ -127,6 +127,24 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(os.listdir(os.path.join(self.dir, 'TS2K')),
                          ['U.epub'])
 
+    def test_send_to_kindle_individual_keeps_other_files(self):
+        os.makedirs(os.path.join(self.dir, 'MOH', 'b'))
+        open(os.path.join(self.dir, 'b', 'A - U.epub'), 'wb').close()
+        with open(os.path.join(self.dir, 'MOH', 'b', 'A - U_moh.epub'),
+                  'wb') as f:
+            f.write(b'new')
+        os.makedirs(os.path.join(self.dir, 'TS2K'))
+        for name in ('T.epub', 'U.epub'):
+            with open(os.path.join(self.dir, 'TS2K', name), 'wb') as f:
+                f.write(b'old')
+        # 0 a/x.epub, 1 A - U.epub, 2 b/x.epub
+        result = self.run_eqt('-i', '1', '-t', self.dir)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        ts2k = os.path.join(self.dir, 'TS2K')
+        self.assertEqual(sorted(os.listdir(ts2k)), ['T.epub', 'U.epub'])
+        with open(os.path.join(ts2k, 'U.epub'), 'rb') as f:
+            self.assertEqual(f.read(), b'new')
+
     def test_missing_directory(self):
         result = self.run_eqt('-q')
         self.assertEqual(result.returncode, 2)
