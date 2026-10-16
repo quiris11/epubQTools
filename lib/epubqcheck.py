@@ -211,10 +211,10 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
 
     def check_orphan_files(epub, opftree, root, _file_dec):
         def is_exluded(name):
+            # files in META-INF belong to the container, not to the OPF
+            if name.startswith('META-INF/'):
+                return True
             excludes = ['mimetype',
-                        'META-INF/container.xml',
-                        'META-INF/com.apple.ibooks.display-options.xml',
-                        'META-INF/encryption.xml',
                         '/',
                         opf_path]
             for e in excludes:
@@ -247,7 +247,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
                     break
             if not found:
                 print('%sORPHAN file "%s" is NOT defined in OPF file'
-                      % (_file_dec, n.encode('utf-8')))
+                      % (_file_dec, n))
         return enc_found
 
     def check_dupl_ids_insensitive(tree):
