@@ -16,7 +16,8 @@ from lib.epubqfix import (ClassStyles, check_font, convert_ttc_fonts,
                           find_font_by_postscript_name, font_postscript_name,
                           split_extra_cover_images,
                           image_data_end, is_hiding_style,
-                          most_common, remove_thin_spaces_after_spaces,
+                          most_common, remove_orphan_refining_metas,
+                          remove_thin_spaces_after_spaces,
                           remove_trailing_hidden_div, strip_nav_aria_labels)
 
 XHTML = ('<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Text</p>%s'
@@ -331,3 +332,45 @@ class SplitExtraCoverImagesTest(unittest.TestCase):
         self.assertIsNone(split_extra_cover_images(
             imgs, etree.fromstring(self.OPF)))
         self.assertEqual(len(imgs), 2)
+
+
+class RemoveOrphanRefiningMetasTest(unittest.TestCase):
+    def test_removes_only_orphans(self):
+        opf = etree.fromstring(
+            '<package xmlns="http://www.idpf.org/2007/opf" '
+            'xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0">'
+            '<metadata><dc:creator id="c">A</dc:creator>'
+            '<dc:identifier id="i">978</dc:identifier>'
+            '<meta property="identifier-type">22</meta>'
+            '<meta property="role">bkd</meta>'
+            '<meta property="role" refines="#i">aut</meta>'
+            '<meta property="role" refines="#x">aut</meta>'
+            '<meta property="role" refines="#c">aut</meta>'
+            '<meta property="identifier-type" refines="#i">15</meta>'
+            '<meta property="file-as">B</meta>'
+            '</metadata></package>')
+        remove_orphan_refining_metas(opf)
+        metas = opf.findall('.//{http://www.idpf.org/2007/opf}meta')
+        self.assertEqual([(m.get('property'), m.get('refines'))
+                          for m in metas],
+                         [('role', '#c'), ('identifier-type', '#i'),
+                          ('file-as', None)])
+
+    def test_restores_contributor(self):
+        opf = etree.fromstring(
+            '<package xmlns="http://www.idpf.org/2007/opf" '
+            'xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0">'
+            '<metadata><dc:creator id="contrib1">A</dc:creator>'
+            '<meta property="identifier-type">22</meta>'
+            '<meta property="file-as">Kowalski, Jan</meta>'
+            '<meta property="role">bkd</meta>'
+            '</metadata></package>')
+        remove_orphan_refining_metas(opf)
+        self.assertEqual(
+            [(etree.QName(e).localname, e.get('id'), e.get('property'),
+              e.get('refines'), e.get('scheme'), e.text)
+             for e in opf[0]],
+            [('creator', 'contrib1', None, None, None, 'A'),
+             ('contributor', 'contrib2', None, None, None, 'Jan Kowalski'),
+             ('meta', None, 'file-as', '#contrib2', None, 'Kowalski, Jan'),
+             ('meta', None, 'role', '#contrib2', 'marc:relators', 'bkd')])

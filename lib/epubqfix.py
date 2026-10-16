@@ -1951,6 +1951,84 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             else:
                 i.text = 'urn:' + scheme.lower() + ':' + i.text
                 i.attrib.pop('{http://www.idpf.org/2007/opf}scheme')
+    return remove_orphan_refining_metas(soup)
+
+
+# EPUB 3 meta properties valid only as refinements of the given elements
+REFINING_PROPERTIES = {
+    'identifier-type': ('identifier', 'source'),
+    'role': ('creator', 'contributor', 'publisher'),
+    'title-type': ('title',),
+    'source-of': ('source',),
+    'collection-type': ('meta',),
+    'group-position': ('meta',),
+}
+
+
+def is_orphan_file_as(node):
+    return (node is not None and etree.QName(node).localname == 'meta' and
+            node.get('property') == 'file-as' and
+            node.get('refines') is None and (node.text or '').strip())
+
+
+def restore_orphan_contributor(soup, role):
+    """Rebuild a dc:contributor deleted together with its id, from an orphan
+    'role' meta and an orphan 'file-as' meta next to it ('Surname, First'),
+    e.g. 'Kowalski, Jan' + 'bkd'. Return True on success."""
+    file_as = role.getprevious()
+    if not is_orphan_file_as(file_as):
+        file_as = role.getnext()
+        if not is_orphan_file_as(file_as):
+            return False
+    sort_name = file_as.text.strip()
+    surname, _, first = sort_name.partition(',')
+    name = ' '.join(p for p in (first.strip(), surname.strip()) if p)
+    counter = 1
+    while soup.xpath('//*[@id=$id]', id='contrib%d' % counter):
+        counter += 1
+    cid = 'contrib%d' % counter
+    contributor = etree.Element('{http://purl.org/dc/elements/1.1/}'
+                                'contributor', attrib={'id': cid})
+    contributor.text = name
+    first_meta = file_as if file_as.getnext() is role else role
+    previous = first_meta.getprevious()
+    contributor.tail = (previous.tail if previous is not None else
+                        first_meta.tail)
+    first_meta.addprevious(contributor)
+    for meta in (file_as, role):
+        meta.set('refines', '#' + cid)
+    if role.get('scheme') is None:
+        role.set('scheme', 'marc:relators')
+    print('* Restoring orphan contributor: %s (%s)' %
+          (name, (role.text or '').strip()))
+    return True
+
+
+def remove_orphan_refining_metas(soup):
+    """Remove EPUB 3 metas like 'role' or 'identifier-type' that refine
+    nothing or an element of a wrong kind (epubcheck RSC-005), e.g. leftovers
+    of a deleted dc:contributor. A contributor is restored instead when its
+    orphan 'role' and 'file-as' metas are both left."""
+    for meta in soup.xpath('//opf:metadata/opf:meta[@property]',
+                           namespaces=OPFNS):
+        allowed = REFINING_PROPERTIES.get(meta.get('property'))
+        if allowed is None:
+            continue
+        if (meta.get('property') == 'role' and meta.get('refines') is None
+                and restore_orphan_contributor(soup, meta)):
+            continue
+        refines = meta.get('refines', '')
+        target = None
+        if refines.startswith('#'):
+            found = soup.xpath('//opf:metadata/*[@id=$id]',
+                               namespaces=OPFNS, id=refines[1:])
+            target = found[0] if found else None
+        if (target is not None and
+                etree.QName(target).localname in allowed):
+            continue
+        print('* Removing orphan meta property="%s": %s' %
+              (meta.get('property'), (meta.text or '').strip()))
+        remove_node(meta)
     return soup
 
 
