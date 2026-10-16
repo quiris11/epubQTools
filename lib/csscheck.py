@@ -545,6 +545,72 @@ def remove_page_descriptors(css_text):
     return css_text, len(edits)
 
 
+def _one_edit_apart(a, b):
+    """True if b is a with one letter changed, added, removed or two
+    neighbouring letters swapped."""
+    if a == b or abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        diff = [i for i in range(len(a)) if a[i] != b[i]]
+        return len(diff) == 1 or (
+            len(diff) == 2 and diff[1] == diff[0] + 1 and
+            a[diff[0]] == b[diff[1]] and a[diff[1]] == b[diff[0]])
+    if len(a) > len(b):
+        a, b = b, a
+    return any(b[:i] + b[i + 1:] == a for i in range(len(b)))
+
+
+def property_typo_fix(name):
+    """The known property an unknown property name is a typo of (e.g.
+    "magrin-top" -> "margin-top"), or None if there is no single one."""
+    name = name.lower()
+    if name.startswith('-') or name in KNOWN_PROPERTIES or len(name) < 5:
+        return None
+    matches = [p for p in KNOWN_PROPERTIES if _one_edit_apart(name, p)]
+    return matches[0] if len(matches) == 1 else None
+
+
+def fix_property_typos(css_text):
+    """Correct typos in property names (e.g. "magrin-top"), which make
+    readers drop the declarations, also in nested rules and @media. Returns
+    the new text and a list of (typo, fix)."""
+    line_starts = [0] + [m.end() for m in
+                         re.finditer(r'\r\n|[\r\n\f]', css_text)]
+    edits = []
+
+    def fix_declarations(content):
+        for d in tinycss2.parse_blocks_contents(
+                content, skip_whitespace=True, skip_comments=True):
+            if isinstance(d, QualifiedRule):
+                fix_declarations(d.content)
+                continue
+            if isinstance(d, AtRule):
+                if (d.lower_at_keyword in ('media', 'supports') and
+                        d.content is not None):
+                    fix_declarations(d.content)
+                continue
+            if not isinstance(d, Declaration):
+                continue
+            fix = property_typo_fix(d.name)
+            if fix is None:
+                continue
+            start = line_starts[d.source_line - 1] + d.source_column - 1
+            # make sure the position is right
+            if css_text.startswith(d.name, start):
+                edits.append((start, d.name, fix))
+
+    for rule in tinycss2.parse_stylesheet(css_text, skip_whitespace=True,
+                                          skip_comments=True):
+        if isinstance(rule, QualifiedRule):
+            fix_declarations(rule.content)
+        elif (isinstance(rule, AtRule) and rule.content is not None and
+              rule.lower_at_keyword in ('media', 'supports')):
+            fix_declarations(rule.content)
+    for start, name, fix in sorted(edits, reverse=True):
+        css_text = css_text[:start] + fix + css_text[start + len(name):]
+    return css_text, [(name, fix) for start, name, fix in sorted(edits)]
+
+
 def _skip_special(text, i):
     """If text[i] starts a comment, a string, an escape or an unquoted URL,
     the index just after it, else None."""

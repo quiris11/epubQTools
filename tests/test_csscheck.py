@@ -8,7 +8,7 @@ import io
 import unittest
 
 from lib.csscheck import (check_css, class_rules, fix_missing_semicolons,
-                          fix_unusual_spaces, remove_class_rules,
+                          fix_property_typos, fix_unusual_spaces, remove_class_rules,
                           remove_page_descriptors)
 
 NBSP = ' '
@@ -209,3 +209,20 @@ class ClassRulesTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class FixPropertyTyposTest(unittest.TestCase):
+    def test_typos(self):
+        self.assertEqual(
+            fix_property_typos('.a { magrin-top: 0.5em }\n@media screen { p '
+                               '{ text-algin: center; colour: red; widht: 1em } }'),
+            ('.a { margin-top: 0.5em }\n@media screen { p '
+             '{ text-align: center; color: red; width: 1em } }',
+             [('magrin-top', 'margin-top'), ('text-algin', 'text-align'),
+              ('colour', 'color'), ('widht', 'width')]))
+
+    def test_left_alone(self):
+        # known, vendor, too short, too far and inside @font-face
+        css = ('p { margin: 0; -webkit-foo: 1; colr: red; xyzzy-top: 0 }'
+               '@font-face { font-famliy: X }')
+        self.assertEqual(fix_property_typos(css), (css, []))
