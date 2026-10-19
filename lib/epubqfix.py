@@ -2605,6 +2605,55 @@ def remove_jacket(opftree, rootepubdir):
     return opftree
 
 
+def is_wolnelektury_book(opftree):
+    publishers = opftree.xpath('//dc:publisher/text()', namespaces=DCNS)
+    identifiers = opftree.xpath('//dc:identifier/text()', namespaces=DCNS)
+    return (any('Wolne Lektury' in p for p in publishers) or
+            any('wolnelektury.pl' in i for i in identifiers))
+
+
+def is_fundraising_page(xhtree):
+    """All texts of the body are inside the "fundraising" divs."""
+    fund_divs = xhtree.xpath(
+        '//xhtml:body//xhtml:div[contains(concat(" ", normalize-space('
+        '@class), " "), " fundraising ")]', namespaces=XHTMLNS)
+    if not fund_divs:
+        return False
+    for text in xhtree.xpath('//xhtml:body//text()', namespaces=XHTMLNS):
+        if text.strip() and not any(
+            d is text.getparent() or d in text.getparent().iterancestors()
+            for d in fund_divs
+        ):
+            return False
+    return True
+
+
+def remove_fundraising_pages(opftree, rootepubdir):
+    """Remove the fundraising pages inserted between the chapters of the
+    Wolne Lektury books."""
+    if not is_wolnelektury_book(opftree):
+        return opftree, False
+    removed = []
+    items = opftree.xpath('//opf:item[@media-type="application/xhtml+xml"]',
+                          namespaces=OPFNS)
+    for i in items:
+        try:
+            xhtree = etree.parse(os.path.join(rootepubdir, i.get('href')))
+        except (IOError, etree.XMLSyntaxError):
+            continue
+        if is_fundraising_page(xhtree):
+            remove_file_from_epub(i.get('href'), opftree, rootepubdir)
+            removed.append(i.get('href'))
+    if removed:
+        print('* Removed %d Wolne Lektury fundraising %s: %s' %
+              (len(removed), 'page' if len(removed) == 1 else 'pages',
+               ', '.join(removed)))
+    else:
+        print('! WARNING! Wolne Lektury book without fundraising pages '
+              '(div.fundraising), check if their markup has changed.')
+    return opftree, bool(removed)
+
+
 def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
     item = opftree.xpath('//opf:item[@href="' + file_rel_to_opf + '"]',
                          namespaces=OPFNS)[0]
@@ -2890,6 +2939,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         is_reset_css = False
         link_reset_css = False
     opftree = remove_jacket(opftree, opf_dir_abs)
+    opftree, is_fund_removed = remove_fundraising_pages(opftree, opf_dir_abs)
     _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
     opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
                            _xhtml_file_paths)
@@ -2934,6 +2984,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     # and of the removed reset spans, not used by other elements
     extra_classes = (hidden_classes | (image_names - hidden_names) |
                      set(MARKED_CLASSES))
+    if is_fund_removed:
+        extra_classes.add('fundraising')
     if extra_classes:
         used = used_classes(_xhtml_files)
         if used is not None:

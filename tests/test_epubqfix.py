@@ -15,8 +15,8 @@ from lib.epubqfix import (ClassStyles, check_font, convert_ttc_fonts,
                           decode_b64_name, find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
                           split_extra_cover_images,
-                          image_data_end, is_hiding_style,
-                          most_common, remove_orphan_refining_metas,
+                          image_data_end, is_fundraising_page,
+                          is_hiding_style, is_wolnelektury_book, most_common, remove_orphan_refining_metas,
                           remove_thin_spaces_after_spaces,
                           remove_trailing_hidden_div, strip_nav_aria_labels)
 
@@ -374,3 +374,34 @@ class RemoveOrphanRefiningMetasTest(unittest.TestCase):
              ('contributor', 'contrib2', None, None, None, 'Jan Kowalski'),
              ('meta', None, 'file-as', '#contrib2', None, 'Kowalski, Jan'),
              ('meta', None, 'role', '#contrib2', 'marc:relators', 'bkd')])
+
+
+class WolneLekturyFundraisingTest(unittest.TestCase):
+    OPF = ('<package xmlns="http://www.idpf.org/2007/opf"><metadata '
+           'xmlns:dc="http://purl.org/dc/elements/1.1/">%s</metadata>'
+           '</package>')
+    PAGE = ('<html xmlns="http://www.w3.org/1999/xhtml"><body>'
+            '<div id="book-text">%s</div></body></html>')
+
+    def test_is_wolnelektury_book(self):
+        for meta, expected in (
+            ('<dc:publisher>Fundacja Wolne Lektury</dc:publisher>', True),
+            ('<dc:identifier>https://wolnelektury.pl/katalog/lektura/x/'
+             '</dc:identifier>', True),
+            ('<dc:publisher>Other</dc:publisher>', False),
+        ):
+            with self.subTest(meta):
+                tree = etree.fromstring(self.OPF % meta).getroottree()
+                self.assertEqual(is_wolnelektury_book(tree), expected)
+
+    def test_is_fundraising_page(self):
+        for content, expected in (
+            ('<div class="fundraising"><div><p>Wesprzyj <a href="x">nas</a>'
+             '</p></div></div>', True),
+            ('<div class="fundraising"><p>Wesprzyj</p></div><p>Text</p>',
+             False),
+            ('<p>Text</p>', False),
+        ):
+            with self.subTest(content):
+                tree = etree.fromstring(self.PAGE % content).getroottree()
+                self.assertEqual(is_fundraising_page(tree), expected)
