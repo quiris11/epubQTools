@@ -16,7 +16,8 @@ from lib.epubqfix import (ClassStyles, check_font, convert_ttc_fonts,
                           find_font_by_postscript_name, font_postscript_name,
                           split_extra_cover_images,
                           image_data_end, is_fundraising_page,
-                          is_hiding_style, is_wolnelektury_book, most_common, remove_orphan_refining_metas,
+                          is_hiding_style, is_support_page,
+                          is_wolnelektury_book, most_common, resolve_href, remove_orphan_refining_metas,
                           remove_thin_spaces_after_spaces,
                           remove_trailing_hidden_div, strip_nav_aria_labels)
 
@@ -405,3 +406,20 @@ class WolneLekturyFundraisingTest(unittest.TestCase):
             with self.subTest(content):
                 tree = etree.fromstring(self.PAGE % content).getroottree()
                 self.assertEqual(is_fundraising_page(tree), expected)
+
+    def test_is_support_page(self):
+        for content, expected in (
+            ('<p><img src="jedenprocent.png" alt="Logo 1%"/></p>', True),
+            ('<p><img src="../img/jedenprocent.png"/></p>', True),
+            ('<h2>Wesprzyj Wolne Lektury!</h2><img src="logo.png"/>',
+             False),
+        ):
+            with self.subTest(content):
+                tree = etree.fromstring(self.PAGE % content).getroottree()
+                self.assertEqual(is_support_page(tree), expected)
+
+    def test_resolve_href(self):
+        self.assertEqual(resolve_href('text/nav.xhtml', '../a%20b.xhtml#x'),
+                         'a b.xhtml')
+        self.assertEqual(resolve_href('nav.xhtml', 'support.xhtml'),
+                         'support.xhtml')

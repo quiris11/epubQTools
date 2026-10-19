@@ -2628,9 +2628,89 @@ def is_fundraising_page(xhtree):
     return True
 
 
+def is_support_page(xhtree):
+    """The "Wesprzyj Wolne Lektury!" page at the end of the book, with the
+    logo of the 1% tax donation."""
+    return any(
+        posixpath.basename(unquote(img.get('src'))) == 'jedenprocent.png'
+        for img in xhtree.xpath('//xhtml:body//xhtml:img[@src]',
+                                namespaces=XHTMLNS)
+    )
+
+
+def resolve_href(base_href, link):
+    """Path relative to the OPF of the link from the file base_href."""
+    return posixpath.normpath(posixpath.join(
+        posixpath.dirname(base_href), unquote(link.split('#')[0])))
+
+
+def remove_toc_entries(href, opftree, rootepubdir):
+    """Remove the entries of the file from the NCX and the EPUB 3
+    navigation document."""
+    tocs = opftree.xpath('//opf:item[@media-type="application/x-dtbncx+xml"]',
+                         namespaces=OPFNS)
+    nav_item = find_epub3_nav_item(opftree)
+    if nav_item is not None:
+        tocs.append(nav_item)
+    for toc in tocs:
+        toc_path = os.path.join(rootepubdir, toc.get('href'))
+        try:
+            toctree = etree.parse(toc_path)
+        except (IOError, etree.XMLSyntaxError):
+            continue
+        if toc is nav_item:
+            entries = [
+                a.getparent() for a in
+                toctree.xpath('//xhtml:nav//xhtml:li/xhtml:a[@href]',
+                              namespaces=XHTMLNS)
+                if resolve_href(toc.get('href'), a.get('href')) == href
+            ]
+        else:
+            entries = [
+                c.getparent() for c in
+                toctree.xpath('//ncx:navPoint/ncx:content[@src]',
+                              namespaces=NCXNS)
+                if resolve_href(toc.get('href'), c.get('src')) == href
+            ]
+        if not entries:
+            continue
+        for e in entries:
+            e.getparent().remove(e)
+        with open(toc_path, 'wb') as f:
+            f.write(etree.tostring(toctree, pretty_print=True,
+                                   xml_declaration=True, encoding='utf-8'))
+
+
+def remove_support_page(href, xhtree, opftree, rootepubdir):
+    imgs = {resolve_href(href, img.get('src')) for img in
+            xhtree.xpath('//xhtml:img[@src]', namespaces=XHTMLNS)}
+    remove_toc_entries(href, opftree, rootepubdir)
+    remove_file_from_epub(href, opftree, rootepubdir)
+    # images used only by the removed page
+    for item in opftree.xpath('//opf:item[@media-type="application/xhtml+xml"'
+                              ' or @media-type="text/css"]',
+                              namespaces=OPFNS):
+        try:
+            with open(os.path.join(rootepubdir, item.get('href')), 'r',
+                      encoding='utf-8') as f:
+                text = f.read()
+        except (IOError, UnicodeDecodeError):
+            imgs = set()
+            break
+        imgs = {i for i in imgs if posixpath.basename(i) not in text}
+    removed_imgs = []
+    for img in sorted(imgs):
+        if opftree.xpath('//opf:item[@href=$h]', h=img, namespaces=OPFNS):
+            remove_file_from_epub(img, opftree, rootepubdir)
+            removed_imgs.append(img)
+    print('* Removed Wolne Lektury support page: %s%s' %
+          (href, ' (with %s)' % ', '.join(removed_imgs)
+           if removed_imgs else ''))
+
+
 def remove_fundraising_pages(opftree, rootepubdir):
     """Remove the fundraising pages inserted between the chapters of the
-    Wolne Lektury books."""
+    Wolne Lektury books and the support page at the end."""
     if not is_wolnelektury_book(opftree):
         return opftree, False
     removed = []
@@ -2644,6 +2724,8 @@ def remove_fundraising_pages(opftree, rootepubdir):
         if is_fundraising_page(xhtree):
             remove_file_from_epub(i.get('href'), opftree, rootepubdir)
             removed.append(i.get('href'))
+        elif is_support_page(xhtree):
+            remove_support_page(i.get('href'), xhtree, opftree, rootepubdir)
     if removed:
         print('* Removed %d Wolne Lektury fundraising %s: %s' %
               (len(removed), 'page' if len(removed) == 1 else 'pages',
