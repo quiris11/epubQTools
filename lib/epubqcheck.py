@@ -546,7 +546,7 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
         print(_file_dec + 'dtb:uid not properly defined')
 
     # Check for duplicated content attribute of navPoints in NCX file
-    srcs = etree.XPath('//ncx:content/@src',
+    srcs = etree.XPath('//ncx:navPoint/ncx:content/@src',
                        namespaces=NCXNS)(ncxtree)
     seen = set()
     dupl = []
