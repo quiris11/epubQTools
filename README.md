@@ -80,7 +80,8 @@ Books without a page list (no NCX `pageList`, no nav `page-list`, no `pagebreak`
 a list of approximate pages: empty `<span id="eqt_page_N"></span>` markers in the text, a
 `pageList` in the NCX and, in EPUB 3, a hidden `<nav epub:type="page-list">`. Every spine file
 starts a new page; a block (paragraph, heading, list item...) takes ceil(chars / 68) lines and a
-page has 29 lines (calibrated on Polish books with print page numbers, average error ~8%).
+page has 29 lines (calibrated on Polish books with print page numbers, average error ~15% per
+book, systematic error under 4%).
 Send to Kindle keeps such a list, so the "Pages" option works also for books for which Amazon
 does not generate pages itself (e.g. books with tables). Turn it off with `--skip-page-list`.
 
