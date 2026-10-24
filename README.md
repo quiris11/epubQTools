@@ -18,7 +18,7 @@ kindlegen is also looked up in `PATH`.
 ```
 usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]] [--author [Surname, First Name]] [--title [Title]]
                                                         [--font-dir [DIR]] [--replace-font-family [old,new]] [-a] [-n] [-t] [-q] [-p] [-w] [-u] [--list-fonts] [-m] [-e] [-s]
-                                                        [-r] [-c] [--skip-justify] [--left] [--replace-font-files] [--remove-colors]
+                                                        [-r] [--skip-page-list] [-c] [--skip-justify] [--left] [--replace-font-files] [--remove-colors]
                                                         [--remove-fonts] [-k] [-d] [-f] [--fix-missing-container] [--book-margin [NUMBER]]
                                                         directory
 
@@ -54,6 +54,7 @@ options:
   -s, --skip-hyphenate  do not hyphenate book (only with -e)
   -r, --skip-hyphenate-headers
                         do not hyphenate headers like h1, h2, h3...(only with -e)
+  --skip-page-list      do not add a list of approximate pages to books without one (only with -e)
   -c, --skip-reset-css  skip linking a full reset CSS file to every xthml file; if the book is hyphenated,
                         a CSS with "hyphens: manual" only is linked instead (only with -e)
   --skip-justify        skip replacing "text-align: left" with "text-align: justify" in all CSS files (only with -e)
@@ -73,6 +74,15 @@ options:
 `-m`, `-k` and `-t` use only the _moh.epub files in the 'MOH' subfolder. Old results of earlier
 versions (next to the originals, or directly in 'MOH' for books from subfolders) are skipped and
 listed in a warning.
+
+#### Page list (-e):
+Books without a page list (no NCX `pageList`, no nav `page-list`, no `pagebreak` markers) get
+a list of approximate pages: empty `<span id="eqt_page_N"></span>` markers in the text, a
+`pageList` in the NCX and, in EPUB 3, a hidden `<nav epub:type="page-list">`. Every spine file
+starts a new page; a block (paragraph, heading, list item...) takes ceil(chars / 68) lines and a
+page has 29 lines (calibrated on Polish books with print page numbers, average error ~8%).
+Send to Kindle keeps such a list, so the "Pages" option works also for books for which Amazon
+does not generate pages itself (e.g. books with tables). Turn it off with `--skip-page-list`.
 
 #### Output messages:
 * `* text` - information

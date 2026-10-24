@@ -26,7 +26,7 @@ import io
 import traceback
 
 from pkgutil import get_data
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 from itertools import cycle
 from lib.htmlconstants import entities
 from lib.csscheck import (class_rules, fix_missing_semicolons,
@@ -86,6 +86,18 @@ TINY_FONT_SIZE_RE = re.compile(
 NAV_START_TAG_RE = re.compile(r'<nav\b[^>]*>')
 NAV_ARIA_LABEL_RE = re.compile(
     r'\s+aria-label(?:ledby)?\s*=\s*(?:"[^"]*"|\'[^\']*\')')
+# approximate pages: a block takes ceil(chars / 68) lines, a page 29 lines
+PAGE_LINE_CHARS = 68
+PAGE_LINES = 29
+PAGE_ID = 'eqt_page_%d'
+PAGE_TAG_RE = re.compile(r'(<!--.*?-->|<[^>]*>)', re.S)
+PAGE_BLOCK_RE = re.compile(r'</?(?:p|h[1-6]|li|div|blockquote|tr|br)\b',
+                           re.I)
+PAGE_SKIP_RE = re.compile(r'<(/?)(?:script|style|svg)\b', re.I)
+PAGE_CHAR_RE = re.compile(r'&[#\w]+;|[ \t\r\n]+|.', re.S)
+SOFT_HYPHENS = ('­', '&shy;', '&#173;', '&#xad;', '&#xAD;')
+PAGEBREAK_RE = re.compile(
+    r'(?:epub:type|role)="[^"]*\b(?:doc-)?pagebreak\b')
 
 HOME = os.path.expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
@@ -2887,7 +2899,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
 def process_epub(_tempdir, _replacefonts, _resetmargins,
                  skip_hyph, arg_justify, arg_left, fontdir, del_colors,
-                 del_fonts, html_margin, dont_hyph_headers):
+                 del_fonts, html_margin, dont_hyph_headers, skip_pages):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path, is_fixed = find_roots(_tempdir)
@@ -3076,6 +3088,8 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
             extra_classes = set()
     remove_hidden_div_classes(opftree, opf_dir_abs,
                               hidden_names | extra_classes)
+    if not skip_pages:
+        add_page_list(opftree, opf_dir_abs)
     # write all OPF changes back to file
     with open(opf_file_path_abs, 'wb') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
@@ -3291,6 +3305,206 @@ def remove_hidden_div_texts_from_images(opftree, opfdir, hidden_names):
     return set(removed_from)
 
 
+def insert_page_markers(raw, nr):
+    """Insert empty <span id="eqt_page_N"></span> markers of approximate
+    pages into the body of the XHTML text, numbered from nr + 1.
+    Model calibrated on Polish books with print page numbers: a block
+    (paragraph, heading, list item...) takes ceil(chars / 68) lines and a
+    page has 29 lines. A marker is placed before the first word of the
+    page. Soft hyphens are not counted.
+    Returns the new text and the list of the inserted page numbers."""
+    body = re.search(r'<body\b[^>]*>', raw)
+    if body is None:
+        return raw, []
+    out = [raw[:body.end()]]
+    pages = []
+    lines = 0               # lines of the finished blocks
+    chars = 0               # visible characters of the current block
+    next_page = PAGE_LINES  # first line of the next page
+    pending = False         # a page started, its marker waits for a word
+    after_space = True
+    skip = False            # inside <script>, <style> or <svg>
+    for part in PAGE_TAG_RE.split(raw[body.end():]):
+        if part.startswith('<'):
+            m = PAGE_SKIP_RE.match(part)
+            if m:
+                skip = not m.group(1) and not part.endswith('/>')
+            elif PAGE_BLOCK_RE.match(part):
+                after_space = True
+                if chars:
+                    lines += -(-chars // PAGE_LINE_CHARS)
+                    chars = 0
+                    if lines >= next_page:
+                        pending = True
+                        next_page += PAGE_LINES
+            out.append(part)
+            continue
+        if skip:
+            out.append(part)
+            continue
+        text = []
+        for c in PAGE_CHAR_RE.findall(part):
+            if c[0] in ' \t\r\n':
+                if chars:
+                    chars += 1
+                after_space = True
+            elif c not in SOFT_HYPHENS:
+                if lines + chars // PAGE_LINE_CHARS >= next_page:
+                    pending = True
+                    next_page += PAGE_LINES
+                if pending and after_space:
+                    pages.append(nr + len(pages) + 1)
+                    text.append('<span id="%s"></span>' %
+                                (PAGE_ID % pages[-1]))
+                    pending = False
+                chars += 1
+                after_space = False
+            text.append(c)
+        out.append(''.join(text))
+    return ''.join(out), pages
+
+
+def has_page_list(opftree, rootepubdir, spine):
+    tocs = opftree.xpath('//opf:item[@media-type="application/x-dtbncx+xml"]',
+                         namespaces=OPFNS)
+    nav_item = find_epub3_nav_item(opftree)
+    if nav_item is not None:
+        tocs.append(nav_item)
+    for href in [t.get('href') for t in tocs] + spine:
+        try:
+            with open(os.path.join(rootepubdir, href),
+                      encoding='utf-8') as f:
+                raw = f.read()
+        except (IOError, UnicodeDecodeError):
+            continue
+        if ('<pageList' in raw or 'epub:type="page-list"' in raw or
+                PAGEBREAK_RE.search(raw)):
+            return True
+    return False
+
+
+def add_page_list(opftree, rootepubdir):
+    """Add a list of approximate pages (NCX pageList and, in EPUB 3,
+    a hidden nav page-list) to a book without one. Send to Kindle keeps
+    the list, so the "Pages" option works also for books for which Amazon
+    doesn't generate the pages itself (e.g. books with tables)."""
+    items = {i.get('id'): i.get('href') for i in
+             opftree.xpath('//opf:manifest/opf:item', namespaces=OPFNS)}
+    spine = [items[i] for i in
+             opftree.xpath('//opf:spine/opf:itemref/@idref', namespaces=OPFNS)
+             if i in items]
+    try:
+        ncx_href = opftree.xpath(
+            '//opf:item[@media-type="application/x-dtbncx+xml"]',
+            namespaces=OPFNS)[0].get('href')
+    except IndexError:
+        return
+    if has_page_list(opftree, rootepubdir, spine):
+        print('* The book already has a page list...')
+        return
+    ncx_path = os.path.join(rootepubdir, ncx_href)
+    try:
+        ncxtree = etree.parse(ncx_path,
+                              etree.XMLParser(remove_blank_text=True))
+    except (IOError, etree.XMLSyntaxError):
+        return
+    ncx = '{%s}' % NCXNS['ncx']
+    nav_map = ncxtree.find(ncx + 'navMap')
+    if nav_map is None:
+        return
+    raws = {}
+    pages = []      # (number, href, marker id or '')
+    for href in spine:
+        path = os.path.join(rootepubdir, href)
+        try:
+            with open(path, encoding='utf-8', newline='') as f:
+                raw = f.read()
+        except (IOError, UnicodeDecodeError):
+            continue
+        # every file starts a new page
+        pages.append((len(pages) + 1, href, ''))
+        raw, numbers = insert_page_markers(raw, len(pages))
+        pages += [(n, href, PAGE_ID % n) for n in numbers]
+        raws[href] = raw
+        if numbers:
+            with open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(raw)
+    if not pages:
+        return
+
+    def position(href, frag):
+        if href not in raws:
+            return (len(spine), 0)
+        pos = raws[href].find('id="%s"' % frag) if frag else 0
+        return (spine.index(href), max(pos, 0))
+
+    def link(toc_href, href, frag):
+        rel = quote(posixpath.relpath(href, posixpath.dirname(toc_href) or
+                                      '.'))
+        return rel + '#' + frag if frag else rel
+
+    # NCX: navPoint and pageTarget share one playOrder sequence
+    contents = ncxtree.xpath('//ncx:navPoint/ncx:content[@src]',
+                             namespaces=NCXNS)
+    nav_keys = [(resolve_href(ncx_href, c.get('src')),
+                 c.get('src').partition('#')[2]) for c in contents]
+    targets = sorted([(position(*k), 0, k) for k in nav_keys] +
+                     [(position(h, f), 1, (h, f)) for n, h, f in pages])
+    play_order = {}
+    for _, _, key in targets:
+        play_order.setdefault(key, len(play_order) + 1)
+    for c, key in zip(contents, nav_keys):
+        c.getparent().set('playOrder', str(play_order[key]))
+    page_list = etree.Element(ncx + 'pageList')
+    etree.SubElement(etree.SubElement(page_list, ncx + 'navLabel'),
+                     ncx + 'text').text = 'Pages'
+    for n, href, frag in pages:
+        pt = etree.SubElement(page_list, ncx + 'pageTarget',
+                              id='pageTarget-%d' % n, type='normal',
+                              value=str(n),
+                              playOrder=str(play_order[(href, frag)]))
+        etree.SubElement(etree.SubElement(pt, ncx + 'navLabel'),
+                         ncx + 'text').text = str(n)
+        etree.SubElement(pt, ncx + 'content', src=link(ncx_href, href, frag))
+    nav_map.addnext(page_list)
+    head = ncxtree.find(ncx + 'head')
+    if head is not None:
+        for name in ('dtb:totalPageCount', 'dtb:maxPageNumber'):
+            meta = head.find(ncx + 'meta[@name="%s"]' % name)
+            if meta is None:
+                meta = etree.SubElement(head, ncx + 'meta', name=name)
+            meta.set('content', str(len(pages)))
+    with open(ncx_path, 'wb') as f:
+        f.write(etree.tostring(ncxtree, pretty_print=True,
+                               xml_declaration=True, encoding='utf-8'))
+
+    # EPUB 3 navigation document: a hidden nav page-list
+    nav_item = find_epub3_nav_item(opftree)
+    if nav_item is not None:
+        nav_href = nav_item.get('href')
+        nav_path = os.path.join(rootepubdir, nav_href)
+        try:
+            navtree = etree.parse(nav_path,
+                                  etree.XMLParser(remove_blank_text=True))
+            navs = navtree.xpath('//xhtml:nav', namespaces=XHTMLNS)
+        except (IOError, etree.XMLSyntaxError):
+            navs = []
+        if navs:
+            x = '{%s}' % XHTMLNS['xhtml']
+            nav = etree.Element(x + 'nav', hidden='hidden')
+            nav.set('{%s}type' % EPUBNS['epub'], 'page-list')
+            ol = etree.SubElement(nav, x + 'ol')
+            for n, href, frag in pages:
+                etree.SubElement(etree.SubElement(ol, x + 'li'), x + 'a',
+                                 href=link(nav_href, href, frag)).text = str(n)
+            navs[-1].addnext(nav)
+            with open(nav_path, 'wb') as f:
+                f.write(etree.tostring(navtree, pretty_print=True,
+                                       xml_declaration=True,
+                                       encoding='utf-8'))
+    print('* Added a page list with %d approximate pages...' % len(pages))
+
+
 def html_cover_first(opftree):
     refcvs = opftree.xpath('//opf:reference[@type="cover"]', namespaces=OPFNS)
     if len(refcvs) != 1:
@@ -3339,7 +3553,7 @@ def qfix(root, f, moh_dir, *args):
 def _qfix(root, f, moh_dir, _forced, _replacefonts, _resetmargins, zbf,
          skip_hyph, arg_justify, arg_left, del_colors, del_fonts,
          fontdir, fix_container_only, html_margin, dont_hyph_headers,
-         pair_family):
+         pair_family, skip_pages):
     global qfixerr
     qfixerr = False
     newfile = os.path.splitext(f)[0] + '_moh.epub'
@@ -3376,7 +3590,7 @@ def _qfix(root, f, moh_dir, _forced, _replacefonts, _resetmargins, zbf,
         is_failed = process_epub(
             _tempdir, _replacefonts, _resetmargins, skip_hyph,
             arg_justify, arg_left, fontdir, del_colors,
-            del_fonts, html_margin, dont_hyph_headers)
+            del_fonts, html_margin, dont_hyph_headers, skip_pages)
         if not is_failed:
             os.makedirs(moh_dir, exist_ok=True)
             pack_epub(os.path.join(moh_dir, newfile), _tempdir)

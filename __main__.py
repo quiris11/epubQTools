@@ -122,6 +122,10 @@ parser.add_argument("-r", "--skip-hyphenate-headers",
                     help="do not hyphenate headers like h1, h2, h3..."
                     "(only with -e)",
                     action="store_true")
+parser.add_argument("--skip-page-list",
+                    help="do not add a list of approximate pages to books "
+                    "without one (only with -e)",
+                    action="store_true")
 parser.add_argument("-c", "--skip-reset-css",
                     help='skip linking a full reset CSS file to every xthml '
                     'file; if the book is hyphenated, a CSS with '
@@ -610,6 +614,9 @@ def main():
     if args.skip_hyphenate and not args.epub:
         print('! WARNING! --skip-hyphenate was ignored because it works only '
               'with -e.')
+    if args.skip_page_list and not args.epub:
+        print('! WARNING! --skip-page-list was ignored because it works only '
+              'with -e.')
     if args.replace_font_files and not args.epub:
         print('! WARNING! --replace-font-files was ignored because it works '
               'only with -e.')
@@ -828,7 +835,8 @@ def main():
                      args.skip_justify, args.left,
                      args.remove_colors, args.remove_fonts, args.font_dir,
                      args.fix_missing_container, args.book_margin,
-                     args.skip_hyphenate_headers, args.replace_font_family)
+                     args.skip_hyphenate_headers, args.replace_font_family,
+                     args.skip_page_list)
         else:
             for root, f in find_original_files():
                 if f.lower().endswith('_org.epub'):
@@ -842,7 +850,7 @@ def main():
                      args.remove_fonts, args.font_dir,
                      args.fix_missing_container,
                      args.book_margin, args.skip_hyphenate_headers,
-                     args.replace_font_family)
+                     args.replace_font_family, args.skip_page_list)
         if counter == 0:
             print('')
             print('* NO epub files for fixing found!')

@@ -15,7 +15,8 @@ from lib.epubqfix import (ClassStyles, check_font, convert_ttc_fonts,
                           decode_b64_name, find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
                           split_extra_cover_images,
-                          image_data_end, is_fundraising_page,
+                          image_data_end, insert_page_markers,
+                          is_fundraising_page,
                           is_hiding_style, is_support_page,
                           is_wolnelektury_book, most_common, resolve_href, remove_orphan_refining_metas,
                           remove_thin_spaces_after_spaces,
@@ -423,3 +424,31 @@ class WolneLekturyFundraisingTest(unittest.TestCase):
                          'a b.xhtml')
         self.assertEqual(resolve_href('nav.xhtml', 'support.xhtml'),
                          'support.xhtml')
+
+
+class InsertPageMarkersTest(unittest.TestCase):
+    BODY = '<html><head><title>T</title></head><body>%s</body></html>'
+
+    def test_short_paragraphs(self):
+        # 29 one-line paragraphs fill a page, the 30th starts page 2
+        raw = self.BODY % ''.join('<p>Line %d</p>' % i for i in range(31))
+        new, pages = insert_page_markers(raw, 1)
+        self.assertEqual(pages, [2])
+        self.assertIn('<p><span id="eqt_page_2"></span>Line 29</p>', new)
+
+    def test_long_paragraph(self):
+        # the marker goes before the first word of the 30th line,
+        # soft hyphens are not counted
+        word = 'abc\u00addefg'
+        raw = self.BODY % ('<p>%s</p>' % ' '.join([word] * 300))
+        new, pages = insert_page_markers(raw, 0)
+        self.assertEqual(pages, [1])
+        before = new[:new.index('<span')]
+        # line 30 starts at char 29 * 68 = 1972, inside the 247th word
+        self.assertEqual(before.count(word), 247)
+        self.assertTrue(before.endswith(' '))
+
+    def test_head_and_style_skipped(self):
+        raw = ('<html><head><title>%s</title></head><body><style>%s</style>'
+               '<p>Text</p></body></html>' % ('x ' * 3000, 'y ' * 3000))
+        self.assertEqual(insert_page_markers(raw, 0), (raw, []))
