@@ -9,9 +9,11 @@ import tempfile
 import unittest
 import zlib
 
+from urllib.parse import quote
+
 from lxml import etree
 
-from lib.epubqfix import (ClassStyles, check_font, convert_ttc_fonts,
+from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fonts,
                           decode_b64_name, find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
                           split_extra_cover_images,
@@ -452,3 +454,67 @@ class InsertPageMarkersTest(unittest.TestCase):
         raw = ('<html><head><title>%s</title></head><body><style>%s</style>'
                '<p>Text</p></body></html>' % ('x ' * 3000, 'y ' * 3000))
         self.assertEqual(insert_page_markers(raw, 0), (raw, []))
+
+    def test_style_inside_svg(self):
+        # </style> inside <svg> doesn't end skipping the SVG
+        raw = self.BODY % ('<svg><style>a {}</style><text>%s</text></svg>'
+                           '<p>Text</p>' % ('x ' * 3000))
+        self.assertEqual(insert_page_markers(raw, 0), (raw, []))
+
+    def test_gt_in_attribute(self):
+        raw = self.BODY % ('<p title="a > b">%s</p>' % ('y ' * 3000))
+        new, pages = insert_page_markers(raw, 0)
+        self.assertIn('<p title="a > b">y', new)
+        self.assertNotIn('<span', new[:new.index('>y')])
+
+
+class AddPageListTest(unittest.TestCase):
+    OPF = ('<package xmlns="http://www.idpf.org/2007/opf" version="2.0">'
+           '<manifest>'
+           '<item id="ncx" href="toc.ncx" '
+           'media-type="application/x-dtbncx+xml"/>'
+           '<item id="c1" href="Text/rozdzia%C5%82.xhtml" '
+           'media-type="application/xhtml+xml"/>'
+           '</manifest><spine toc="ncx"><itemref idref="c1"/></spine>'
+           '</package>')
+    NCX = ('<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">'
+           '<head/><docTitle><text>T</text></docTitle><navMap>'
+           '<navPoint id="n1" playOrder="1"><navLabel><text>1</text>'
+           '</navLabel><content src="Text/rozdzia%C5%82.xhtml"/></navPoint>'
+           '<navPoint id="n2" playOrder="2"><navLabel><text>2</text>'
+           '</navLabel><content src="Text/rozdzia%C5%82.xhtml#s2"/>'
+           '</navPoint></navMap></ncx>')
+    BODY = ('<html xmlns="http://www.w3.org/1999/xhtml"><head><title>T'
+            '</title></head><body>%s</body></html>')
+
+    def run_add(self, body, name='rozdział.xhtml'):
+        with tempfile.TemporaryDirectory() as d:
+            os.mkdir(os.path.join(d, 'Text'))
+            with open(os.path.join(d, 'toc.ncx'), 'w') as f:
+                f.write(self.NCX)
+            with open(os.path.join(d, 'Text', name), 'w',
+                      encoding='utf-8') as f:
+                f.write(self.BODY % body)
+            opftree = etree.ElementTree(etree.fromstring(
+                self.OPF.replace('rozdzia%C5%82.xhtml', quote(name))))
+            add_page_list(opftree, d)
+            with open(os.path.join(d, 'toc.ncx'), encoding='utf-8') as f:
+                return f.read()
+
+    def test_encoded_href(self):
+        # the second chapter starts on page 2 (after 40 lines)
+        ncx = self.run_add(
+            '<p data-id="s2">Start</p>' + '<p>Line</p>' * 40 +
+            '<h1 id=\'s2\'>Two</h1>' + '<p>Line</p>' * 10)
+        self.assertIn('<content src="Text/rozdzia%C5%82.xhtml"/>', ncx)
+        self.assertIn('src="Text/rozdzia%C5%82.xhtml#eqt_page_2"', ncx)
+        ncxtree = etree.fromstring(ncx.encode('utf-8'))
+        orders = {e.get('id'): e.get('playOrder') for e in
+                  ncxtree.iter('{*}navPoint', '{*}pageTarget')}
+        self.assertEqual(orders, {'n1': '1', 'pageTarget-1': '1',
+                                  'pageTarget-2': '2', 'n2': '3'})
+
+    def test_existing_page_list(self):
+        ncx = self.run_add("<span epub:type='pagebreak' id='p1'/>" +
+                           '<p>Line</p>' * 40, 'c1.xhtml')
+        self.assertNotIn('pageList', ncx)

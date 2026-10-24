@@ -90,14 +90,17 @@ NAV_ARIA_LABEL_RE = re.compile(
 PAGE_LINE_CHARS = 68
 PAGE_LINES = 29
 PAGE_ID = 'eqt_page_%d'
-PAGE_TAG_RE = re.compile(r'(<!--.*?-->|<[^>]*>)', re.S)
+PAGE_TAG_RE = re.compile(
+    r'(<!--.*?-->|<(?:"[^"]*"|\'[^\']*\'|[^>"\'])*>)', re.S)
 PAGE_BLOCK_RE = re.compile(r'</?(?:p|h[1-6]|li|div|blockquote|tr|br)\b',
                            re.I)
-PAGE_SKIP_RE = re.compile(r'<(/?)(?:script|style|svg)\b', re.I)
+PAGE_SKIP_RE = re.compile(r'<(/?)(script|style|svg)\b', re.I)
 PAGE_CHAR_RE = re.compile(r'&[#\w]+;|[ \t\r\n]+|.', re.S)
 SOFT_HYPHENS = ('­', '&shy;', '&#173;', '&#xad;', '&#xAD;')
 PAGEBREAK_RE = re.compile(
-    r'(?:epub:type|role)="[^"]*\b(?:doc-)?pagebreak\b')
+    r'(?:epub:type|role)\s*=\s*["\'][^"\']*\b(?:doc-)?pagebreak\b')
+PAGE_LIST_RE = re.compile(
+    r'<pageList\b|epub:type\s*=\s*["\'][^"\']*\bpage-list\b')
 
 HOME = os.path.expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
@@ -3323,13 +3326,20 @@ def insert_page_markers(raw, nr):
     next_page = PAGE_LINES  # first line of the next page
     pending = False         # a page started, its marker waits for a word
     after_space = True
-    skip = False            # inside <script>, <style> or <svg>
+    skip = None             # <script>, <style> or <svg> being skipped
+    depth = 0               # its nesting depth
     for part in PAGE_TAG_RE.split(raw[body.end():]):
         if part.startswith('<'):
             m = PAGE_SKIP_RE.match(part)
-            if m:
-                skip = not m.group(1) and not part.endswith('/>')
-            elif PAGE_BLOCK_RE.match(part):
+            if m and not part.endswith('/>'):
+                name = m.group(2).lower()
+                if skip is None and not m.group(1):
+                    skip, depth = name, 1
+                elif name == skip:
+                    depth += -1 if m.group(1) else 1
+                    if not depth:
+                        skip = None
+            elif skip is None and PAGE_BLOCK_RE.match(part):
                 after_space = True
                 if chars:
                     lines += -(-chars // PAGE_LINE_CHARS)
@@ -3339,7 +3349,7 @@ def insert_page_markers(raw, nr):
                         next_page += PAGE_LINES
             out.append(part)
             continue
-        if skip:
+        if skip is not None:
             out.append(part)
             continue
         text = []
@@ -3370,15 +3380,14 @@ def has_page_list(opftree, rootepubdir, spine):
     nav_item = find_epub3_nav_item(opftree)
     if nav_item is not None:
         tocs.append(nav_item)
-    for href in [t.get('href') for t in tocs] + spine:
+    for href in [unquote(t.get('href')) for t in tocs] + spine:
         try:
             with open(os.path.join(rootepubdir, href),
                       encoding='utf-8') as f:
                 raw = f.read()
         except (IOError, UnicodeDecodeError):
             continue
-        if ('<pageList' in raw or 'epub:type="page-list"' in raw or
-                PAGEBREAK_RE.search(raw)):
+        if PAGE_LIST_RE.search(raw) or PAGEBREAK_RE.search(raw):
             return True
     return False
 
@@ -3388,15 +3397,15 @@ def add_page_list(opftree, rootepubdir):
     a hidden nav page-list) to a book without one. Send to Kindle keeps
     the list, so the "Pages" option works also for books for which Amazon
     doesn't generate the pages itself (e.g. books with tables)."""
-    items = {i.get('id'): i.get('href') for i in
+    items = {i.get('id'): unquote(i.get('href', '')) for i in
              opftree.xpath('//opf:manifest/opf:item', namespaces=OPFNS)}
     spine = [items[i] for i in
              opftree.xpath('//opf:spine/opf:itemref/@idref', namespaces=OPFNS)
              if i in items]
     try:
-        ncx_href = opftree.xpath(
+        ncx_href = unquote(opftree.xpath(
             '//opf:item[@media-type="application/x-dtbncx+xml"]',
-            namespaces=OPFNS)[0].get('href')
+            namespaces=OPFNS)[0].get('href'))
     except IndexError:
         return
     if has_page_list(opftree, rootepubdir, spine):
@@ -3435,8 +3444,9 @@ def add_page_list(opftree, rootepubdir):
     def position(href, frag):
         if href not in raws:
             return (len(spine), 0)
-        pos = raws[href].find('id="%s"' % frag) if frag else 0
-        return (spine.index(href), max(pos, 0))
+        m = frag and re.search(r'(?<=\s)id\s*=\s*["\']%s["\']'
+                               % re.escape(frag), raws[href])
+        return (spine.index(href), m.start() if m else 0)
 
     def link(toc_href, href, frag):
         rel = quote(posixpath.relpath(href, posixpath.dirname(toc_href) or
@@ -3481,7 +3491,7 @@ def add_page_list(opftree, rootepubdir):
     # EPUB 3 navigation document: a hidden nav page-list
     nav_item = find_epub3_nav_item(opftree)
     if nav_item is not None:
-        nav_href = nav_item.get('href')
+        nav_href = unquote(nav_item.get('href'))
         nav_path = os.path.join(rootepubdir, nav_href)
         try:
             navtree = etree.parse(nav_path,
