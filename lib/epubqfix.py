@@ -2547,6 +2547,17 @@ def remove_thin_spaces_after_spaces(xhtree):
     return removed
 
 
+def fill_empty_titles(xhtree, book_title):
+    """Fill empty <title> elements (invalid in XHTML) with the book title.
+    Return True if any title was filled."""
+    filled = False
+    for t in xhtree.xpath('//xhtml:head/xhtml:title', namespaces=XHTMLNS):
+        if not ''.join(t.itertext()).strip() and len(t) == 0:
+            t.text = book_title
+            filled = True
+    return filled
+
+
 def find_class_styles(opftree, opfdir):
     """ClassStyles of the CSS files (in the order of the manifest)."""
     css_texts = []
@@ -2885,6 +2896,12 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     remove_trailing_hidden_div(xhtree, hidden_divs, hidden_classes,
                                class_styles)
     
+    book_title = ''.join(opftree.xpath('//dc:title[1]//text()',
+                                       namespaces=DCNS)).strip()
+    if book_title and fill_empty_titles(xhtree, book_title):
+        print('* Filled empty <title> with the book title in "%s"'
+              % os.path.basename(xhfile))
+
     # remove meta charsets
     _metacharsets = xhtree.xpath('//xhtml:meta[@charset="utf-8"]',
                                  namespaces=XHTMLNS)

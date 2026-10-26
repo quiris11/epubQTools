@@ -14,6 +14,7 @@ from urllib.parse import quote
 from lxml import etree
 
 from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fonts,
+                          fill_empty_titles,
                           decode_b64_name, find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
                           split_extra_cover_images,
@@ -152,6 +153,24 @@ class RemoveThinSpacesAfterSpacesTest(unittest.TestCase):
         n, body = self.remove('<p>1 000 a  b</p>')
         self.assertEqual(n, 0)
         self.assertIn('1 000 a  b', body)
+
+
+class FillEmptyTitlesTest(unittest.TestCase):
+    HTML = ('<html xmlns="http://www.w3.org/1999/xhtml"><head>%s</head>'
+            '<body><p>Text</p></body></html>')
+
+    def test_empty_title_filled(self):
+        for title in ('<title/>', '<title> </title>'):
+            tree = etree.fromstring(self.HTML % title)
+            self.assertTrue(fill_empty_titles(tree, 'Wdowa'))
+            self.assertIn('<title>Wdowa</title>', etree.tostring(
+                tree, encoding='unicode'))
+
+    def test_title_kept(self):
+        tree = etree.fromstring(self.HTML % '<title>Rozdział</title>')
+        self.assertFalse(fill_empty_titles(tree, 'Wdowa'))
+        self.assertIn('<title>Rozdział</title>', etree.tostring(
+            tree, encoding='unicode'))
 
 
 class HelpersTest(unittest.TestCase):
