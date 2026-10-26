@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unicodedata
 import unittest
+import zipfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -159,6 +160,48 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(os.listdir(os.path.join(self.dir, 'TS2K')),
                          ['Ścieżka żółwia.epub'])
+
+    def make_epub(self, name, title, creator):
+        with zipfile.ZipFile(os.path.join(self.dir, name), 'w') as z:
+            z.writestr('mimetype', 'application/epub+zip')
+            z.writestr(
+                'META-INF/container.xml',
+                '<?xml version="1.0"?><container version="1.0" xmlns="urn:'
+                'oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+                '<rootfile full-path="content.opf" media-type="application/'
+                'oebps-package+xml"/></rootfiles></container>')
+            z.writestr(
+                'content.opf',
+                '<?xml version="1.0"?><package xmlns="http://www.idpf.org/'
+                '2007/opf" version="3.0"><metadata xmlns:dc="http://purl.org'
+                '/dc/elements/1.1/"><dc:title>%s</dc:title><dc:creator>%s'
+                '</dc:creator></metadata></package>' % (title, creator))
+
+    def epub_names(self):
+        return [f for f in os.listdir(self.dir) if f.endswith('.epub')]
+
+    def test_rename_composes_polish_letters(self):
+        self.make_epub('y.epub', unicodedata.normalize('NFD', 'Żółw'),
+                       'Łucja Ślęzak')
+        # 0 y.epub, 1 a/x.epub, 2 b/x.epub
+        result = self.run_eqt('-i', '0', '-n', self.dir)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.epub_names(), ['Łucja Ślęzak - Żółw.epub'])
+
+    def test_rename_decomposed_name_in_place(self):
+        name = unicodedata.normalize('NFD', 'Łucja Ślęzak - Żółw.epub')
+        self.make_epub(name, 'Żółw', 'Łucja Ślęzak')
+        result = self.run_eqt('-i', '0', '-n', self.dir)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.epub_names(), ['Łucja Ślęzak - Żółw.epub'])
+        self.assertIn('to composed letters', result.stdout)
+
+    def test_rename_composed_name_not_needed(self):
+        self.make_epub('Łucja Ślęzak - Żółw.epub', 'Żółw', 'Łucja Ślęzak')
+        result = self.run_eqt('-i', '0', '-n', self.dir)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.epub_names(), ['Łucja Ślęzak - Żółw.epub'])
+        self.assertIn('is not needed', result.stdout)
 
     def test_missing_directory(self):
         result = self.run_eqt('-q')

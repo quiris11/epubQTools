@@ -262,17 +262,23 @@ def rename_files(opf_path, _root, _epubfile, _filename, _file_dec):
         print('! ERROR! Renaming file "%s" failed - dc:title (book title) '
               'is empty.' % _file_dec)
         return 0
-    nfname = safe_file_name(cr + ' - ' + tit)
+    # Composed (NFC) letters: APFS keeps names as given, so NFD names would
+    # stay decomposed and Send to Kindle shows them so.
+    nfname = unicodedata.normalize('NFC', safe_file_name(cr + ' - ' + tit))
+    nfc_filename = unicodedata.normalize('NFC', _filename)
     is_renamed = False
     counter = 1
-    if sys.platform == 'darwin':
-        nfname = unicodedata.normalize('NFD', nfname)
     while True:
-        if _filename == (nfname + '.epub'):
-            is_renamed = False
-            break
-        elif _filename == (nfname + ' (' + str(counter - 1) + ').epub'):
-            is_renamed = False
+        if nfc_filename in (nfname + '.epub',
+                            nfname + ' (' + str(counter - 1) + ').epub'):
+            if _filename != nfc_filename:
+                # Only the normalization differs. APFS treats both forms as
+                # the same name, so rename in place instead of adding " (1)".
+                _epubfile.close()
+                os.rename(os.path.join(_root, _filename),
+                          os.path.join(_root, nfc_filename))
+                print('* Renamed file "%s" to composed letters.' % _file_dec)
+                is_renamed = True
             break
         elif not os.path.exists(os.path.join(_root, nfname + '.epub')):
             _epubfile.close()
