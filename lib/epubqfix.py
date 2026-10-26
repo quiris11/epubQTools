@@ -2561,6 +2561,8 @@ def fill_empty_titles(xhtree, book_title):
 def remove_url_line_breaks(xhtree):
     """Remove tabs and line breaks from href and src attributes (invalid in
     URLs; URL parsers drop them anyway, so the targets don't change).
+    If the text of a link is the same URL apart from hyphens (e.g. a hyphen
+    doubled at the line break: "tips-\n-for"), use the text as the URL.
     Return the number of fixed attributes."""
     fixed = 0
     for el in xhtree.iter():
@@ -2569,7 +2571,14 @@ def remove_url_line_breaks(xhtree):
         for attr in ('href', 'src'):
             value = el.get(attr)
             if value is not None and re.search('[\t\n\r]', value):
-                el.set(attr, re.sub('[\t\n\r]', '', value))
+                value = re.sub('[\t\n\r]', '', value)
+                text = re.sub('[\u00ad\u200b\u2060]', '',
+                              ''.join(el.itertext())).strip()
+                if (attr == 'href' and text != value and
+                        re.match(r'[a-z][a-z0-9+.-]*://\S+$', text, re.I) and
+                        text.replace('-', '') == value.replace('-', '')):
+                    value = text
+                el.set(attr, value)
                 fixed += 1
     return fixed
 

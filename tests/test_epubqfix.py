@@ -186,6 +186,19 @@ class RemoveUrlLineBreaksTest(unittest.TestCase):
         self.assertIn('src="a.png"', html)
         self.assertIn('href="ok.html"', html)
 
+    def test_url_from_link_text(self):
+        # a hyphen doubled at the line break, the text has the right URL
+        tree = etree.fromstring(XHTML % (
+            '<a href="http://a.org/tips-&#10;-for/">http://a.org/tips-\u00adfor/'
+            '</a><a href="http://b.org/x-&#10;-y">http://c.org/x-y</a>'
+            '<a href="http://d.org/x-&#10;-y">d.org/x-y</a>'))
+        self.assertEqual(remove_url_line_breaks(tree), 3)
+        html = etree.tostring(tree, encoding='unicode')
+        self.assertIn('href="http://a.org/tips-for/"', html)
+        # other URL or no scheme in the text: only the line break removed
+        self.assertIn('href="http://b.org/x--y"', html)
+        self.assertIn('href="http://d.org/x--y"', html)
+
 
 class HelpersTest(unittest.TestCase):
 
