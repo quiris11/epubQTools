@@ -17,6 +17,7 @@ from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fo
                           fill_empty_titles,
                           decode_b64_name, find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
+                          fix_links_in_tree, remove_empty_toc_entries,
                           split_extra_cover_images,
                           image_data_end, insert_page_markers,
                           is_fundraising_page,
@@ -198,6 +199,86 @@ class RemoveUrlLineBreaksTest(unittest.TestCase):
         # other URL or no scheme in the text: only the line break removed
         self.assertIn('href="http://b.org/x--y"', html)
         self.assertIn('href="http://d.org/x--y"', html)
+
+
+class FixLinksTest(unittest.TestCase):
+    HREFS = {'text/a.xhtml', 'text/b.xhtml', 'www.local.html'}
+    IDS = {'text/a.xhtml': {'x'}, 'text/b.xhtml': {'y'}}
+
+    def fix(self, body):
+        tree = etree.fromstring(XHTML % body)
+        n = fix_links_in_tree(tree, 'text/a.xhtml', self.HREFS,
+                              self.IDS.get)
+        return n, etree.tostring(tree, encoding='unicode')
+
+    def test_www_gets_scheme(self):
+        n, html = self.fix('<a href="www.example.org">www.ex\u00adample.org'
+                           '</a><a href="../www.local.html">z</a>')
+        self.assertEqual(n, 1)
+        self.assertIn('href="http://www.example.org"', html)
+        self.assertIn('href="../www.local.html"', html)
+
+    def test_date_after_url_removed(self):
+        n, html = self.fix('<a href="http://a.org/h.html (18.03.2012)">h</a>'
+                           '<a href="http://a.org/x y">h</a>')
+        self.assertEqual(n, 1)
+        self.assertIn('href="http://a.org/h.html"', html)
+        self.assertIn('href="http://a.org/x y"', html)
+
+    def test_text_linked_to_itself_unwrapped(self):
+        n, html = self.fix('<a href="War Stories">War Sto\u00adries</a>, '
+                           '<a id="i" href="Other">Other</a>'
+                           '<a href="Missing">text</a>')
+        self.assertEqual(n, 2)
+        self.assertIn('>War Sto\u00adries, <a id="i">Other</a>', html)
+        self.assertIn('<a href="Missing">text</a>', html)
+
+    def test_missing_fragment_removed(self):
+        n, html = self.fix('<a href="b.xhtml#y">1</a><a href="b.xhtml#z">2</a>'
+                           '<a href="#x">3</a><a href="#q">4</a>')
+        self.assertEqual(n, 2)
+        self.assertIn('<a href="b.xhtml#y">1</a><a href="b.xhtml">2</a>'
+                      '<a href="#x">3</a><a>4</a>', html)
+
+
+class RemoveEmptyTocEntriesTest(unittest.TestCase):
+    OPF = ('<package xmlns="http://www.idpf.org/2007/opf" version="3.0">'
+           '<manifest>'
+           '<item id="ncx" href="toc.ncx" '
+           'media-type="application/x-dtbncx+xml"/>'
+           '<item id="nav" href="nav.xhtml" properties="nav" '
+           'media-type="application/xhtml+xml"/>'
+           '</manifest></package>')
+    NAV = ('<html xmlns="http://www.w3.org/1999/xhtml" '
+           'xmlns:epub="http://www.idpf.org/2007/ops"><body>'
+           '<nav epub:type="toc"><ol>'
+           '<li><a href="a.xhtml">A</a></li><li><a href="b.xhtml"/></li>'
+           '<li><a href="c.xhtml"> </a><ol><li><a href="d.xhtml">D</a>'
+           '</li></ol></li></ol></nav></body></html>')
+    NCX = ('<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" '
+           'version="2005-1"><navMap>'
+           '<navPoint id="a"><navLabel><text>A</text></navLabel>'
+           '<content src="a.xhtml"/></navPoint>'
+           '<navPoint id="b"><navLabel><text/></navLabel>'
+           '<content src="b.xhtml"/></navPoint></navMap></ncx>')
+
+    def test_empty_entries_removed(self):
+        with tempfile.TemporaryDirectory() as d:
+            for name, text in (('nav.xhtml', self.NAV),
+                               ('toc.ncx', self.NCX)):
+                with open(os.path.join(d, name), 'w') as f:
+                    f.write(text)
+            opftree = etree.fromstring(self.OPF).getroottree()
+            self.assertEqual(remove_empty_toc_entries(opftree, d), 2)
+            with open(os.path.join(d, 'nav.xhtml')) as f:
+                nav = f.read()
+            with open(os.path.join(d, 'toc.ncx')) as f:
+                ncx = f.read()
+        self.assertNotIn('b.xhtml', nav)
+        # an entry with subentries stays
+        self.assertIn('c.xhtml', nav)
+        self.assertNotIn('b.xhtml', ncx)
+        self.assertIn('a.xhtml', ncx)
 
 
 class HelpersTest(unittest.TestCase):
