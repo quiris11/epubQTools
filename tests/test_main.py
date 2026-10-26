@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 import unittest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -144,6 +145,20 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(sorted(os.listdir(ts2k)), ['T.epub', 'U.epub'])
         with open(os.path.join(ts2k, 'U.epub'), 'rb') as f:
             self.assertEqual(f.read(), b'new')
+
+    def test_send_to_kindle_composes_polish_letters(self):
+        nfd = unicodedata.normalize('NFD', 'Ścieżka żółwia')
+        os.makedirs(os.path.join(self.dir, 'MOH'))
+        open(os.path.join(self.dir, 'A - %s.epub' % nfd), 'wb').close()
+        open(os.path.join(self.dir, 'MOH', 'A - %s_moh.epub' % nfd),
+             'wb').close()
+        # an old decomposed copy from an earlier run
+        os.makedirs(os.path.join(self.dir, 'TS2K'))
+        open(os.path.join(self.dir, 'TS2K', nfd + '.epub'), 'wb').close()
+        result = self.run_eqt('-i', '0', '-t', self.dir)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(os.listdir(os.path.join(self.dir, 'TS2K')),
+                         ['Ścieżka żółwia.epub'])
 
     def test_missing_directory(self):
         result = self.run_eqt('-q')

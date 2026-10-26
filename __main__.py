@@ -567,7 +567,9 @@ def _stage_moh_epub(src_path, dest_dir, stats):
         stats['missing'] += 1
         return
 
-    new_name = parts[1]
+    # Composed (NFC) letters: names on macOS are often decomposed (NFD) and
+    # Send to Kindle keeps them so, showing "ś" as "s" + combining accent.
+    new_name = unicodedata.normalize('NFC', parts[1])
     if new_name.lower().endswith('_moh.epub'):
         new_name = new_name[:-len('_moh.epub')] + '.epub'
 
@@ -587,6 +589,10 @@ def _stage_moh_epub(src_path, dest_dir, stats):
 
     try:
         print(f'* Copy and rename: "{fname}" to: "{new_name}"')
+        # APFS ignores normalization when matching names, so overwriting an
+        # old NFD copy would keep its NFD name. Remove it first.
+        if os.path.exists(dest_path):
+            os.remove(dest_path)
         shutil.copy2(src_path, dest_path)
         stats['copied'] += 1
         stats['staged'].add(new_name)
