@@ -467,6 +467,15 @@ class InsertPageMarkersTest(unittest.TestCase):
         self.assertIn('<p title="a > b">y', new)
         self.assertNotIn('<span', new[:new.index('>y')])
 
+    def test_no_marker_in_nav(self):
+        # empty spans are invalid in nav, the marker waits until after it
+        raw = self.BODY % ('<nav><ol>%s</ol></nav><p>After</p>' %
+                           ''.join('<li><a href="a.xhtml">Item %d</a></li>'
+                                   % i for i in range(31)))
+        new, pages = insert_page_markers(raw, 0)
+        self.assertEqual(pages, [1])
+        self.assertIn('</nav><p><span id="eqt_page_1"></span>After</p>', new)
+
 
 class AddPageListTest(unittest.TestCase):
     OPF = ('<package xmlns="http://www.idpf.org/2007/opf" version="2.0">'

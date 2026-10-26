@@ -95,6 +95,7 @@ PAGE_TAG_RE = re.compile(
 PAGE_BLOCK_RE = re.compile(r'</?(?:p|h[1-6]|li|div|blockquote|tr|br)\b',
                            re.I)
 PAGE_SKIP_RE = re.compile(r'<(/?)(script|style|svg)\b', re.I)
+PAGE_NAV_RE = re.compile(r'<(/?)nav\b', re.I)
 PAGE_CHAR_RE = re.compile(r'&[#\w]+;|[ \t\r\n]+|.', re.S)
 SOFT_HYPHENS = ('­', '&shy;', '&#173;', '&#xad;', '&#xAD;')
 PAGEBREAK_RE = re.compile(
@@ -3314,7 +3315,8 @@ def insert_page_markers(raw, nr):
     Model calibrated on Polish books with print page numbers: a block
     (paragraph, heading, list item...) takes ceil(chars / 68) lines and a
     page has 29 lines. A marker is placed before the first word of the
-    page. Soft hyphens are not counted.
+    page; in a <nav> (empty spans are invalid there) it waits until after
+    the nav. Soft hyphens are not counted.
     Returns the new text and the list of the inserted page numbers."""
     body = re.search(r'<body\b[^>]*>', raw)
     if body is None:
@@ -3328,8 +3330,12 @@ def insert_page_markers(raw, nr):
     after_space = True
     skip = None             # <script>, <style> or <svg> being skipped
     depth = 0               # its nesting depth
+    nav = 0                 # <nav> nesting depth
     for part in PAGE_TAG_RE.split(raw[body.end():]):
         if part.startswith('<'):
+            m = PAGE_NAV_RE.match(part)
+            if m and not part.endswith('/>'):
+                nav = max(nav + (-1 if m.group(1) else 1), 0)
             m = PAGE_SKIP_RE.match(part)
             if m and not part.endswith('/>'):
                 name = m.group(2).lower()
@@ -3362,7 +3368,7 @@ def insert_page_markers(raw, nr):
                 if lines + chars // PAGE_LINE_CHARS >= next_page:
                     pending = True
                     next_page += PAGE_LINES
-                if pending and after_space:
+                if pending and after_space and not nav:
                     pages.append(nr + len(pages) + 1)
                     text.append('<span id="%s"></span>' %
                                 (PAGE_ID % pages[-1]))
