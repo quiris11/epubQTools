@@ -95,6 +95,7 @@ PAGE_TAG_RE = re.compile(
 PAGE_BLOCK_RE = re.compile(r'</?(?:p|h[1-6]|li|div|blockquote|tr|br)\b',
                            re.I)
 PAGE_SKIP_RE = re.compile(r'<(/?)(script|style|svg)\b', re.I)
+PAGE_NAV_RE = re.compile(r'<(/?)nav\b', re.I)
 PAGE_CHAR_RE = re.compile(r'&[#\w]+;|[ \t\r\n]+|.', re.S)
 SOFT_HYPHENS = ('­', '&shy;', '&#173;', '&#xad;', '&#xAD;')
 PAGEBREAK_RE = re.compile(
@@ -2546,6 +2547,42 @@ def remove_thin_spaces_after_spaces(xhtree):
     return removed
 
 
+def fill_empty_titles(xhtree, book_title):
+    """Fill empty <title> elements (invalid in XHTML) with the book title.
+    Return True if any title was filled."""
+    filled = False
+    for t in xhtree.xpath('//xhtml:head/xhtml:title', namespaces=XHTMLNS):
+        if not ''.join(t.itertext()).strip() and len(t) == 0:
+            t.text = book_title
+            filled = True
+    return filled
+
+
+def remove_url_line_breaks(xhtree):
+    """Remove tabs and line breaks from href and src attributes (invalid in
+    URLs; URL parsers drop them anyway, so the targets don't change).
+    If the text of a link is the same URL apart from hyphens (e.g. a hyphen
+    doubled at the line break: "tips-\n-for"), use the text as the URL.
+    Return the number of fixed attributes."""
+    fixed = 0
+    for el in xhtree.iter():
+        if not isinstance(el.tag, str):
+            continue
+        for attr in ('href', 'src'):
+            value = el.get(attr)
+            if value is not None and re.search('[\t\n\r]', value):
+                value = re.sub('[\t\n\r]', '', value)
+                text = re.sub('[\u00ad\u200b\u2060]', '',
+                              ''.join(el.itertext())).strip()
+                if (attr == 'href' and text != value and
+                        re.match(r'[a-z][a-z0-9+.-]*://\S+$', text, re.I) and
+                        text.replace('-', '') == value.replace('-', '')):
+                    value = text
+                el.set(attr, value)
+                fixed += 1
+    return fixed
+
+
 def find_class_styles(opftree, opfdir):
     """ClassStyles of the CSS files (in the order of the manifest)."""
     css_texts = []
@@ -2694,6 +2731,122 @@ def remove_toc_entries(href, opftree, rootepubdir):
         with open(toc_path, 'wb') as f:
             f.write(etree.tostring(toctree, pretty_print=True,
                                    xml_declaration=True, encoding='utf-8'))
+
+
+def remove_empty_toc_entries(opftree, rootepubdir):
+    """Remove the entries without a label (and without subentries) from
+    the NCX and the EPUB 3 navigation document (empty anchors are invalid
+    in nav). Return the number of removed entries."""
+    tocs = opftree.xpath('//opf:item[@media-type="application/x-dtbncx+xml"]',
+                         namespaces=OPFNS)
+    nav_item = find_epub3_nav_item(opftree)
+    if nav_item is not None:
+        tocs.append(nav_item)
+    removed = 0
+    for toc in tocs:
+        toc_path = os.path.join(rootepubdir, unquote(toc.get('href')))
+        try:
+            toctree = etree.parse(toc_path)
+        except (IOError, etree.XMLSyntaxError):
+            continue
+        if toc is nav_item:
+            entries = [
+                a.getparent() for a in
+                toctree.xpath('//xhtml:nav//xhtml:li/xhtml:a',
+                              namespaces=XHTMLNS)
+                if len(a) == 0 and not (a.text or '').strip() and
+                len(a.getparent()) == 1
+            ]
+        else:
+            entries = [
+                np for np in toctree.xpath('//ncx:navPoint',
+                                           namespaces=NCXNS)
+                if not ''.join(np.xpath('ncx:navLabel//text()',
+                                        namespaces=NCXNS)).strip() and
+                not np.xpath('ncx:navPoint', namespaces=NCXNS)
+            ]
+        # a list must keep at least one entry
+        entries = [e for e in entries if len(e.getparent()) > 1 or
+                   toc is not nav_item]
+        if not entries:
+            continue
+        for e in entries:
+            remove_node(e)
+        removed += len(entries)
+        with open(toc_path, 'wb') as f:
+            f.write(etree.tostring(toctree, pretty_print=True,
+                                   xml_declaration=True, encoding='utf-8'))
+    return removed
+
+
+def fix_links_in_tree(xhtree, file_href, hrefs, ids_of):
+    """Fix links of the file file_href (path relative to the OPF):
+    - add http:// to links starting with "www." (not files of the book),
+    - remove a date in parentheses after a URL ("http://... (18.03.2012)"),
+    - unwrap links to missing files which are just their texts,
+    - remove fragments missing in the target files.
+    hrefs are the paths of the book files, ids_of(href) returns the ids of
+    an XHTML file of the book (None for other files).
+    Return the number of fixed links."""
+    deltag = 'epubqtoolsdelme'  # bogus temporary tag
+    fixed = 0
+    for a in xhtree.xpath('//xhtml:a[@href]', namespaces=XHTMLNS):
+        href = a.get('href')
+        if re.match(r'[a-z][a-z0-9+.-]*:', href, re.I):
+            m = re.match(r'(\S+)\s+\([^()]*\)$', href)
+            if m:
+                a.set('href', m.group(1))
+                fixed += 1
+            continue
+        path, _, frag = href.partition('#')
+        target = resolve_href(file_href, path) if path else file_href
+        if path and target not in hrefs:
+            text = re.sub('[\u00ad\u200b\u2060]', '',
+                          ''.join(a.itertext())).strip()
+            if href.startswith('www.'):
+                a.set('href', 'http://' + href)
+                fixed += 1
+            elif href == text:
+                # keep an anchor with an id, only without the link
+                if a.get('id') is None:
+                    a.tag = deltag
+                else:
+                    del a.attrib['href']
+                fixed += 1
+            continue
+        ids = ids_of(target) if frag else None
+        if ids is not None and unquote(frag) not in ids:
+            if path:
+                a.set('href', path)
+            else:
+                del a.attrib['href']
+            fixed += 1
+    etree.strip_tags(xhtree, deltag)
+    return fixed
+
+
+def fix_links(opftree, rootepubdir):
+    """Fix links in all XHTML files of the book (see fix_links_in_tree)."""
+    items = opftree.xpath('//opf:manifest/opf:item', namespaces=OPFNS)
+    hrefs = {posixpath.normpath(unquote(i.get('href', ''))) for i in items}
+    xhtml_hrefs = [posixpath.normpath(unquote(i.get('href', '')))
+                   for i in items
+                   if i.get('media-type') == 'application/xhtml+xml']
+    trees = {}
+    for href in xhtml_hrefs:
+        try:
+            trees[href] = etree.parse(os.path.join(rootepubdir, href))
+        except (IOError, etree.XMLSyntaxError):
+            continue
+    ids = {href: set(tree.xpath('//@id')) for href, tree in trees.items()}
+    for href, tree in trees.items():
+        fixed = fix_links_in_tree(tree, href, hrefs, ids.get)
+        if not fixed:
+            continue
+        print('* Fixed %d broken links in "%s"' % (fixed, href))
+        with open(os.path.join(rootepubdir, href), 'wb') as f:
+            f.write(etree.tostring(tree, xml_declaration=True,
+                                   standalone=False, encoding='utf-8'))
 
 
 def remove_support_page(href, xhtree, opftree, rootepubdir):
@@ -2884,6 +3037,17 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     remove_trailing_hidden_div(xhtree, hidden_divs, hidden_classes,
                                class_styles)
     
+    book_title = ''.join(opftree.xpath('//dc:title[1]//text()',
+                                       namespaces=DCNS)).strip()
+    if book_title and fill_empty_titles(xhtree, book_title):
+        print('* Filled empty <title> with the book title in "%s"'
+              % os.path.basename(xhfile))
+
+    fixed_urls = remove_url_line_breaks(xhtree)
+    if fixed_urls:
+        print('* Removed line breaks from %d URLs in "%s"'
+              % (fixed_urls, os.path.basename(xhfile)))
+
     # remove meta charsets
     _metacharsets = xhtree.xpath('//xhtml:meta[@charset="utf-8"]',
                                  namespaces=XHTMLNS)
@@ -3064,6 +3228,10 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     opftree = html_cover_first(opftree)
     opftree = fix_nav_in_cover_file(opftree, opf_dir_abs)
     remove_nav_aria_labels(opftree, opf_dir_abs)
+    removed = remove_empty_toc_entries(opftree, opf_dir_abs)
+    if removed:
+        print('* Removed %d empty entries from the TOC' % removed)
+    fix_links(opftree, opf_dir_abs)
     remove_text_from_html_cover(opftree, opf_dir_abs)
     if del_fonts:
         opftree = remove_fonts(opftree, opf_dir_abs)
@@ -3314,7 +3482,8 @@ def insert_page_markers(raw, nr):
     Model calibrated on Polish books with print page numbers: a block
     (paragraph, heading, list item...) takes ceil(chars / 68) lines and a
     page has 29 lines. A marker is placed before the first word of the
-    page. Soft hyphens are not counted.
+    page; in a <nav> (empty spans are invalid there) it waits until after
+    the nav. Soft hyphens are not counted.
     Returns the new text and the list of the inserted page numbers."""
     body = re.search(r'<body\b[^>]*>', raw)
     if body is None:
@@ -3328,8 +3497,12 @@ def insert_page_markers(raw, nr):
     after_space = True
     skip = None             # <script>, <style> or <svg> being skipped
     depth = 0               # its nesting depth
+    nav = 0                 # <nav> nesting depth
     for part in PAGE_TAG_RE.split(raw[body.end():]):
         if part.startswith('<'):
+            m = PAGE_NAV_RE.match(part)
+            if m and not part.endswith('/>'):
+                nav = max(nav + (-1 if m.group(1) else 1), 0)
             m = PAGE_SKIP_RE.match(part)
             if m and not part.endswith('/>'):
                 name = m.group(2).lower()
@@ -3362,7 +3535,7 @@ def insert_page_markers(raw, nr):
                 if lines + chars // PAGE_LINE_CHARS >= next_page:
                     pending = True
                     next_page += PAGE_LINES
-                if pending and after_space:
+                if pending and after_space and not nav:
                     pages.append(nr + len(pages) + 1)
                     text.append('<span id="%s"></span>' %
                                 (PAGE_ID % pages[-1]))

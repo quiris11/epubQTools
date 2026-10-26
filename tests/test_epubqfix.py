@@ -14,14 +14,17 @@ from urllib.parse import quote
 from lxml import etree
 
 from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fonts,
+                          fill_empty_titles,
                           decode_b64_name, find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
+                          fix_links_in_tree, remove_empty_toc_entries,
                           split_extra_cover_images,
                           image_data_end, insert_page_markers,
                           is_fundraising_page,
                           is_hiding_style, is_support_page,
                           is_wolnelektury_book, most_common, resolve_href, remove_orphan_refining_metas,
                           remove_thin_spaces_after_spaces,
+                          remove_url_line_breaks,
                           remove_trailing_hidden_div, strip_nav_aria_labels)
 
 XHTML = ('<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Text</p>%s'
@@ -152,6 +155,130 @@ class RemoveThinSpacesAfterSpacesTest(unittest.TestCase):
         n, body = self.remove('<p>1 000 a  b</p>')
         self.assertEqual(n, 0)
         self.assertIn('1 000 a  b', body)
+
+
+class FillEmptyTitlesTest(unittest.TestCase):
+    HTML = ('<html xmlns="http://www.w3.org/1999/xhtml"><head>%s</head>'
+            '<body><p>Text</p></body></html>')
+
+    def test_empty_title_filled(self):
+        for title in ('<title/>', '<title> </title>'):
+            tree = etree.fromstring(self.HTML % title)
+            self.assertTrue(fill_empty_titles(tree, 'Wdowa'))
+            self.assertIn('<title>Wdowa</title>', etree.tostring(
+                tree, encoding='unicode'))
+
+    def test_title_kept(self):
+        tree = etree.fromstring(self.HTML % '<title>Rozdział</title>')
+        self.assertFalse(fill_empty_titles(tree, 'Wdowa'))
+        self.assertIn('<title>Rozdział</title>', etree.tostring(
+            tree, encoding='unicode'))
+
+
+class RemoveUrlLineBreaksTest(unittest.TestCase):
+
+    def test_line_breaks_removed(self):
+        tree = etree.fromstring(XHTML % (
+            '<a href="https://www.&#10;example.org/a&#9;b">x</a>'
+            '<img src="a&#13;.png" alt=""/><a href="ok.html">y</a>'))
+        self.assertEqual(remove_url_line_breaks(tree), 2)
+        html = etree.tostring(tree, encoding='unicode')
+        self.assertIn('href="https://www.example.org/ab"', html)
+        self.assertIn('src="a.png"', html)
+        self.assertIn('href="ok.html"', html)
+
+    def test_url_from_link_text(self):
+        # a hyphen doubled at the line break, the text has the right URL
+        tree = etree.fromstring(XHTML % (
+            '<a href="http://a.org/tips-&#10;-for/">http://a.org/tips-\u00adfor/'
+            '</a><a href="http://b.org/x-&#10;-y">http://c.org/x-y</a>'
+            '<a href="http://d.org/x-&#10;-y">d.org/x-y</a>'))
+        self.assertEqual(remove_url_line_breaks(tree), 3)
+        html = etree.tostring(tree, encoding='unicode')
+        self.assertIn('href="http://a.org/tips-for/"', html)
+        # other URL or no scheme in the text: only the line break removed
+        self.assertIn('href="http://b.org/x--y"', html)
+        self.assertIn('href="http://d.org/x--y"', html)
+
+
+class FixLinksTest(unittest.TestCase):
+    HREFS = {'text/a.xhtml', 'text/b.xhtml', 'www.local.html'}
+    IDS = {'text/a.xhtml': {'x'}, 'text/b.xhtml': {'y'}}
+
+    def fix(self, body):
+        tree = etree.fromstring(XHTML % body)
+        n = fix_links_in_tree(tree, 'text/a.xhtml', self.HREFS,
+                              self.IDS.get)
+        return n, etree.tostring(tree, encoding='unicode')
+
+    def test_www_gets_scheme(self):
+        n, html = self.fix('<a href="www.example.org">www.ex\u00adample.org'
+                           '</a><a href="../www.local.html">z</a>')
+        self.assertEqual(n, 1)
+        self.assertIn('href="http://www.example.org"', html)
+        self.assertIn('href="../www.local.html"', html)
+
+    def test_date_after_url_removed(self):
+        n, html = self.fix('<a href="http://a.org/h.html (18.03.2012)">h</a>'
+                           '<a href="http://a.org/x y">h</a>')
+        self.assertEqual(n, 1)
+        self.assertIn('href="http://a.org/h.html"', html)
+        self.assertIn('href="http://a.org/x y"', html)
+
+    def test_text_linked_to_itself_unwrapped(self):
+        n, html = self.fix('<a href="War Stories">War Sto\u00adries</a>, '
+                           '<a id="i" href="Other">Other</a>'
+                           '<a href="Missing">text</a>')
+        self.assertEqual(n, 2)
+        self.assertIn('>War Sto\u00adries, <a id="i">Other</a>', html)
+        self.assertIn('<a href="Missing">text</a>', html)
+
+    def test_missing_fragment_removed(self):
+        n, html = self.fix('<a href="b.xhtml#y">1</a><a href="b.xhtml#z">2</a>'
+                           '<a href="#x">3</a><a href="#q">4</a>')
+        self.assertEqual(n, 2)
+        self.assertIn('<a href="b.xhtml#y">1</a><a href="b.xhtml">2</a>'
+                      '<a href="#x">3</a><a>4</a>', html)
+
+
+class RemoveEmptyTocEntriesTest(unittest.TestCase):
+    OPF = ('<package xmlns="http://www.idpf.org/2007/opf" version="3.0">'
+           '<manifest>'
+           '<item id="ncx" href="toc.ncx" '
+           'media-type="application/x-dtbncx+xml"/>'
+           '<item id="nav" href="nav.xhtml" properties="nav" '
+           'media-type="application/xhtml+xml"/>'
+           '</manifest></package>')
+    NAV = ('<html xmlns="http://www.w3.org/1999/xhtml" '
+           'xmlns:epub="http://www.idpf.org/2007/ops"><body>'
+           '<nav epub:type="toc"><ol>'
+           '<li><a href="a.xhtml">A</a></li><li><a href="b.xhtml"/></li>'
+           '<li><a href="c.xhtml"> </a><ol><li><a href="d.xhtml">D</a>'
+           '</li></ol></li></ol></nav></body></html>')
+    NCX = ('<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" '
+           'version="2005-1"><navMap>'
+           '<navPoint id="a"><navLabel><text>A</text></navLabel>'
+           '<content src="a.xhtml"/></navPoint>'
+           '<navPoint id="b"><navLabel><text/></navLabel>'
+           '<content src="b.xhtml"/></navPoint></navMap></ncx>')
+
+    def test_empty_entries_removed(self):
+        with tempfile.TemporaryDirectory() as d:
+            for name, text in (('nav.xhtml', self.NAV),
+                               ('toc.ncx', self.NCX)):
+                with open(os.path.join(d, name), 'w') as f:
+                    f.write(text)
+            opftree = etree.fromstring(self.OPF).getroottree()
+            self.assertEqual(remove_empty_toc_entries(opftree, d), 2)
+            with open(os.path.join(d, 'nav.xhtml')) as f:
+                nav = f.read()
+            with open(os.path.join(d, 'toc.ncx')) as f:
+                ncx = f.read()
+        self.assertNotIn('b.xhtml', nav)
+        # an entry with subentries stays
+        self.assertIn('c.xhtml', nav)
+        self.assertNotIn('b.xhtml', ncx)
+        self.assertIn('a.xhtml', ncx)
 
 
 class HelpersTest(unittest.TestCase):
@@ -466,6 +593,15 @@ class InsertPageMarkersTest(unittest.TestCase):
         new, pages = insert_page_markers(raw, 0)
         self.assertIn('<p title="a > b">y', new)
         self.assertNotIn('<span', new[:new.index('>y')])
+
+    def test_no_marker_in_nav(self):
+        # empty spans are invalid in nav, the marker waits until after it
+        raw = self.BODY % ('<nav><ol>%s</ol></nav><p>After</p>' %
+                           ''.join('<li><a href="a.xhtml">Item %d</a></li>'
+                                   % i for i in range(31)))
+        new, pages = insert_page_markers(raw, 0)
+        self.assertEqual(pages, [1])
+        self.assertIn('</nav><p><span id="eqt_page_1"></span>After</p>', new)
 
 
 class AddPageListTest(unittest.TestCase):
