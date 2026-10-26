@@ -2558,6 +2558,22 @@ def fill_empty_titles(xhtree, book_title):
     return filled
 
 
+def remove_url_line_breaks(xhtree):
+    """Remove tabs and line breaks from href and src attributes (invalid in
+    URLs; URL parsers drop them anyway, so the targets don't change).
+    Return the number of fixed attributes."""
+    fixed = 0
+    for el in xhtree.iter():
+        if not isinstance(el.tag, str):
+            continue
+        for attr in ('href', 'src'):
+            value = el.get(attr)
+            if value is not None and re.search('[\t\n\r]', value):
+                el.set(attr, re.sub('[\t\n\r]', '', value))
+                fixed += 1
+    return fixed
+
+
 def find_class_styles(opftree, opfdir):
     """ClassStyles of the CSS files (in the order of the manifest)."""
     css_texts = []
@@ -2901,6 +2917,11 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     if book_title and fill_empty_titles(xhtree, book_title):
         print('* Filled empty <title> with the book title in "%s"'
               % os.path.basename(xhfile))
+
+    fixed_urls = remove_url_line_breaks(xhtree)
+    if fixed_urls:
+        print('* Removed line breaks from %d URLs in "%s"'
+              % (fixed_urls, os.path.basename(xhfile)))
 
     # remove meta charsets
     _metacharsets = xhtree.xpath('//xhtml:meta[@charset="utf-8"]',

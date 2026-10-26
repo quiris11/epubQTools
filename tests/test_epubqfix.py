@@ -23,6 +23,7 @@ from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fo
                           is_hiding_style, is_support_page,
                           is_wolnelektury_book, most_common, resolve_href, remove_orphan_refining_metas,
                           remove_thin_spaces_after_spaces,
+                          remove_url_line_breaks,
                           remove_trailing_hidden_div, strip_nav_aria_labels)
 
 XHTML = ('<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Text</p>%s'
@@ -171,6 +172,19 @@ class FillEmptyTitlesTest(unittest.TestCase):
         self.assertFalse(fill_empty_titles(tree, 'Wdowa'))
         self.assertIn('<title>Rozdział</title>', etree.tostring(
             tree, encoding='unicode'))
+
+
+class RemoveUrlLineBreaksTest(unittest.TestCase):
+
+    def test_line_breaks_removed(self):
+        tree = etree.fromstring(XHTML % (
+            '<a href="https://www.&#10;example.org/a&#9;b">x</a>'
+            '<img src="a&#13;.png" alt=""/><a href="ok.html">y</a>'))
+        self.assertEqual(remove_url_line_breaks(tree), 2)
+        html = etree.tostring(tree, encoding='unicode')
+        self.assertIn('href="https://www.example.org/ab"', html)
+        self.assertIn('src="a.png"', html)
+        self.assertIn('href="ok.html"', html)
 
 
 class HelpersTest(unittest.TestCase):
