@@ -26,6 +26,7 @@ from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fo
                           is_fundraising_page,
                           is_hiding_style, is_support_page,
                           is_wolnelektury_book, most_common, resolve_href, remove_orphan_refining_metas,
+                          remove_amzn_attributes,
                           remove_thin_spaces_after_spaces,
                           remove_url_line_breaks,
                           remove_trailing_hidden_div, strip_nav_aria_labels)
@@ -183,6 +184,19 @@ class RemoveThinSpacesAfterSpacesTest(unittest.TestCase):
         n, body = self.remove('<p>1 000 a  b</p>')
         self.assertEqual(n, 0)
         self.assertIn('1 000 a  b', body)
+
+
+class RemoveAmznAttributesTest(unittest.TestCase):
+    def test_amzn_attributes_removed(self):
+        tree = etree.fromstring(
+            '<html xmlns="http://www.w3.org/1999/xhtml" amzn-src-id="1">'
+            '<body amzn-src-id="2"><p id="p1" amzn-src-id="3">Text</p>'
+            '<!-- note --></body></html>')
+        self.assertEqual(remove_amzn_attributes(tree), 3)
+        self.assertEqual(etree.tostring(tree, encoding='unicode'),
+                         '<html xmlns="http://www.w3.org/1999/xhtml">'
+                         '<body><p id="p1">Text</p><!-- note --></body>'
+                         '</html>')
 
 
 class FillEmptyTitlesTest(unittest.TestCase):

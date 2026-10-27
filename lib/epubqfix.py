@@ -2556,6 +2556,20 @@ def remove_thin_spaces_after_spaces(xhtree):
     return removed
 
 
+def remove_amzn_attributes(xhtree):
+    """Remove the amzn-* attributes (e.g. amzn-src-id) left by conversion
+    from Kindle formats - they are not valid in XHTML. Return the number
+    of removed attributes."""
+    removed = 0
+    for el in xhtree.iter():
+        if not isinstance(el.tag, str):
+            continue
+        for name in [n for n in el.attrib if n.startswith('amzn-')]:
+            del el.attrib[name]
+            removed += 1
+    return removed
+
+
 def fill_empty_titles(xhtree, book_title):
     """Fill empty <title> elements (invalid in XHTML) with the book title.
     Return True if any title was filled."""
@@ -3177,6 +3191,11 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                 remove_node(i[-1])
         except Exception:
             continue
+
+    removed = remove_amzn_attributes(xhtree)
+    if removed:
+        print('* Removed %d amzn-* attributes from "%s"' %
+              (removed, os.path.basename(xhfile)))
 
     # remove reset spans of marked texts
     deltag = "epubqtoolsdelme"  # bogus temporary tag
