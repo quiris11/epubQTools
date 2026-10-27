@@ -90,7 +90,8 @@ Send to Kindle does not show notes stored in `<aside>` elements in pop-ups, it o
 them. Note asides (linked with `epub:type="noteref"` or `role="doc-noteref"` links, or with
 `epub:type` `footnote`, `endnote`, `rearnote` or `note`) are replaced with list items of an
 `<ol class="eqt_notes">` list (consecutive notes in one list). An aside with a single `<p>`
-becomes a list item with the contents of the paragraph.
+becomes a list item with the contents of the paragraph. The notes keep the CSS styles of the
+asides, without borders: Send to Kindle does not show notes with a border in pop-ups either.
 
 #### Output messages:
 * `* text` - information

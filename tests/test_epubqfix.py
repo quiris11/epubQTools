@@ -15,7 +15,7 @@ from lxml import etree
 
 from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fonts,
                           convert_note_aside_css, convert_note_asides,
-                          convert_note_asides_in_tree,
+                          convert_note_asides_in_tree, NOTE_LIST_CSS,
                           fill_empty_titles,
                           decode_b64_name, find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
@@ -342,37 +342,92 @@ class ConvertNoteAsidesTest(unittest.TestCase):
         self.assertIn('<aside id="n3"><p>Three</p></aside>', html)
 
 
+class NoteListStylesTest(unittest.TestCase):
+    OPF = ('<package xmlns="http://www.idpf.org/2007/opf"><manifest>'
+           '<item href="text/a.xhtml" media-type="application/xhtml+xml"/>'
+           '<item href="text/b.xhtml" media-type="application/xhtml+xml"/>'
+           '<item href="css/s.css" media-type="text/css"/>'
+           '</manifest></package>')
+    CSS = 'aside[id^="n"] {\n    padding: 0.8em 0;\n    border-bottom: 1px solid;}\n'
+
+    def run_convert(self, a_head):
+        a = ('<html xmlns="http://www.w3.org/1999/xhtml"><head>%s</head>'
+             '<body><aside id="n1" xmlns:epub="http://www.idpf.org/2007/ops" '
+             'epub:type="footnote"><p>One</p></aside></body></html>' % a_head)
+        with tempfile.TemporaryDirectory() as d:
+            for name, text in (('text/a.xhtml', a),
+                               ('text/b.xhtml', XHTML % ''),
+                               ('css/s.css', self.CSS)):
+                os.makedirs(os.path.dirname(os.path.join(d, name)),
+                            exist_ok=True)
+                with open(os.path.join(d, name), 'w') as f:
+                    f.write(text)
+            opftree = etree.fromstring(self.OPF).getroottree()
+            convert_note_asides(opftree, d)
+            # a second run does not add the styles again
+            convert_note_asides(opftree, d)
+            with open(os.path.join(d, 'text/a.xhtml')) as f:
+                html = f.read()
+            with open(os.path.join(d, 'css/s.css')) as f:
+                css = f.read()
+        return html, css
+
+    def test_styles_added_to_linked_css(self):
+        html, css = self.run_convert(
+            '<link href="../css/s.css" rel="stylesheet" type="text/css"/>'
+            '<link href="../css/reset.css" rel="stylesheet" type="text/css"/>')
+        self.assertIn('<ol class="eqt_notes">', html)
+        self.assertNotIn('<style', html)
+        # the styles of the asides without the border
+        self.assertEqual(css, self.CSS.rstrip('\n') +
+                         '\n\nol.eqt_notes > li[id^="n"] {\n'
+                         '    padding: 0.8em 0;}\n' + NOTE_LIST_CSS)
+
+    def test_styles_in_file_without_css(self):
+        html, css = self.run_convert('<title>A</title>')
+        self.assertNotIn('ol.eqt_notes {', css)
+        self.assertEqual(html.count('ol.eqt_notes {'), 1)
+        self.assertIn('<style type="text/css">', html)
+
+
 class ConvertNoteAsideCssTest(unittest.TestCase):
     CSS = ('/* notes */\naside[id^="endnote-"] {\n    margin: 1.2em 0;\n'
-           '    line-height: 1.6;}\n\n'
+           '    border-bottom: 1px solid;\n    line-height: 1.6;}\n\n'
            'aside[id^="endnote-"] p {\n    text-indent: 0;\n    margin: 0;\n'
            '    padding: 0;\n    font-size: 0.95em;\n'
            '    font-family: "CustomSerif", serif;}\n\n'
            'p, .aside {\n    margin: 0;}\n')
 
-    def test_note_selectors_added(self):
+    def test_note_rules_added(self):
         css, n = convert_note_aside_css(self.CSS)
         self.assertEqual(n, 2)
-        self.assertIn('/* notes */\naside[id^="endnote-"], '
-                      'ol.eqt_notes > li[id^="endnote-"] {\n    margin: 1.2em 0;',
+        # the rules of asides stay, the notes get them without the border
+        self.assertIn(self.CSS[:self.CSS.index('aside[id^="endnote-"] p')],
                       css)
-        self.assertIn('aside[id^="endnote-"] p, '
-                      'ol.eqt_notes > li[id^="endnote-"] p {', css)
+        self.assertIn('line-height: 1.6;}\n\n'
+                      'ol.eqt_notes > li[id^="endnote-"] {\n'
+                      '    margin: 1.2em 0;\n    line-height: 1.6;}', css)
+        self.assertIn('\n\nol.eqt_notes > li[id^="endnote-"] p {\n'
+                      '    text-indent: 0;\n    margin: 0;\n'
+                      '    padding: 0;\n', css)
         # text properties of the unwrapped <p> go to the list item
         self.assertIn('\n\nol.eqt_notes > li[id^="endnote-"] {\n'
                       '    text-indent: 0;\n    font-size: 0.95em;\n'
                       '    font-family: "CustomSerif", serif;}', css)
         self.assertIn('p, .aside {\n    margin: 0;}', css)
+        self.assertNotIn('li[id^="endnote-"] {\n    border', css)
 
     def test_selectors_after_paragraph(self):
         css, n = convert_note_aside_css(
-            'section > aside.note p span, aside p.x, nav a {color: red}')
+            'section > aside.note p span, aside p.x, nav a {color: red; '
+            'border-left: 1px solid}')
         self.assertEqual(n, 1)
         self.assertEqual(
-            css, 'section > aside.note p span, aside p.x, nav a, '
+            css, 'section > aside.note p span, aside p.x, nav a {color: red; '
+            'border-left: 1px solid}\n\n'
             'section > ol.eqt_notes > li.note p span, '
             'section > ol.eqt_notes > li.note span, '
-            'ol.eqt_notes > li p.x {color: red}')
+            'ol.eqt_notes > li p.x {\n    color: red;}')
 
 
 class HelpersTest(unittest.TestCase):
