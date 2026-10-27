@@ -2912,6 +2912,75 @@ def convert_note_asides_in_tree(xhtree, note_ids):
     return converted
 
 
+NOTE_LI = 'ol.eqt_notes > li'
+ASIDE_SELECTOR = re.compile(r'(^|[\s>+~])aside(?![\w-])([^\s>+~,]*)')
+PLAIN_P_SELECTOR = re.compile(r'(\s*>\s*|\s+)p(?=$|[\s>+~])')
+CSS_RULE = re.compile(r'((?:\s*/\*.*?\*/)*\s*)([^{};@/]+?)(\s*)\{([^{}]*)\}',
+                      re.S)
+BOX_PROPERTIES = {'width', 'height', 'display', 'float', 'clear', 'position',
+                  'top', 'right', 'bottom', 'left', 'overflow'}
+BOX_PROPERTY_PREFIXES = ('margin', 'padding', 'border', 'background',
+                         'outline', 'box-', 'min-', 'max-', 'page-break',
+                         'break-')
+
+
+def note_selectors(selector):
+    """Return the selectors of the converted notes (list items) for a
+    selector of asides, as (selector, text_only) pairs. text_only marks the
+    selector of the list item which replaced the <p> of a note: only text
+    properties of the <p> rule go to it."""
+    m = ASIDE_SELECTOR.search(selector)
+    if not m:
+        return []
+    head = selector[:m.end(1)] + NOTE_LI + m.group(2)
+    tail = selector[m.end():]
+    result = [(head + tail, False)]
+    p = PLAIN_P_SELECTOR.match(tail)
+    if p:
+        rest = tail[p.end():]
+        result.append((head + rest, not rest.strip()))
+    return result
+
+
+def text_declarations(body):
+    """The declarations of a CSS rule body without box properties."""
+    kept = []
+    for declaration in body.split(';'):
+        prop = declaration.partition(':')[0].strip().lower()
+        if (prop and prop not in BOX_PROPERTIES and
+                not prop.startswith(BOX_PROPERTY_PREFIXES)):
+            kept.append(declaration.strip())
+    return kept
+
+
+def convert_note_aside_css(css_text):
+    """Add the selectors of the converted notes (see
+    convert_note_asides_in_tree) to the CSS rules of asides, so the notes
+    keep their styles. The text properties of a rule of the <p> elements of
+    asides go to a new rule of the list items. Return the new CSS text and
+    the number of changed rules."""
+    changed = 0
+
+    def convert(m):
+        nonlocal changed
+        comments, selectors, space, body = m.groups()
+        added, text_only = [], []
+        for selector in selectors.split(','):
+            for new, only_text in note_selectors(selector.strip()):
+                (text_only if only_text else added).append(new)
+        if not added:
+            return m.group(0)
+        changed += 1
+        rule = '%s%s, %s%s{%s}' % (comments, selectors, ', '.join(added),
+                                   space, body)
+        declarations = text_declarations(body) if text_only else []
+        if declarations:
+            rule += '\n\n%s {\n    %s;}' % (', '.join(text_only),
+                                            ';\n    '.join(declarations))
+        return rule
+    return CSS_RULE.sub(convert, css_text), changed
+
+
 def convert_note_asides(opftree, rootepubdir):
     """Convert note asides in all XHTML files of the book (see
     convert_note_asides_in_tree)."""
@@ -2938,9 +3007,26 @@ def convert_note_asides(opftree, rootepubdir):
         with open(os.path.join(rootepubdir, href), 'wb') as f:
             f.write(etree.tostring(tree, xml_declaration=True,
                                    standalone=False, encoding='utf-8'))
-    if converted:
-        print('* Converted %d notes from <aside> to list items (pop-up '
-              'notes on Kindle)' % converted)
+    if not converted:
+        return
+    print('* Converted %d notes from <aside> to list items (pop-up '
+          'notes on Kindle)' % converted)
+    for c in opftree.xpath('//opf:item[@media-type="text/css"]',
+                           namespaces=OPFNS):
+        css_path = os.path.join(rootepubdir, unquote(c.get('href')))
+        try:
+            with open(css_path, 'r', encoding='utf-8', newline='') as cf:
+                css_text, changed = convert_note_aside_css(cf.read())
+            if not changed:
+                continue
+            with open(css_path, 'w', encoding='utf-8', newline='') as cf:
+                cf.write(css_text)
+        except (IOError, UnicodeDecodeError) as e:
+            print('! WARNING! Unable to convert note styles in CSS file '
+                  '"%s": %s' % (c.get('href'), e))
+            continue
+        print('* Added styles of the converted notes to %d CSS rules in '
+              '"%s"' % (changed, c.get('href')))
 
 
 def remove_support_page(href, xhtree, opftree, rootepubdir):

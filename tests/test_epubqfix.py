@@ -14,7 +14,8 @@ from urllib.parse import quote
 from lxml import etree
 
 from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fonts,
-                          convert_note_asides, convert_note_asides_in_tree,
+                          convert_note_aside_css, convert_note_asides,
+                          convert_note_asides_in_tree,
                           fill_empty_titles,
                           decode_b64_name, find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
@@ -339,6 +340,39 @@ class ConvertNoteAsidesTest(unittest.TestCase):
         self.assertIn('<li id="n1">One</li>', html)
         self.assertIn('<li id="n2">Two</li>', html)
         self.assertIn('<aside id="n3"><p>Three</p></aside>', html)
+
+
+class ConvertNoteAsideCssTest(unittest.TestCase):
+    CSS = ('/* notes */\naside[id^="endnote-"] {\n    margin: 1.2em 0;\n'
+           '    line-height: 1.6;}\n\n'
+           'aside[id^="endnote-"] p {\n    text-indent: 0;\n    margin: 0;\n'
+           '    padding: 0;\n    font-size: 0.95em;\n'
+           '    font-family: "CustomSerif", serif;}\n\n'
+           'p, .aside {\n    margin: 0;}\n')
+
+    def test_note_selectors_added(self):
+        css, n = convert_note_aside_css(self.CSS)
+        self.assertEqual(n, 2)
+        self.assertIn('/* notes */\naside[id^="endnote-"], '
+                      'ol.eqt_notes > li[id^="endnote-"] {\n    margin: 1.2em 0;',
+                      css)
+        self.assertIn('aside[id^="endnote-"] p, '
+                      'ol.eqt_notes > li[id^="endnote-"] p {', css)
+        # text properties of the unwrapped <p> go to the list item
+        self.assertIn('\n\nol.eqt_notes > li[id^="endnote-"] {\n'
+                      '    text-indent: 0;\n    font-size: 0.95em;\n'
+                      '    font-family: "CustomSerif", serif;}', css)
+        self.assertIn('p, .aside {\n    margin: 0;}', css)
+
+    def test_selectors_after_paragraph(self):
+        css, n = convert_note_aside_css(
+            'section > aside.note p span, aside p.x, nav a {color: red}')
+        self.assertEqual(n, 1)
+        self.assertEqual(
+            css, 'section > aside.note p span, aside p.x, nav a, '
+            'section > ol.eqt_notes > li.note p span, '
+            'section > ol.eqt_notes > li.note span, '
+            'ol.eqt_notes > li p.x {color: red}')
 
 
 class HelpersTest(unittest.TestCase):
