@@ -2855,6 +2855,94 @@ def fix_links(opftree, rootepubdir):
                                    standalone=False, encoding='utf-8'))
 
 
+NOTE_TYPES = {'footnote', 'endnote', 'rearnote', 'note'}
+EPUB_TYPE = '{http://www.idpf.org/2007/ops}type'
+NOTE_LIST_STYLE = 'list-style-type: none; margin-left: 0; padding-left: 0'
+
+
+def noteref_targets(xhtree, file_href):
+    """Return (file, id) pairs (file relative to the OPF) of the notes
+    linked from the file file_href by noteref links."""
+    targets = set()
+    for a in xhtree.xpath('//xhtml:a[@href]', namespaces=XHTMLNS):
+        if ('noteref' not in (a.get(EPUB_TYPE) or '').split() and
+                a.get('role') != 'doc-noteref'):
+            continue
+        path, _, frag = a.get('href').partition('#')
+        if frag:
+            target = resolve_href(file_href, path) if path else file_href
+            targets.add((target, unquote(frag)))
+    return targets
+
+
+def convert_note_asides_in_tree(xhtree, note_ids):
+    """Replace the note <aside> elements (with an id from note_ids or with
+    a note epub:type) with <li> elements of an <ol> list: Send to Kindle
+    does not show such notes in pop-ups, only jumps to them. An aside with
+    a single <p> becomes a <li> with the contents of the <p>. Consecutive
+    asides go to the same list. Return the number of converted notes."""
+    converted = 0
+    for aside in xhtree.xpath('//xhtml:aside', namespaces=XHTMLNS):
+        if (aside.get('id') not in note_ids and
+                not NOTE_TYPES & set((aside.get(EPUB_TYPE) or '').split())):
+            continue
+        children = list(aside)
+        if (len(children) == 1 and
+                children[0].tag == '{%s}p' % XHTMLNS['xhtml'] and
+                not (aside.text or '').strip()):
+            p = children[0]
+            aside.text = p.text
+            aside[:] = list(p)
+        aside.tag = '{%s}li' % XHTMLNS['xhtml']
+        prev = aside.getprevious()
+        if (prev is not None and prev.get('class') == 'eqt_notes' and
+                not (prev.tail or '').strip()):
+            ol = prev
+            ol.append(aside)
+        else:
+            ol = etree.Element('{%s}ol' % XHTMLNS['xhtml'],
+                               {'class': 'eqt_notes',
+                                'style': NOTE_LIST_STYLE})
+            aside.addprevious(ol)
+            ol.tail = None
+            ol.text = '\n'
+            ol.append(aside)
+        ol.tail, aside.tail = aside.tail, '\n'
+        converted += 1
+    return converted
+
+
+def convert_note_asides(opftree, rootepubdir):
+    """Convert note asides in all XHTML files of the book (see
+    convert_note_asides_in_tree)."""
+    xhtml_hrefs = [posixpath.normpath(unquote(i.get('href', '')))
+                   for i in opftree.xpath('//opf:manifest/opf:item',
+                                          namespaces=OPFNS)
+                   if i.get('media-type') == 'application/xhtml+xml']
+    trees = {}
+    for href in xhtml_hrefs:
+        try:
+            trees[href] = etree.parse(os.path.join(rootepubdir, href))
+        except (IOError, etree.XMLSyntaxError):
+            continue
+    targets = set()
+    for href, tree in trees.items():
+        targets |= noteref_targets(tree, href)
+    converted = 0
+    for href, tree in trees.items():
+        n = convert_note_asides_in_tree(
+            tree, {i for f, i in targets if f == href})
+        if not n:
+            continue
+        converted += n
+        with open(os.path.join(rootepubdir, href), 'wb') as f:
+            f.write(etree.tostring(tree, xml_declaration=True,
+                                   standalone=False, encoding='utf-8'))
+    if converted:
+        print('* Converted %d notes from <aside> to list items (pop-up '
+              'notes on Kindle)' % converted)
+
+
 def remove_support_page(href, xhtree, opftree, rootepubdir):
     imgs = {resolve_href(href, img.get('src')) for img in
             xhtree.xpath('//xhtml:img[@src]', namespaces=XHTMLNS)}
@@ -3238,6 +3326,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if removed:
         print('* Removed %d empty entries from the TOC' % removed)
     fix_links(opftree, opf_dir_abs)
+    convert_note_asides(opftree, opf_dir_abs)
     remove_text_from_html_cover(opftree, opf_dir_abs)
     if del_fonts:
         opftree = remove_fonts(opftree, opf_dir_abs)

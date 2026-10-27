@@ -14,6 +14,7 @@ from urllib.parse import quote
 from lxml import etree
 
 from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fonts,
+                          convert_note_asides, convert_note_asides_in_tree,
                           fill_empty_titles,
                           decode_b64_name, find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
@@ -279,6 +280,65 @@ class RemoveEmptyTocEntriesTest(unittest.TestCase):
         self.assertIn('c.xhtml', nav)
         self.assertNotIn('b.xhtml', ncx)
         self.assertIn('a.xhtml', ncx)
+
+
+class ConvertNoteAsidesTest(unittest.TestCase):
+    NOTES = ('<aside id="n1" epub:type="rearnote"><p><span>1</span> One '
+             '<a href="a.xhtml#r1">&#8617;</a></p></aside>\n'
+             '<aside id="n2"><p>Two</p><p>Second paragraph</p></aside>'
+             '<div id="page9"/>'
+             '<aside id="n3" class="x"><p>Three</p></aside>'
+             '<aside id="side">Sidebar</aside>')
+
+    def convert(self, body, note_ids):
+        tree = etree.fromstring(
+            XHTML.replace('<html ', '<html xmlns:epub='
+                          '"http://www.idpf.org/2007/ops" ') % body)
+        n = convert_note_asides_in_tree(tree, note_ids)
+        return n, etree.tostring(tree, encoding='unicode')
+
+    def test_notes_converted_to_list_items(self):
+        n, html = self.convert(self.NOTES, {'n2', 'n3'})
+        self.assertEqual(n, 3)
+        self.assertNotIn('<aside id="n', html)
+        # the single paragraph is replaced with the list item
+        self.assertIn('<li id="n1" epub:type="rearnote"><span>1</span> One '
+                      '<a href="a.xhtml#r1">\u21a9</a></li>', html)
+        self.assertIn('<li id="n2"><p>Two</p><p>Second paragraph</p></li>',
+                      html)
+        self.assertIn('<li id="n3" class="x">Three</li>', html)
+        # not a note
+        self.assertIn('<aside id="side">Sidebar</aside>', html)
+
+    def test_consecutive_notes_in_one_list(self):
+        n, html = self.convert(self.NOTES, {'n2', 'n3'})
+        self.assertEqual(html.count('<ol class="eqt_notes"'), 2)
+        self.assertRegex(html, r'<ol [^>]*>\n<li id="n1".*</li>\n'
+                               r'<li id="n2".*</li>\n</ol><div id="page9"/>'
+                               r'<ol [^>]*>\n<li id="n3"')
+
+    def test_book_notes_found_by_noteref_links(self):
+        opf = ('<package xmlns="http://www.idpf.org/2007/opf"><manifest>'
+               '<item href="text/a.xhtml" media-type="application/xhtml+xml"/>'
+               '<item href="notes.xhtml" media-type="application/xhtml+xml"/>'
+               '</manifest></package>')
+        a = XHTML % ('<a xmlns:epub="http://www.idpf.org/2007/ops" '
+                     'epub:type="noteref" href="../notes.xhtml#n1">1</a>'
+                     '<a role="doc-noteref" href="../notes.xhtml#n2">2</a>')
+        notes = XHTML % ('<aside id="n1"><p>One</p></aside>'
+                         '<aside id="n2"><p>Two</p></aside>'
+                         '<aside id="n3"><p>Three</p></aside>')
+        with tempfile.TemporaryDirectory() as d:
+            os.mkdir(os.path.join(d, 'text'))
+            for name, text in (('text/a.xhtml', a), ('notes.xhtml', notes)):
+                with open(os.path.join(d, name), 'w') as f:
+                    f.write(text)
+            convert_note_asides(etree.fromstring(opf).getroottree(), d)
+            with open(os.path.join(d, 'notes.xhtml')) as f:
+                html = f.read()
+        self.assertIn('<li id="n1">One</li>', html)
+        self.assertIn('<li id="n2">Two</li>', html)
+        self.assertIn('<aside id="n3"><p>Three</p></aside>', html)
 
 
 class HelpersTest(unittest.TestCase):

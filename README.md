@@ -85,6 +85,13 @@ book, systematic error under 4%).
 Send to Kindle keeps such a list, so the "Pages" option works also for books for which Amazon
 does not generate pages itself (e.g. books with tables). Turn it off with `--skip-page-list`.
 
+#### Pop-up notes (-e):
+Send to Kindle does not show notes stored in `<aside>` elements in pop-ups, it only jumps to
+them. Note asides (linked with `epub:type="noteref"` or `role="doc-noteref"` links, or with
+`epub:type` `footnote`, `endnote`, `rearnote` or `note`) are replaced with list items of an
+`<ol class="eqt_notes">` list (consecutive notes in one list). An aside with a single `<p>`
+becomes a list item with the contents of the paragraph.
+
 #### Output messages:
 * `* text` - information
 * `! WARNING! text` - warning, the book is processed
