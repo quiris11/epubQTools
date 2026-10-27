@@ -337,6 +337,17 @@ class ConvertNoteAsidesTest(unittest.TestCase):
         # not a note
         self.assertIn('<aside id="side">Sidebar</aside>', html)
 
+    def test_id_of_paragraph_kept(self):
+        n, html = self.convert(
+            '<aside epub:type="footnote"><p id="fn1">One</p></aside>'
+            '<aside id="n2"><p id="fn2">Two</p></aside>', set())
+        self.assertEqual(n, 1)
+        self.assertIn('<li epub:type="footnote" id="fn1">One</li>', html)
+        # both ids kept, so the paragraph stays
+        n, html = self.convert(
+            '<aside id="n2"><p id="fn2">Two</p></aside>', {'n2'})
+        self.assertIn('<li id="n2"><p id="fn2">Two</p></li>', html)
+
     def test_consecutive_notes_in_one_list(self):
         n, html = self.convert(self.NOTES, {'n2', 'n3'})
         self.assertEqual(html.count('<ol class="eqt_notes"'), 2)

@@ -2892,8 +2892,12 @@ def convert_note_asides_in_tree(xhtree, note_ids):
         children = list(aside)
         if (len(children) == 1 and
                 children[0].tag == '{%s}p' % XHTMLNS['xhtml'] and
-                not (aside.text or '').strip()):
+                not (aside.text or '').strip() and
+                (aside.get('id') is None or children[0].get('id') is None)):
             p = children[0]
+            # links may point to the id of the <p>, not of the aside
+            if p.get('id') is not None:
+                aside.set('id', p.get('id'))
             aside.text = p.text
             aside[:] = list(p)
         aside.tag = '{%s}li' % XHTMLNS['xhtml']
