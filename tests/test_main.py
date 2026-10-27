@@ -147,6 +147,8 @@ class CommandLineTest(unittest.TestCase):
         with open(os.path.join(ts2k, 'U.epub'), 'rb') as f:
             self.assertEqual(f.read(), b'new')
 
+    # only macOS file systems treat NFD and NFC names as the same file
+    @unittest.skipUnless(sys.platform == 'darwin', 'macOS only')
     def test_send_to_kindle_composes_polish_letters(self):
         nfd = unicodedata.normalize('NFD', 'Ścieżka żółwia')
         os.makedirs(os.path.join(self.dir, 'MOH'))

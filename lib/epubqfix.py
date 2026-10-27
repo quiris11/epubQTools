@@ -29,6 +29,7 @@ from pkgutil import get_data
 from urllib.parse import quote, unquote
 from itertools import cycle
 from lib.htmlconstants import entities
+from lib.epubqcheck import best_cover_image_item
 from lib.csscheck import (class_rules, fix_missing_semicolons,
                           fix_property_typos, fix_unusual_spaces,
                           font_face_families,
@@ -1568,6 +1569,14 @@ def add_cover_image_pages(new_docs, cover_href, opftree, tempdir):
 
 def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
                         _soup):
+    def is_cover_src(src):
+        # compare whole file names, so e.g. "backcover.jpg" is not taken
+        # for "cover.jpg"
+        if src is None:
+            return False
+        return (os.path.basename(src) == os.path.basename(_itemcoverhref) or
+                src.lower().find('okladka_fmt') != -1)
+
     cover_file = None
     for xhtml_file in _xhtml_files:
         xhtmltree = etree.parse(xhtml_file,
@@ -1575,18 +1584,14 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
                                     recover=True))
 
         allimgs = etree.XPath('//xhtml:img', namespaces=XHTMLNS)(xhtmltree)
-        for img in allimgs:
-            if (img.get('src').find(_itemcoverhref) != -1 or
-                    img.get('src').lower().find('okladka_fmt') != -1):
-                cover_file = xhtml_file
-                break
         allsvgimgs = etree.XPath('//svg:image', namespaces=SVGNS)(xhtmltree)
-        for svgimg in allsvgimgs:
-            svg_img_href = svgimg.get('{http://www.w3.org/1999/xlink}href')
-            if (svg_img_href.find(_itemcoverhref) != -1 or
-                    svg_img_href.lower().find('okladka_fmt') != -1):
-                cover_file = xhtml_file
-                break
+        srcs = [img.get('src') for img in allimgs] + [
+            svgimg.get('{http://www.w3.org/1999/xlink}href')
+            for svgimg in allsvgimgs
+        ]
+        if any(is_cover_src(src) for src in srcs):
+            cover_file = xhtml_file
+            break
     if cover_file is not None:
         for xhtml_file_path in _xhtml_file_paths:
             if xhtml_file_path.find(os.path.basename(cover_file)) != -1:
@@ -1631,12 +1636,10 @@ def force_cover_find(_soup):
     print('* Trying to find cover image:', end=' ')
     images = etree.XPath('//opf:item[@media-type="image/jpeg"]',
                          namespaces=OPFNS)(_soup)
-    if len(images) != 0:
-        for imag in images:
-            img = os.path.basename(imag.get('href')).lower()
-            if 'cover' in img or 'okladka' in img:
-                print('"%s" file found.' % img)
-                return imag.get('href'), imag.get('id')
+    imag = best_cover_image_item(images)
+    if imag is not None:
+        print('"%s" file found.' % os.path.basename(imag.get('href')).lower())
+        return imag.get('href'), imag.get('id')
     print('NOT found!')
     return None, None
 

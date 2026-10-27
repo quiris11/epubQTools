@@ -183,21 +183,41 @@ def check_meta_html_covers(tree, dir, epub, _file_dec):
             print(_file_dec + 'Meta cover and HTML cover mismatched.')
 
 
+def best_cover_image_item(images):
+    """Return the OPF image item most likely to be the front cover, or None.
+
+    The EPUB 3 cover-image property wins, then images named exactly
+    cover/okladka, then names merely containing those words - back covers
+    last, so e.g. "backcover.jpg" never wins over "cover.jpg"."""
+    def cover_rank(imag):
+        if 'cover-image' in (imag.get('properties') or '').split():
+            return 0
+        stem = os.path.splitext(
+            os.path.basename(imag.get('href')).lower())[0]
+        if stem in ('cover', 'okladka'):
+            return 1
+        if 'cover' not in stem and 'okladka' not in stem:
+            return None
+        if 'back' in stem or 'tyl' in stem:
+            return 3
+        return 2
+    ranked = [(cover_rank(i), n, i) for n, i in enumerate(images)
+              if cover_rank(i) is not None]
+    if not ranked:
+        return None
+    return min(ranked, key=lambda r: r[:2])[2]
+
+
 def find_cover_image(_opftree, _file_dec):
     images = etree.XPath('//opf:item[@media-type="image/jpeg"]',
                          namespaces=OPFNS)(_opftree)
-    cover_found = 0
     if len(images) != 0:
-        for imag in images:
-            img_href_lower = imag.get('href').lower()
-            if (img_href_lower.find('cover') != -1 or
-                    img_href_lower.find('okladka') != -1):
-                cover_found = 1
-                print(_file_dec + 'Candidate image for cover found:' +
-                      ' href=' + imag.get('href') +
-                      ' id=' + imag.get('id'))
-                break
-        if cover_found == 0:
+        imag = best_cover_image_item(images)
+        if imag is not None:
+            print(_file_dec + 'Candidate image for cover found:' +
+                  ' href=' + imag.get('href') +
+                  ' id=' + imag.get('id'))
+        else:
             print(_file_dec + 'No candidate cover images found. '
                   'Check a list of all images:')
             for imag in images:

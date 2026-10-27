@@ -13,6 +13,7 @@ from urllib.parse import quote
 
 from lxml import etree
 
+from lib.epubqcheck import best_cover_image_item
 from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fonts,
                           convert_note_aside_css, convert_note_asides,
                           convert_note_asides_in_tree,
@@ -60,6 +61,31 @@ class ImageDataEndTest(unittest.TestCase):
 
     def test_unknown_format(self):
         self.assertIsNone(image_data_end(b'<svg/>'))
+
+
+class BestCoverImageItemTest(unittest.TestCase):
+    def items(self, *attrs):
+        return [etree.Element('item', **a) for a in attrs]
+
+    def test_back_cover_listed_first_is_not_picked(self):
+        images = self.items({'href': 'Images/backcover.jpg'},
+                            {'href': 'Images/cover.jpg'})
+        self.assertEqual(best_cover_image_item(images).get('href'),
+                         'Images/cover.jpg')
+
+    def test_cover_image_property_wins(self):
+        images = self.items({'href': 'Images/cover.jpg'},
+                            {'href': 'Images/front.jpg',
+                             'properties': 'cover-image'})
+        self.assertEqual(best_cover_image_item(images).get('href'),
+                         'Images/front.jpg')
+
+    def test_back_cover_is_last_resort(self):
+        images = self.items({'href': 'Images/background.jpg'},
+                            {'href': 'Images/backcover.jpg'})
+        self.assertEqual(best_cover_image_item(images).get('href'),
+                         'Images/backcover.jpg')
+        self.assertIsNone(best_cover_image_item(images[:1]))
 
 
 class RemoveTrailingHiddenDivTest(unittest.TestCase):
