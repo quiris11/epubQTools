@@ -2877,6 +2877,10 @@ EPUB_TYPE = '{http://www.idpf.org/2007/ops}type'
 NOTE_LIST_CSS = ('\nol.eqt_notes { list-style-type: none; margin-left: 0; '
                  'padding-left: 0; }\n'
                  'ol.eqt_notes > li { margin: 1.2em 0; text-indent: 0; }\n')
+# @charset, @import and @namespace rules at the start of a CSS file: they
+# must stay before the other rules
+CSS_PRELUDE = re.compile(r'\ufeff?(?:(?:\s+|/\*.*?\*/)*'
+                         r'@(?:charset|import|namespace)\b[^;{}]*;)*', re.S)
 
 
 def noteref_targets(xhtree, file_href):
@@ -3022,9 +3026,27 @@ def add_note_list_style(xhtree):
     head = xhtree.find('{%s}head' % XHTMLNS['xhtml'])
     if head is None:
         return
-    style = etree.SubElement(head, '{%s}style' % XHTMLNS['xhtml'],
-                             {'type': 'text/css'})
+    style = etree.Element('{%s}style' % XHTMLNS['xhtml'],
+                          {'type': 'text/css'})
     style.text = NOTE_LIST_CSS
+    # before the styles of the book, so they take precedence
+    first = head.xpath('xhtml:style | xhtml:link', namespaces=XHTMLNS)
+    if first:
+        first[0].addprevious(style)
+        style.tail = '\n'
+    else:
+        head.append(style)
+
+
+def prepend_note_list_css(css_text):
+    """Add the styles of the converted notes before the rules of the CSS
+    text (after @charset and @import rules), so the styles of the book take
+    precedence over them."""
+    end = CSS_PRELUDE.match(css_text).end()
+    prelude, rules = css_text[:end], css_text[end:]
+    if prelude.lstrip('\ufeff'):
+        prelude += '\n'
+    return prelude + NOTE_LIST_CSS.lstrip('\n') + '\n' + rules
 
 
 def convert_note_asides(opftree, rootepubdir):
@@ -3073,7 +3095,7 @@ def convert_note_asides(opftree, rootepubdir):
                 css_text = cf.read()
             css_text, changed = convert_note_aside_css(css_text)
             if css_href in css_hrefs and 'ol.eqt_notes {' not in css_text:
-                css_text += NOTE_LIST_CSS
+                css_text = prepend_note_list_css(css_text)
             elif not changed:
                 continue
             with open(css_path, 'w', encoding='utf-8', newline='') as cf:

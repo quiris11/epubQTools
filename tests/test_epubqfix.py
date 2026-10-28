@@ -17,6 +17,7 @@ from lib.epubqcheck import best_cover_image_item
 from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fonts,
                           convert_note_aside_css, convert_note_asides,
                           convert_note_asides_in_tree, NOTE_LIST_CSS,
+                          prepend_note_list_css,
                           fill_empty_titles,
                           decode_b64_name, find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
@@ -429,16 +430,52 @@ class NoteListStylesTest(unittest.TestCase):
             '<link href="../css/reset.css" rel="stylesheet" type="text/css"/>')
         self.assertIn('<ol class="eqt_notes">', html)
         self.assertNotIn('<style', html)
-        # the styles of the asides without the border
-        self.assertEqual(css, self.CSS.rstrip('\n') +
+        # the list styles first, so the styles of the asides (without the
+        # border) take precedence
+        self.assertEqual(css, NOTE_LIST_CSS.lstrip('\n') + '\n' +
+                         self.CSS.rstrip('\n') +
                          '\n\nol.eqt_notes > li[id^="n"] {\n'
-                         '    padding: 0.8em 0;}\n' + NOTE_LIST_CSS)
+                         '    padding: 0.8em 0;}\n')
 
     def test_styles_in_file_without_css(self):
         html, css = self.run_convert('<title>A</title>')
         self.assertNotIn('ol.eqt_notes {', css)
         self.assertEqual(html.count('ol.eqt_notes {'), 1)
         self.assertIn('<style type="text/css">', html)
+
+    def test_styles_before_styles_of_file(self):
+        html, css = self.run_convert(
+            '<title>A</title><style>li { margin: 0; }</style>')
+        self.assertLess(html.index('ol.eqt_notes {'),
+                        html.index('li { margin: 0; }'))
+
+
+class PrependNoteListCssTest(unittest.TestCase):
+    def test_before_rules(self):
+        css = '/* notes */\naside { margin: 1em; }\n'
+        self.assertEqual(prepend_note_list_css(css),
+                         NOTE_LIST_CSS.lstrip('\n') + '\n' + css)
+
+    def test_after_charset_and_imports(self):
+        css = ('\ufeff@charset "utf-8";\n@import url("a.css");\n'
+               '/* notes */\naside { margin: 1em; }\n')
+        result = prepend_note_list_css(css)
+        self.assertTrue(result.startswith(
+            '\ufeff@charset "utf-8";\n@import url("a.css");\n'
+            'ol.eqt_notes {'))
+        self.assertLess(result.index('ol.eqt_notes > li {'),
+                        result.index('/* notes */'))
+
+    def test_book_styles_take_precedence(self):
+        # an aside without a class: its rule has the same specificity as
+        # the default style of the list items, so it must come after it
+        css, n = convert_note_aside_css(
+            'aside { margin: 1em; }\naside > p { text-indent: 1em; }\n')
+        css = prepend_note_list_css(css)
+        self.assertLess(css.index('{ margin: 1.2em 0; text-indent: 0; }'),
+                        css.index('ol.eqt_notes > li {\n    margin: 1em;'))
+        self.assertLess(css.index('{ margin: 1.2em 0; text-indent: 0; }'),
+                        css.index('ol.eqt_notes > li {\n    text-indent: 1em;'))
 
 
 class ConvertNoteAsideCssTest(unittest.TestCase):
