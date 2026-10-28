@@ -2956,6 +2956,9 @@ def convert_note_asides_in_tree(xhtree, note_ids):
             aside.text = p.text
             aside[:] = list(p)
         aside.tag = '{%s}li' % XHTMLNS['xhtml']
+        # roles of asides (e.g. doc-footnote) are not allowed on <li>
+        if aside.get('role') not in (None, 'none', 'presentation'):
+            del aside.attrib['role']
         move_backlink_to_number(aside)
         prev = aside.getprevious()
         if (prev is not None and prev.get('class') == 'eqt_notes' and

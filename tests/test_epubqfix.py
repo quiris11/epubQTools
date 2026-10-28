@@ -363,6 +363,14 @@ class ConvertNoteAsidesTest(unittest.TestCase):
             '<aside id="n2"><p id="fn2">Two</p></aside>', {'n2'})
         self.assertIn('<li id="n2"><p id="fn2">Two</p></li>', html)
 
+    def test_role_removed(self):
+        n, html = self.convert(
+            '<aside id="n1" role="doc-footnote"><p>One</p></aside>'
+            '<aside id="n2" role="presentation"><p>Two</p></aside>',
+            {'n1', 'n2'})
+        self.assertIn('<li id="n1">One</li>', html)
+        self.assertIn('<li id="n2" role="presentation">Two</li>', html)
+
     def test_back_link_moved_to_number(self):
         n, html = self.convert(
             '<aside id="n1"><p><span class="no">12.</span> One <i>x</i> '
