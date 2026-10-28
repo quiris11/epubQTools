@@ -17,6 +17,7 @@ from lib.epubqcheck import best_cover_image_item
 from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fonts,
                           convert_note_aside_css, convert_note_asides,
                           convert_note_asides_in_tree, NOTE_LIST_CSS,
+                          remove_soft_hyphens_from_notes, noteref_targets,
                           prepend_note_list_css,
                           fill_empty_titles,
                           decode_b64_name, find_file_in_dir,
@@ -398,6 +399,35 @@ class ConvertNoteAsidesTest(unittest.TestCase):
             n, html = self.convert('<aside id="n1">%s</aside>' % note,
                                    {'n1'})
             self.assertIn('<li id="n1">%s</li>' % note[3:-4], html)
+
+    def test_noteref_targets_without_back_links(self):
+        tree = etree.fromstring(
+            XHTML.replace('<html ', '<html xmlns:epub='
+                          '"http://www.idpf.org/2007/ops" ') % (
+                '<a epub:type="noteref" href="fn.xhtml#n1">1</a>'
+                '<a role="doc-noteref" href="#n2">2</a>'
+                '<a epub:type="noteref" role="doc-backlink" href="#r1">1</a>'
+                '<a epub:type="noteref backlink" href="#r2">2</a>'
+                '<a epub:type="referrer" href="#r3">3</a>'))
+        self.assertEqual(noteref_targets(tree, 'Text/a.xhtml'),
+                         {('Text/fn.xhtml', 'n1'), ('Text/a.xhtml', 'n2')})
+
+    def test_soft_hyphens_removed_from_notes(self):
+        tree = etree.fromstring(XHTML % (
+            '<p>Te\u00adkst<a href="#n1">1</a></p>'
+            '<p><a id="n1" href="#r1">1</a> No\u00adta <i>dłu\u00adga</i>'
+            ' i\u00adtail</p>'
+            '<ol><li id="n2"><p>Dru\u00adga</p></li></ol>'
+            '<section id="n3"><p>Roz\u00addział</p></section>'))
+        self.assertEqual(
+            remove_soft_hyphens_from_notes(tree, {'n1', 'n2', 'n3', 'x'}), 2)
+        html = etree.tostring(tree, encoding='unicode')
+        # the block of an inline target, not the text outside of the notes
+        self.assertIn('<p><a id="n1" href="#r1">1</a> Nota <i>długa</i>'
+                      ' itail</p>', html)
+        self.assertIn('<li id="n2"><p>Druga</p></li>', html)
+        self.assertIn('Te\u00adkst', html)
+        self.assertIn('Roz\u00addział', html)
 
     def test_consecutive_notes_in_one_list(self):
         n, html = self.convert(self.NOTES, {'n2', 'n3'})

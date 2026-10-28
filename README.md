@@ -96,6 +96,8 @@ pop-ups either, and a page break in note styles turns off pop-ups in the whole b
 If a note starts with its number and ends with a back link (e.g. "↩"), the number becomes the
 back link: Kindle Paperwhite 1 shows also the next note in the pop-up if the back link is at the
 end of a note.
+Soft hyphens are removed from all notes linked with noteref links: Kindle Paperwhite 1 does not
+show the hyphen at a line break in pop-ups.
 
 #### Output messages:
 * `* text` - information

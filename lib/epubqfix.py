@@ -2885,11 +2885,14 @@ CSS_PRELUDE = re.compile(r'\ufeff?(?:(?:\s+|/\*.*?\*/)*'
 
 def noteref_targets(xhtree, file_href):
     """Return (file, id) pairs (file relative to the OPF) of the notes
-    linked from the file file_href by noteref links."""
+    linked from the file file_href by noteref links. Back links from notes
+    to the text are skipped, also if marked as noteref links."""
     targets = set()
     for a in xhtree.xpath('//xhtml:a[@href]', namespaces=XHTMLNS):
-        if ('noteref' not in (a.get(EPUB_TYPE) or '').split() and
-                a.get('role') != 'doc-noteref'):
+        types = set((a.get(EPUB_TYPE) or '').split())
+        if ('noteref' not in types and a.get('role') != 'doc-noteref' or
+                a.get('role') == 'doc-backlink' or
+                types & {'backlink', 'referrer'}):
             continue
         path, _, frag = a.get('href').partition('#')
         if frag:
@@ -2975,6 +2978,39 @@ def convert_note_asides_in_tree(xhtree, note_ids):
         ol.tail, aside.tail = aside.tail, '\n'
         converted += 1
     return converted
+
+
+# elements shown in a pop-up if a noteref link points to them or to an
+# inline element inside them
+NOTE_BLOCKS = {'{%s}%s' % (XHTMLNS['xhtml'], t) for t in (
+    'li', 'p', 'div', 'aside', 'dd', 'dt', 'blockquote', 'td')}
+
+
+def remove_soft_hyphens_from_notes(xhtree, note_ids):
+    """Remove soft hyphens from the notes with an id from note_ids: Kindle
+    Paperwhite 1 does not show the hyphen at the end of a line broken at a
+    soft hyphen in pop-ups. Return the number of changed notes."""
+    changed = 0
+    for note_id in note_ids:
+        found = xhtree.xpath('//xhtml:*[@id=$i]', i=note_id,
+                             namespaces=XHTMLNS)
+        if not found:
+            continue
+        note = found[0]
+        while note is not None and note.tag not in NOTE_BLOCKS:
+            note = note.getparent()
+        if note is None:
+            continue
+        found = False
+        for el in note.iter():
+            if el.text and HYPHEN_MARK in el.text:
+                el.text = el.text.replace(HYPHEN_MARK, '')
+                found = True
+            if el is not note and el.tail and HYPHEN_MARK in el.tail:
+                el.tail = el.tail.replace(HYPHEN_MARK, '')
+                found = True
+        changed += found
+    return changed
 
 
 NOTE_LI = 'ol.eqt_notes > li'
@@ -3090,7 +3126,8 @@ def prepend_note_list_css(css_text):
 
 def convert_note_asides(opftree, rootepubdir):
     """Convert note asides in all XHTML files of the book (see
-    convert_note_asides_in_tree)."""
+    convert_note_asides_in_tree) and remove soft hyphens from all notes (see
+    remove_soft_hyphens_from_notes)."""
     xhtml_hrefs = [posixpath.normpath(unquote(i.get('href', '')))
                    for i in opftree.xpath('//opf:manifest/opf:item',
                                           namespaces=OPFNS)
@@ -3104,23 +3141,28 @@ def convert_note_asides(opftree, rootepubdir):
     targets = set()
     for href, tree in trees.items():
         targets |= noteref_targets(tree, href)
-    converted = 0
+    converted = unhyphenated = 0
     css_hrefs = set()
     for href, tree in trees.items():
-        n = convert_note_asides_in_tree(
-            tree, {i for f, i in targets if f == href})
-        if not n:
+        note_ids = {i for f, i in targets if f == href}
+        n = convert_note_asides_in_tree(tree, note_ids)
+        m = remove_soft_hyphens_from_notes(tree, note_ids)
+        unhyphenated += m
+        if not n and not m:
             continue
         converted += n
         stylesheets = note_list_stylesheets(tree, href)
-        if stylesheets:
+        if n and stylesheets:
             # the first one: the book CSS file, not the reset CSS file
             css_hrefs.add(stylesheets[0])
-        else:
+        elif n:
             add_note_list_style(tree)
         with open(os.path.join(rootepubdir, href), 'wb') as f:
             f.write(etree.tostring(tree, xml_declaration=True,
                                    standalone=False, encoding='utf-8'))
+    if unhyphenated:
+        print('* Removed soft hyphens from %d notes (pop-up notes on '
+              'Kindle)' % unhyphenated)
     if not converted:
         return
     print('* Converted %d notes from <aside> to list items (pop-up '
