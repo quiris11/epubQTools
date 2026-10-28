@@ -92,6 +92,9 @@ them. Note asides (linked with `epub:type="noteref"` or `role="doc-noteref"` lin
 `<ol class="eqt_notes">` list (consecutive notes in one list). An aside with a single `<p>`
 becomes a list item with the contents of the paragraph. The notes keep the CSS styles of the
 asides, without borders: Send to Kindle does not show notes with a border in pop-ups either.
+If a note starts with its number and ends with a back link (e.g. "↩"), the number becomes the
+back link: Kindle Paperwhite 1 shows also the next note in the pop-up if the back link is at the
+end of a note.
 
 #### Output messages:
 * `* text` - information

@@ -344,8 +344,8 @@ class ConvertNoteAsidesTest(unittest.TestCase):
         self.assertEqual(n, 3)
         self.assertNotIn('<aside id="n', html)
         # the single paragraph is replaced with the list item
-        self.assertIn('<li id="n1" epub:type="rearnote"><span>1</span> One '
-                      '<a href="a.xhtml#r1">\u21a9</a></li>', html)
+        self.assertIn('<li id="n1" epub:type="rearnote"><a href="a.xhtml#r1">'
+                      '<span>1</span></a> One</li>', html)
         self.assertIn('<li id="n2"><p>Two</p><p>Second paragraph</p></li>',
                       html)
         self.assertIn('<li id="n3" class="x">Three</li>', html)
@@ -362,6 +362,34 @@ class ConvertNoteAsidesTest(unittest.TestCase):
         n, html = self.convert(
             '<aside id="n2"><p id="fn2">Two</p></aside>', {'n2'})
         self.assertIn('<li id="n2"><p id="fn2">Two</p></li>', html)
+
+    def test_back_link_moved_to_number(self):
+        n, html = self.convert(
+            '<aside id="n1"><p><span class="no">12.</span> One <i>x</i> '
+            '<a href="a.xhtml#r1" role="doc-backlink">↩</a></p></aside>'
+            '<aside id="n2"><p><sup>[2]</sup> Two</p><p>More '
+            '<a href="a.xhtml#r2">↩</a> </p></aside>', {'n1', 'n2'})
+        self.assertIn('<li id="n1"><a href="a.xhtml#r1" role="doc-backlink">'
+                      '<span class="no">12.</span></a> One <i>x</i></li>',
+                      html)
+        self.assertIn('<li id="n2"><p><a href="a.xhtml#r2"><sup>[2]</sup>'
+                      '</a> Two</p><p>More </p></li>', html)
+
+    def test_back_link_kept(self):
+        for note in (
+                # no number at the start
+                '<p>One <a href="a.xhtml#r1">↩</a></p>',
+                '<p>Text <span>1</span> <a href="a.xhtml#r1">↩</a></p>',
+                # the number is already a link
+                '<p><a href="a.xhtml#r1">1</a> One '
+                '<a href="a.xhtml#r1">↩</a></p>',
+                # text after the link, or a link to a web page
+                '<p><span>1</span> <a href="a.xhtml#r1">↩</a> One</p>',
+                '<p><span>1</span> See <a href="http://x.pl/#a">x</a></p>',
+                '<p><span>1</span> See <a href="b.xhtml">b</a></p>'):
+            n, html = self.convert('<aside id="n1">%s</aside>' % note,
+                                   {'n1'})
+            self.assertIn('<li id="n1">%s</li>' % note[3:-4], html)
 
     def test_consecutive_notes_in_one_list(self):
         n, html = self.convert(self.NOTES, {'n2', 'n3'})

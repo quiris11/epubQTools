@@ -2898,6 +2898,41 @@ def noteref_targets(xhtree, file_href):
     return targets
 
 
+NOTE_NUMBER = re.compile(r'\s*[\[(]?\d+[\])]?\.?\s*$')
+
+
+def move_backlink_to_number(note):
+    """Make the number at the start of a note its back link, instead of the
+    back link at its end (e.g. "↩"): Kindle Paperwhite 1 shows the next note
+    in the same pop-up if the back link is at the end of a note."""
+    blocks = [c for c in note if c.tag in (
+        '{%s}p' % XHTMLNS['xhtml'], '{%s}div' % XHTMLNS['xhtml'])]
+    first, last = (blocks[0], blocks[-1]) if blocks else (note, note)
+    if len(last) == 0:
+        return
+    link = last[-1]
+    if (link.tag != '{%s}a' % XHTMLNS['xhtml'] or len(link) or
+            (link.tail or '').strip() or
+            '#' not in link.get('href', '') or
+            link.get('href').startswith(('http:', 'https:'))):
+        return
+    if (len(first) == 0 or (first.text or '').strip() or
+            first[0].tag == '{%s}a' % XHTMLNS['xhtml'] or first[0] is link or
+            not NOTE_NUMBER.match(''.join(first[0].itertext()))):
+        return
+    number = first[0]
+    prev = link.getprevious()
+    if prev is not None:
+        prev.tail = (prev.tail or '').rstrip() + (link.tail or '')
+    else:
+        last.text = (last.text or '').rstrip() + (link.tail or '')
+    last.remove(link)
+    link.text, link.tail = None, number.tail
+    number.tail = None
+    number.addprevious(link)
+    link.append(number)
+
+
 def convert_note_asides_in_tree(xhtree, note_ids):
     """Replace the note <aside> elements (with an id from note_ids or with
     a note epub:type) with <li> elements of an <ol> list: Send to Kindle
@@ -2921,6 +2956,7 @@ def convert_note_asides_in_tree(xhtree, note_ids):
             aside.text = p.text
             aside[:] = list(p)
         aside.tag = '{%s}li' % XHTMLNS['xhtml']
+        move_backlink_to_number(aside)
         prev = aside.getprevious()
         if (prev is not None and prev.get('class') == 'eqt_notes' and
                 not (prev.tail or '').strip()):
