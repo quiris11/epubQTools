@@ -13,6 +13,7 @@ from urllib.parse import quote
 
 from lxml import etree
 
+from lib.epubqcheck import best_cover_image_item
 from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fonts,
                           convert_note_aside_css, convert_note_asides,
                           convert_note_asides_in_tree, NOTE_LIST_CSS,
@@ -25,6 +26,7 @@ from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fo
                           is_fundraising_page,
                           is_hiding_style, is_support_page,
                           is_wolnelektury_book, most_common, resolve_href, remove_orphan_refining_metas,
+                          remove_amzn_attributes,
                           remove_thin_spaces_after_spaces,
                           remove_url_line_breaks,
                           remove_trailing_hidden_div, strip_nav_aria_labels)
@@ -60,6 +62,31 @@ class ImageDataEndTest(unittest.TestCase):
 
     def test_unknown_format(self):
         self.assertIsNone(image_data_end(b'<svg/>'))
+
+
+class BestCoverImageItemTest(unittest.TestCase):
+    def items(self, *attrs):
+        return [etree.Element('item', **a) for a in attrs]
+
+    def test_back_cover_listed_first_is_not_picked(self):
+        images = self.items({'href': 'Images/backcover.jpg'},
+                            {'href': 'Images/cover.jpg'})
+        self.assertEqual(best_cover_image_item(images).get('href'),
+                         'Images/cover.jpg')
+
+    def test_cover_image_property_wins(self):
+        images = self.items({'href': 'Images/cover.jpg'},
+                            {'href': 'Images/front.jpg',
+                             'properties': 'cover-image'})
+        self.assertEqual(best_cover_image_item(images).get('href'),
+                         'Images/front.jpg')
+
+    def test_back_cover_is_last_resort(self):
+        images = self.items({'href': 'Images/background.jpg'},
+                            {'href': 'Images/backcover.jpg'})
+        self.assertEqual(best_cover_image_item(images).get('href'),
+                         'Images/backcover.jpg')
+        self.assertIsNone(best_cover_image_item(images[:1]))
 
 
 class RemoveTrailingHiddenDivTest(unittest.TestCase):
@@ -157,6 +184,19 @@ class RemoveThinSpacesAfterSpacesTest(unittest.TestCase):
         n, body = self.remove('<p>1 000 a  b</p>')
         self.assertEqual(n, 0)
         self.assertIn('1 000 a  b', body)
+
+
+class RemoveAmznAttributesTest(unittest.TestCase):
+    def test_amzn_attributes_removed(self):
+        tree = etree.fromstring(
+            '<html xmlns="http://www.w3.org/1999/xhtml" amzn-src-id="1">'
+            '<body amzn-src-id="2"><p id="p1" amzn-src-id="3">Text</p>'
+            '<!-- note --></body></html>')
+        self.assertEqual(remove_amzn_attributes(tree), 3)
+        self.assertEqual(etree.tostring(tree, encoding='unicode'),
+                         '<html xmlns="http://www.w3.org/1999/xhtml">'
+                         '<body><p id="p1">Text</p><!-- note --></body>'
+                         '</html>')
 
 
 class FillEmptyTitlesTest(unittest.TestCase):
@@ -310,6 +350,17 @@ class ConvertNoteAsidesTest(unittest.TestCase):
         self.assertIn('<li id="n3" class="x">Three</li>', html)
         # not a note
         self.assertIn('<aside id="side">Sidebar</aside>', html)
+
+    def test_id_of_paragraph_kept(self):
+        n, html = self.convert(
+            '<aside epub:type="footnote"><p id="fn1">One</p></aside>'
+            '<aside id="n2"><p id="fn2">Two</p></aside>', set())
+        self.assertEqual(n, 1)
+        self.assertIn('<li epub:type="footnote" id="fn1">One</li>', html)
+        # both ids kept, so the paragraph stays
+        n, html = self.convert(
+            '<aside id="n2"><p id="fn2">Two</p></aside>', {'n2'})
+        self.assertIn('<li id="n2"><p id="fn2">Two</p></li>', html)
 
     def test_consecutive_notes_in_one_list(self):
         n, html = self.convert(self.NOTES, {'n2', 'n3'})
