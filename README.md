@@ -91,7 +91,8 @@ them. Note asides (linked with `epub:type="noteref"` or `role="doc-noteref"` lin
 `epub:type` `footnote`, `endnote`, `rearnote` or `note`) are replaced with list items of an
 `<ol class="eqt_notes">` list (consecutive notes in one list). An aside with a single `<p>`
 becomes a list item with the contents of the paragraph. The notes keep the CSS styles of the
-asides, without borders: Send to Kindle does not show notes with a border in pop-ups either.
+asides, without borders and page breaks: Send to Kindle does not show notes with a border in
+pop-ups either, and a page break in note styles turns off pop-ups in the whole book (KFX).
 If a note starts with its number and ends with a back link (e.g. "↩"), the number becomes the
 back link: Kindle Paperwhite 1 shows also the next note in the pop-up if the back link is at the
 end of a note.

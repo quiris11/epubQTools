@@ -545,6 +545,14 @@ class ConvertNoteAsideCssTest(unittest.TestCase):
             'section > ol.eqt_notes > li.note span, '
             'ol.eqt_notes > li p.x {\n    color: red;}')
 
+    def test_page_breaks_removed(self):
+        css, n = convert_note_aside_css(
+            'aside.fn {margin: 1em 0; page-break-after: always; '
+            'break-inside: avoid; Page-Break-Before: auto}')
+        self.assertEqual(n, 1)
+        self.assertTrue(css.endswith(
+            '\n\nol.eqt_notes > li.fn {\n    margin: 1em 0;}'))
+
 
 class HelpersTest(unittest.TestCase):
 

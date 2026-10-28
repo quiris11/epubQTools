@@ -3006,12 +3006,12 @@ def note_selectors(selector):
 
 def note_declarations(body, text_only):
     """The declarations of a CSS rule body for the converted notes: without
-    borders (Send to Kindle does not show notes with a border in pop-ups)
-    and, with text_only, without any box properties."""
+    borders and page breaks (Send to Kindle does not show notes with them in
+    pop-ups) and, with text_only, without any box properties."""
     kept = []
     for declaration in body.split(';'):
         prop = declaration.partition(':')[0].strip().lower()
-        if not prop or prop.startswith('border'):
+        if not prop or prop.startswith(('border', 'page-break', 'break-')):
             continue
         if text_only and (prop in BOX_PROPERTIES or
                           prop.startswith(BOX_PROPERTY_PREFIXES)):
