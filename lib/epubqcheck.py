@@ -630,7 +630,8 @@ def find_opf(epub):
               'is not the first file in the archive.')
     elif epub.read('mimetype') != b'application/epub+zip':
         print('* CRITICAL! mimetype file has defined incorrect '
-              'MIME type: ' + epub.read('mimetype'))
+              'MIME type: ' +
+              epub.read('mimetype').decode('utf-8', 'replace'))
     try:
         cr_tree = etree.fromstring(epub.read('META-INF/container.xml'))
         opf_path = cr_tree.xpath('//cr:rootfile',
