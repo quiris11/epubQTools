@@ -36,7 +36,8 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           remove_amzn_attributes,
                           remove_thin_spaces_after_spaces,
                           remove_url_line_breaks,
-                          remove_trailing_hidden_div, strip_nav_aria_labels)
+                          remove_trailing_hidden_div, strip_nav_aria_labels,
+                          quote_urls, unquote_urls)
 
 XHTML = ('<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Text</p>%s'
          '</body></html>')
@@ -315,6 +316,28 @@ class RemoveAmznAttributesTest(unittest.TestCase):
                          '<html xmlns="http://www.w3.org/1999/xhtml">'
                          '<body><p id="p1">Text</p><!-- note --></body>'
                          '</html>')
+
+
+class QuoteUrlsTest(unittest.TestCase):
+    def test_hrefs_round_trip_encoded(self):
+        tree = etree.ElementTree(etree.fromstring(
+            '<package xmlns="http://www.idpf.org/2007/opf"><manifest>'
+            '<item id="a" href="Images/x_%5BConverted%5D1.png"/>'
+            '<item id="b" href="Text/rozdzia\u0142%201.xhtml"/>'
+            '<item id="c" href="Text/a%25b.xhtml"/>'
+            '</manifest><guide>'
+            '<reference href="Text/rozdzia\u0142%201.xhtml#p%5B1%5D"/>'
+            '</guide></package>'))
+        unquote_urls(tree)
+        hrefs = [e.get('href') for e in tree.iter() if e.get('href')]
+        self.assertEqual(hrefs[0], 'Images/x_[Converted]1.png')
+        quote_urls(tree)
+        hrefs = [e.get('href') for e in tree.iter() if e.get('href')]
+        self.assertEqual(hrefs, [
+            'Images/x_%5BConverted%5D1.png',
+            'Text/rozdzia\u0142%201.xhtml',
+            'Text/a%25b.xhtml',
+            'Text/rozdzia\u0142%201.xhtml#p%5B1%5D'])
 
 
 class FillEmptyTitlesTest(unittest.TestCase):

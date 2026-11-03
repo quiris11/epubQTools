@@ -329,6 +329,29 @@ def unquote_urls(tree):
     return tree
 
 
+# ASCII characters not allowed in an IRI path (RFC 3987); "%" too, since the
+# hrefs were decoded by unquote_urls; non-ASCII letters are valid in an IRI
+IRI_UNSAFE = set(' "<>\\^`{|}[]%') | {chr(c) for c in range(0x21)} | {'\x7f'}
+
+
+def quote_path(path, extra=''):
+    return ''.join('%%%02X' % ord(c) if c in IRI_UNSAFE or c in extra else c
+                   for c in path)
+
+
+def quote_urls(tree):
+    """Undo unquote_urls before writing the OPF: percent-encode the
+    characters that are invalid in a URL (EpubCheck RSC-020)."""
+    for item in tree.xpath('//opf:item', namespaces=OPFNS):
+        if item.get('href') is not None:
+            item.set('href', quote_path(item.get('href'), '#?'))
+    for item in tree.xpath('//opf:reference', namespaces=OPFNS):
+        if item.get('href') is not None:
+            path, sep, frag = item.get('href').partition('#')
+            item.set('href', quote_path(path, '?') + sep + quote_path(frag))
+    return tree
+
+
 def remove_node(node):
     parent = node.getparent()
     index = parent.index(node)
@@ -3740,6 +3763,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     if not skip_pages:
         add_page_list(opftree, opf_dir_abs)
     # write all OPF changes back to file
+    opftree = quote_urls(opftree)
     with open(opf_file_path_abs, 'wb') as f:
         f.write(etree.tostring(opftree.getroot(), pretty_print=True,
                 standalone=False, xml_declaration=True, encoding='utf-8'))
