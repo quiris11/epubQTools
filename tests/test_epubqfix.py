@@ -3,18 +3,23 @@
 # This file is part of epubQTools, licensed under GNU Affero GPLv3 or later.
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
+import io
 import os
+import shutil
 import struct
 import tempfile
 import unittest
+import zipfile
 import zlib
 
+from contextlib import redirect_stdout
 from urllib.parse import quote
 
 from lxml import etree
 
-from lib.epubqcheck import best_cover_image_item
-from lib.epubqfix import (ClassStyles, add_page_list, check_font, convert_ttc_fonts,
+from lib.epubqcheck import best_cover_image_item, find_opf
+from lib.epubqfix import (pack_epub, repair_epub_structure,
+                          ClassStyles, add_page_list, check_font, convert_ttc_fonts,
                           convert_note_aside_css, convert_note_asides,
                           convert_note_asides_in_tree, NOTE_LIST_CSS,
                           remove_soft_hyphens_from_notes, noteref_targets,
@@ -89,6 +94,117 @@ class BestCoverImageItemTest(unittest.TestCase):
         self.assertEqual(best_cover_image_item(images).get('href'),
                          'Images/backcover.jpg')
         self.assertIsNone(best_cover_image_item(images[:1]))
+
+
+class FindOpfMimetypeTest(unittest.TestCase):
+    def test_wrong_mime_type_is_reported(self):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w') as z:
+            z.writestr('mimetype', 'application/zip')
+            z.writestr('content.opf', '<package/>')
+        out = io.StringIO()
+        with zipfile.ZipFile(buf) as z, redirect_stdout(out):
+            self.assertEqual(find_opf(z), ('', 'content.opf'))
+        self.assertIn('incorrect MIME type: application/zip',
+                      out.getvalue())
+
+
+CONTAINER = (
+    b'<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:'
+    b'names:tc:opendocument:xmlns:container"><rootfiles><rootfile '
+    b'full-path="OEBPS/content.opf" media-type="application/'
+    b'oebps-package+xml"/></rootfiles></container>')
+
+
+class RepairEpubStructureTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix='eqt-test-')
+        self.path = os.path.join(self.dir, 'book.epub')
+
+    def tearDown(self):
+        shutil.rmtree(self.dir)
+
+    def make(self, mimetype_last=True, container=True):
+        with zipfile.ZipFile(self.path, 'w', zipfile.ZIP_DEFLATED) as z:
+            z.comment = b'archive comment'
+            if not mimetype_last:
+                z.writestr('mimetype', 'application/epub+zip',
+                           compress_type=zipfile.ZIP_STORED)
+            z.writestr(zipfile.ZipInfo('OEBPS/empty/',
+                                       (2001, 2, 3, 4, 5, 6)), b'')
+            if container:
+                z.writestr('META-INF/container.xml', CONTAINER)
+            info = zipfile.ZipInfo('OEBPS/content.opf', (2002, 3, 4, 5, 6, 8))
+            info.comment = b'entry comment'
+            info.extra = struct.pack('<HHB', 0x5455, 1, 7)
+            z.writestr(info, '<package/>', compress_type=zipfile.ZIP_DEFLATED)
+            z.writestr('OEBPS/a.css', 'p {}',
+                       compress_type=zipfile.ZIP_STORED)
+            if mimetype_last:
+                z.writestr('mimetype', 'application/epub+zip')
+
+    def entries(self):
+        with zipfile.ZipFile(self.path) as z:
+            return z.comment, [
+                (i.filename, i.date_time, i.compress_type, i.comment,
+                 i.extra, i.external_attr, z.read(i))
+                for i in z.infolist() if i.filename != 'mimetype']
+
+    def test_mimetype_fixed_and_rest_kept(self):
+        self.make()
+        before = self.entries()
+        self.assertEqual(repair_epub_structure(self.path, self.path),
+                         ['mimetype file missing or not the first file '
+                          'in the archive'])
+        self.assertEqual(self.entries(), before)
+        with zipfile.ZipFile(self.path) as z:
+            first = z.infolist()[0]
+            self.assertEqual(first.filename, 'mimetype')
+            self.assertEqual(first.compress_type, zipfile.ZIP_STORED)
+            self.assertEqual(first.extra, b'')
+            self.assertEqual(z.read(first), b'application/epub+zip')
+            self.assertIsNone(z.testzip())
+
+    def test_correct_file_not_rewritten(self):
+        self.make(mimetype_last=False)
+        mtime = os.stat(self.path).st_mtime_ns
+        self.assertEqual(repair_epub_structure(self.path, self.path), [])
+        self.assertEqual(os.stat(self.path).st_mtime_ns, mtime)
+
+    def test_missing_container_rebuilt(self):
+        self.make(mimetype_last=False, container=False)
+        self.assertEqual(repair_epub_structure(self.path, self.path),
+                         ['missing or broken META-INF/container.xml'])
+        with zipfile.ZipFile(self.path) as z:
+            self.assertIn(b'full-path="OEBPS/content.opf"',
+                          z.read('META-INF/container.xml'))
+
+    def test_no_opf(self):
+        with zipfile.ZipFile(self.path, 'w') as z:
+            z.writestr('a.txt', 'x')
+        self.assertIsNone(repair_epub_structure(self.path, self.path))
+
+    def test_failed_write_keeps_original(self):
+        self.make()
+        with open(self.path, 'rb') as f:
+            original = f.read()
+        src = os.path.join(self.dir, 'src')
+        os.makedirs(src)
+        with open(os.path.join(src, 'a.txt'), 'w') as f:
+            f.write('x')
+        real_write = zipfile.ZipFile.write
+
+        def interrupted(*args, **kwargs):
+            raise KeyboardInterrupt
+        zipfile.ZipFile.write = interrupted
+        try:
+            with self.assertRaises(KeyboardInterrupt):
+                pack_epub(self.path, src)
+        finally:
+            zipfile.ZipFile.write = real_write
+        with open(self.path, 'rb') as f:
+            self.assertEqual(f.read(), original)
+        self.assertEqual(sorted(os.listdir(self.dir)), ['book.epub', 'src'])
 
 
 class RemoveTrailingHiddenDivTest(unittest.TestCase):

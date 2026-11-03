@@ -1023,6 +1023,134 @@ def finish_with_problems(f):
         problem_files.append(f)
 
 
+def write_atomically(output_filename, write):
+    """Call write(path) for a temporary file next to output_filename and
+    then move it into place, so an interrupted write (an error, a full
+    disk or Ctrl+C) never leaves a truncated file behind and never
+    destroys the previous version of output_filename."""
+    out_dir = os.path.dirname(os.path.abspath(output_filename))
+    fd, tmp = tempfile.mkstemp(dir=out_dir, prefix='.epubQTools-',
+                               suffix='.tmp')
+    os.close(fd)
+    try:
+        write(tmp)
+        try:
+            mode = os.stat(output_filename).st_mode & 0o7777
+        except OSError:
+            umask = os.umask(0)
+            os.umask(umask)
+            mode = 0o666 & ~umask
+        os.chmod(tmp, mode)
+        os.replace(tmp, output_filename)
+    except BaseException:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def mimetype_problem(epub):
+    """Describe what is wrong with the mimetype file of the opened EPUB
+    (None if correct).
+
+    OCF requires mimetype to be the first, uncompressed entry containing
+    exactly 'application/epub+zip'.
+    """
+    infos = epub.infolist()
+    if not infos or infos[0].filename != 'mimetype':
+        return 'missing or not the first file in the archive'
+    if infos[0].compress_type != zipfile.ZIP_STORED:
+        return 'compressed'
+    if epub.read(infos[0]) != b'application/epub+zip':
+        return 'incorrect MIME type'
+    return None
+
+
+def rebuilt_container(epub):
+    """New META-INF/container.xml for the opened EPUB when the existing
+    one is missing or broken: None if it is fine, False if there is no
+    OPF file to point to."""
+    try:
+        cr_tree = etree.fromstring(epub.read('META-INF/container.xml'))
+        cr_tree.xpath('//cr:rootfile', namespaces=CRNS)[0].get('full-path')
+        return None
+    except Exception:
+        pass
+    for name in epub.namelist():
+        if name.endswith('.opf'):
+            cr_tree = etree.fromstring(
+                get_data('lib', 'resources/container.xml'))
+            cr_tree.xpath('//cr:rootfile',
+                          namespaces=CRNS)[0].set('full-path', name)
+            return etree.tostring(cr_tree, pretty_print=True,
+                                  standalone=False, xml_declaration=True,
+                                  encoding='utf-8')
+    return False
+
+
+def strip_zip64_extra(extra):
+    """Remove the Zip64 extra field: zipfile adds its own when needed."""
+    out = b''
+    i = 0
+    while i + 4 <= len(extra):
+        tag, size = struct.unpack('<HH', extra[i:i + 4])
+        if tag != 1:
+            out += extra[i:i + 4 + size]
+        i += 4 + size
+    return out
+
+
+def repair_epub_structure(source_epub, output_filename):
+    """Fix the mimetype file and a missing or broken
+    META-INF/container.xml without unpacking the EPUB: every other entry
+    is copied unchanged, in its original order and with its date,
+    attributes, extra fields and comment, so are the archive comment,
+    directories and duplicates. The output is written only when something
+    needs fixing. Returns the list of fixed problems, or None when the
+    EPUB has no OPF file."""
+    with zipfile.ZipFile(source_epub) as zin:
+        problems = []
+        mime_problem = mimetype_problem(zin)
+        if mime_problem:
+            problems.append('mimetype file ' + mime_problem)
+        container = rebuilt_container(zin)
+        if container is False:
+            return None
+        if container:
+            problems.append('missing or broken META-INF/container.xml')
+        if not problems:
+            return problems
+        # read everything first: an unreadable (e.g. encrypted) entry
+        # stops the repair before anything is written
+        entries = [(i, zin.read(i)) for i in zin.infolist()
+                   if i.filename != 'mimetype' and not (
+                       container and
+                       i.filename == 'META-INF/container.xml')]
+        comment = zin.comment
+
+    def write(path):
+        with zipfile.ZipFile(path, 'w') as zout:
+            zout.comment = comment
+            zout.writestr(zipfile.ZipInfo('mimetype'),
+                          b'application/epub+zip',
+                          compress_type=zipfile.ZIP_STORED)
+            for old, data in entries:
+                new = zipfile.ZipInfo(old.filename, old.date_time)
+                new.compress_type = old.compress_type
+                new.comment = old.comment
+                new.extra = strip_zip64_extra(old.extra)
+                new.create_system = old.create_system
+                new.internal_attr = old.internal_attr
+                new.external_attr = old.external_attr
+                zout.writestr(new, data)
+            if container:
+                zout.writestr('META-INF/container.xml', container,
+                              compress_type=zipfile.ZIP_DEFLATED)
+    write_atomically(output_filename, write)
+    return problems
+
+
 def unpack_epub(source_epub):
     epubzipfile = zipfile.ZipFile(source_epub)
     tempdir = tempfile.mkdtemp(suffix='', prefix='epubQTools-tmp-')
@@ -1041,6 +1169,11 @@ def unpack_epub(source_epub):
 
 
 def pack_epub(output_filename, source_dir):
+    write_atomically(output_filename,
+                     lambda path: _pack_epub(path, source_dir))
+
+
+def _pack_epub(output_filename, source_dir):
     with zipfile.ZipFile(output_filename, "w") as z:
         z.writestr("mimetype", "application/epub+zip")
     relroot = source_dir
@@ -4058,6 +4191,38 @@ def html_cover_first(opftree):
     return opftree
 
 
+def fix_structure_in_original(root, f, zbf):
+    """--fix-missing-container: fix the mimetype file and a missing or
+    broken META-INF/container.xml in the original file, keeping the rest
+    of the archive as it is."""
+    print('')
+    print('* Checking for missing META-INF/container.xml and '
+          'incorrect mimetype in original file: ' + f)
+    original = os.path.join(root, f)
+    source = original
+    try:
+        zipfile.ZipFile(original).close()
+    except zipfile.BadZipfile as e:
+        source = process_corrupted_zip(e, root, f, zbf)
+        if str(source) == '1':
+            return 0
+    try:
+        problems = repair_epub_structure(source, original)
+    finally:
+        if source != original and os.path.exists(source):
+            os.unlink(source)
+    if problems is None:
+        print('! CRITICAL! Parsing container.xml failed. Not an EPUB file?')
+        finish_with_problems(f)
+    elif problems:
+        for problem in problems:
+            print('* Repaired: ' + problem)
+        print('* Changes written back to original file...')
+    else:
+        print('* Repairing not needed...')
+    return 0
+
+
 def qfix(root, f, moh_dir, *args):
     """Process one book. An unexpected error stops only this book, not the
     whole batch: it is reported, temporary files are removed and a partly
@@ -4088,6 +4253,8 @@ def _qfix(root, f, moh_dir, _forced, _replacefonts, _resetmargins, zbf,
          pair_family, skip_pages):
     global qfixerr
     qfixerr = False
+    if fix_container_only:
+        return fix_structure_in_original(root, f, zbf)
     newfile = os.path.splitext(f)[0] + '_moh.epub'
     if not _forced:
         if os.path.isfile(os.path.join(moh_dir, newfile)):
@@ -4103,35 +4270,23 @@ def _qfix(root, f, moh_dir, _forced, _replacefonts, _resetmargins, zbf,
         else:
             _tempdir = unpack_epub(fixed_pth)
             os.unlink(fixed_pth)
-    if fix_container_only:
-        print('')
-        print('* Checking for missing META-INF/container.xml in '
-              'original file: ' + f)
-        opf_dir, opf_file_path, is_fixed = find_roots(_tempdir)
-        if is_fixed:
-            print('* Repairing missing META-INF/container.xml done! '
-                  'Writing changes back to original file...')
-            pack_epub(os.path.join(root, f), _tempdir)
-        else:
-            print('* Repairing not needed...')
+    print('')
+    print('START qfix for: ' + f)
+    if skip_hyph:
+        print('* Hyphenating is turned OFF...')
+    is_failed = process_epub(
+        _tempdir, _replacefonts, _resetmargins, skip_hyph,
+        arg_justify, arg_left, fontdir, del_colors,
+        del_fonts, html_margin, dont_hyph_headers, skip_pages)
+    if not is_failed:
+        os.makedirs(moh_dir, exist_ok=True)
+        pack_epub(os.path.join(moh_dir, newfile), _tempdir)
     else:
-        print('')
-        print('START qfix for: ' + f)
-        if skip_hyph:
-            print('* Hyphenating is turned OFF...')
-        is_failed = process_epub(
-            _tempdir, _replacefonts, _resetmargins, skip_hyph,
-            arg_justify, arg_left, fontdir, del_colors,
-            del_fonts, html_margin, dont_hyph_headers, skip_pages)
-        if not is_failed:
-            os.makedirs(moh_dir, exist_ok=True)
-            pack_epub(os.path.join(moh_dir, newfile), _tempdir)
-        else:
-            qfixerr = True
-        if qfixerr:
-            finish_with_problems(f)
-        else:
-            print('FINISH qfix for: ' + f)
+        qfixerr = True
+    if qfixerr:
+        finish_with_problems(f)
+    else:
+        print('FINISH qfix for: ' + f)
     clean_temp(_tempdir)
-    if not fix_container_only and not is_failed:
+    if not is_failed:
         beautify_book(moh_dir, f, fontdir, pair_family)

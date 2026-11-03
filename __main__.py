@@ -162,7 +162,8 @@ parser.add_argument("-f", "--force",
                     action="store_true")
 parser.add_argument("--fix-missing-container",
                     help="Fix missing META-INF/container.xml file "
-                    "in original EPUB file (only with -e)",
+                    "and incorrect mimetype file (not first, compressed "
+                    "or wrong content) in original EPUB file (only with -e)",
                     action="store_true")
 parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
                     help='Add left and right book margin to reset CSS file '

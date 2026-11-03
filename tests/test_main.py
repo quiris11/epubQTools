@@ -179,6 +179,28 @@ class CommandLineTest(unittest.TestCase):
                 '/dc/elements/1.1/"><dc:title>%s</dc:title><dc:creator>%s'
                 '</dc:creator></metadata></package>' % (title, creator))
 
+    def test_fix_missing_container_repairs_mimetype(self):
+        path = os.path.join(self.dir, 'y.epub')
+        self.make_epub('y.epub', 'Tytuł', 'Autor')
+        with zipfile.ZipFile(path) as z:
+            entries = [(i.filename, z.read(i)) for i in z.infolist()]
+        # mimetype last and compressed
+        with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as z:
+            for name, data in entries[1:] + entries[:1]:
+                z.writestr(name, data)
+        result = self.run_eqt('-i', '0', '-e', '--fix-missing-container',
+                              self.dir)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Repaired: mimetype file', result.stdout)
+        with zipfile.ZipFile(path) as z:
+            first = z.infolist()[0]
+            self.assertEqual(first.filename, 'mimetype')
+            self.assertEqual(first.compress_type, zipfile.ZIP_STORED)
+            self.assertEqual(z.read(first), b'application/epub+zip')
+        result = self.run_eqt('-i', '0', '-e', '--fix-missing-container',
+                              self.dir)
+        self.assertIn('Repairing not needed', result.stdout)
+
     def epub_names(self):
         return [f for f in os.listdir(self.dir) if f.endswith('.epub')]
 

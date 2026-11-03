@@ -66,7 +66,7 @@ options:
   -d, --huffdic         tell kindlegen to use huffdic compression (slow conversion) (only with -k)
   -f, --force           overwrite previously generated _moh.epub or .mobi files (only with -k or -e)
   --fix-missing-container
-                        Fix missing META-INF/container.xml file in original EPUB file (only with -e)
+                        Fix missing META-INF/container.xml file and incorrect mimetype file (not first, compressed or wrong content) in original EPUB file (only with -e)
   --book-margin [NUMBER]
                         Add left and right book margin to reset CSS file (only with -e)
 ```
