@@ -961,6 +961,27 @@ class AddPageListTest(unittest.TestCase):
         self.assertEqual(orders, {'n1': '1', 'pageTarget-1': '1',
                                   'pageTarget-2': '2', 'n2': '3'})
 
+    def test_nav_page_list_hidden_with_css(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.mkdir(os.path.join(d, 'Text'))
+            with open(os.path.join(d, 'toc.ncx'), 'w') as f:
+                f.write(self.NCX)
+            with open(os.path.join(d, 'Text', 'c1.xhtml'), 'w') as f:
+                f.write(self.BODY % ('<p>Line</p>' * 40))
+            with open(os.path.join(d, 'Text', 'nav.xhtml'), 'w') as f:
+                f.write(self.BODY % '<nav><ol><li><a href="c1.xhtml">1'
+                        '</a></li></ol></nav>')
+            opftree = etree.ElementTree(etree.fromstring(
+                self.OPF.replace('rozdzia%C5%82.xhtml', 'c1.xhtml').replace(
+                    '</manifest>', '<item id="nav" href="Text/nav.xhtml" '
+                    'media-type="application/xhtml+xml" properties="nav"/>'
+                    '</manifest>')))
+            add_page_list(opftree, d)
+            with open(os.path.join(d, 'Text', 'nav.xhtml')) as f:
+                nav = f.read()
+        self.assertRegex(nav, r'<nav [^>]*hidden="hidden"[^>]*'
+                         r'style="display:none"[^>]*:type="page-list"')
+
     def test_existing_page_list(self):
         ncx = self.run_add("<span epub:type='pagebreak' id='p1'/>" +
                            '<p>Line</p>' * 40, 'c1.xhtml')

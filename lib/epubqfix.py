@@ -4019,7 +4019,11 @@ def add_page_list(opftree, rootepubdir):
             navs = []
         if navs:
             x = '{%s}' % XHTMLNS['xhtml']
-            nav = etree.Element(x + 'nav', hidden='hidden')
+            # Kindle ignores the hidden attribute: when the navigation
+            # document is also in the spine, the numbers would show
+            # under the table of contents, so hide them also with CSS
+            nav = etree.Element(x + 'nav', hidden='hidden',
+                                style='display:none')
             nav.set('{%s}type' % EPUBNS['epub'], 'page-list')
             ol = etree.SubElement(nav, x + 'ol')
             for n, href, frag in pages:
