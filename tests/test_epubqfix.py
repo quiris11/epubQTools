@@ -37,6 +37,7 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           remove_thin_spaces_after_spaces,
                           remove_url_line_breaks,
                           move_head_elements_from_body,
+                          quote_invalid_url_chars, quote_url,
                           remove_trailing_hidden_div, strip_nav_aria_labels,
                           quote_urls, unquote_urls)
 
@@ -383,6 +384,30 @@ class RemoveUrlLineBreaksTest(unittest.TestCase):
         # other URL or no scheme in the text: only the line break removed
         self.assertIn('href="http://b.org/x--y"', html)
         self.assertIn('href="http://d.org/x--y"', html)
+
+
+class QuoteInvalidUrlCharsTest(unittest.TestCase):
+
+    def test_quote_url(self):
+        for url, quoted in (
+                ('http://a.org/130600_ imagejuifs.htm',
+                 'http://a.org/130600_%20imagejuifs.htm'),
+                (' ch 1.html#a b ', 'ch%201.html#a%20b'),
+                ('a%20b%zz[1].html', 'a%20b%25zz%5B1%5D.html'),
+                ('http://[::1]:80/x', 'http://[::1]:80/x'),
+                ('rozdział.html#ł', 'rozdział.html#ł')):
+            self.assertEqual(quote_url(url), quoted)
+
+    def test_attributes_fixed(self):
+        tree = etree.fromstring(XHTML % (
+            '<a href="http://a.org/x y">x</a><img src="a b.png" alt=""/>'
+            '<img src="data:image/png;base64, AAAA" alt=""/>'
+            '<a href="ok.html">y</a>'))
+        self.assertEqual(quote_invalid_url_chars(tree), 2)
+        html = etree.tostring(tree, encoding='unicode')
+        self.assertIn('href="http://a.org/x%20y"', html)
+        self.assertIn('src="a%20b.png"', html)
+        self.assertIn('src="data:image/png;base64, AAAA"', html)
 
 
 class MoveHeadElementsFromBodyTest(unittest.TestCase):

@@ -2762,6 +2762,37 @@ def remove_url_line_breaks(xhtree):
     return fixed
 
 
+def quote_url(url):
+    """Percent-encode the characters that are invalid in a URL (e.g. a
+    space, EpubCheck RSC-020), keeping valid %XX escapes and the scheme and
+    host. Leading and trailing spaces are dropped - URL parsers drop them
+    too, while a space inside is encoded as %20 by browsers."""
+    url = url.strip(' ')
+    m = re.match(r'[a-z][a-z0-9+.-]*://[^/?#]*', url, re.I)
+    prefix = m.group(0) if m else ''
+    return prefix + re.sub(
+        '%(?![0-9A-Fa-f]{2})|[^%]',
+        lambda c: quote_path(c.group(0)), url[len(prefix):])
+
+
+def quote_invalid_url_chars(xhtree):
+    """Percent-encode the characters that are invalid in the href and src
+    attributes. Return the number of fixed attributes."""
+    fixed = 0
+    for el in xhtree.iter():
+        if not isinstance(el.tag, str):
+            continue
+        for attr in ('href', 'src'):
+            value = el.get(attr)
+            if value is None or value.lower().startswith('data:'):
+                continue
+            quoted = quote_url(value)
+            if quoted != value:
+                el.set(attr, quoted)
+                fixed += 1
+    return fixed
+
+
 HEAD_ONLY_TAGS = ('title', 'link', 'meta', 'style', 'base')
 
 
@@ -3585,6 +3616,10 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     fixed_urls = remove_url_line_breaks(xhtree)
     if fixed_urls:
         print('* Removed line breaks from %d URLs in "%s"'
+              % (fixed_urls, os.path.basename(xhfile)))
+    fixed_urls = quote_invalid_url_chars(xhtree)
+    if fixed_urls:
+        print('* Percent-encoded invalid characters in %d URLs in "%s"'
               % (fixed_urls, os.path.basename(xhfile)))
 
     # remove meta charsets
