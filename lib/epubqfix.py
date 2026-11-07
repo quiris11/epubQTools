@@ -2762,6 +2762,40 @@ def remove_url_line_breaks(xhtree):
     return fixed
 
 
+HEAD_ONLY_TAGS = ('title', 'link', 'meta', 'style', 'base')
+
+
+def move_head_elements_from_body(xhtree):
+    """Move <title>, <link>, <meta>, <style> and <base> elements misplaced
+    in <body> (invalid in XHTML, EpubCheck RSC-005) to <head>. A <title>
+    fills an empty title of <head>, otherwise it is removed, like a
+    duplicate stylesheet link. Return the number of moved elements."""
+    heads = xhtree.xpath('//xhtml:head', namespaces=XHTMLNS)
+    if not heads:
+        return 0
+    head = heads[0]
+    xpath = '|'.join('//xhtml:body//xhtml:' + t for t in HEAD_ONLY_TAGS)
+    moved = 0
+    for el in xhtree.xpath(xpath, namespaces=XHTMLNS):
+        if el.tail and not el.tail.strip():
+            el.tail = None
+        remove_node(el)
+        el.tail = None
+        moved += 1
+        tag = etree.QName(el).localname
+        if tag == 'title':
+            titles = head.xpath('xhtml:title', namespaces=XHTMLNS)
+            if not titles:
+                head.insert(0, el)
+            elif not ''.join(titles[0].itertext()).strip():
+                titles[0].text = ''.join(el.itertext()).strip()
+        elif not (tag == 'link' and head.xpath(
+                'xhtml:link[@href=$href]', namespaces=XHTMLNS,
+                href=el.get('href', ''))):
+            head.append(el)
+    return moved
+
+
 def find_class_styles(opftree, opfdir):
     """ClassStyles of the CSS files (in the order of the manifest)."""
     css_texts = []
@@ -3490,6 +3524,11 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     if removed:
         print('* Removed %d amzn-* attributes from "%s"' %
               (removed, os.path.basename(xhfile)))
+
+    moved = move_head_elements_from_body(xhtree)
+    if moved:
+        print('* Moved %d head elements from <body> to <head> in "%s"' %
+              (moved, os.path.basename(xhfile)))
 
     # remove reset spans of marked texts
     deltag = "epubqtoolsdelme"  # bogus temporary tag

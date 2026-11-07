@@ -36,6 +36,7 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           remove_amzn_attributes,
                           remove_thin_spaces_after_spaces,
                           remove_url_line_breaks,
+                          move_head_elements_from_body,
                           remove_trailing_hidden_div, strip_nav_aria_labels,
                           quote_urls, unquote_urls)
 
@@ -382,6 +383,40 @@ class RemoveUrlLineBreaksTest(unittest.TestCase):
         # other URL or no scheme in the text: only the line break removed
         self.assertIn('href="http://b.org/x--y"', html)
         self.assertIn('href="http://d.org/x--y"', html)
+
+
+class MoveHeadElementsFromBodyTest(unittest.TestCase):
+    HTML = ('<html xmlns="http://www.w3.org/1999/xhtml"><head>%s</head>'
+            '<body><p/>\n<title>Rozdzia\u0142 I\u00a0Ca\u0142y</title>\n'
+            '<link href="a.css" rel="stylesheet" type="text/css"/>\n'
+            '<meta content="DocBook" name="generator"/>\n'
+            '<div><p>Text</p></div></body></html>')
+
+    def test_moved_to_head(self):
+        tree = etree.fromstring(self.HTML % '<title/>')
+        self.assertEqual(move_head_elements_from_body(tree), 3)
+        head, body = tree
+        self.assertEqual(
+            [etree.QName(e).localname for e in head],
+            ['title', 'link', 'meta'])
+        self.assertEqual(head[0].text, 'Rozdzia\u0142 I\u00a0Ca\u0142y')
+        self.assertEqual(
+            [etree.QName(e).localname for e in body], ['p', 'div'])
+        self.assertEqual(body[0].tail, '\n')
+
+    def test_title_and_duplicate_link_removed(self):
+        tree = etree.fromstring(self.HTML % (
+            '<title>Book</title><link href="a.css" rel="stylesheet"/>'))
+        self.assertEqual(move_head_elements_from_body(tree), 3)
+        head = tree[0]
+        self.assertEqual(
+            [etree.QName(e).localname for e in head],
+            ['title', 'link', 'meta'])
+        self.assertEqual(head[0].text, 'Book')
+
+    def test_no_head(self):
+        tree = etree.fromstring(XHTML % '<title>X</title>')
+        self.assertEqual(move_head_elements_from_body(tree), 0)
 
 
 class FixLinksTest(unittest.TestCase):
