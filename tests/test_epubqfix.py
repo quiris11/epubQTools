@@ -21,6 +21,7 @@ from lib.epubqcheck import best_cover_image_item, find_opf
 from lib.epubqfix import (pack_epub, repair_epub_structure,
                           ClassStyles, add_page_list, check_font, convert_ttc_fonts,
                           convert_note_aside_css, convert_note_asides,
+                          create_html_cover,
                           convert_note_asides_in_tree, NOTE_LIST_CSS,
                           remove_soft_hyphens_from_notes, noteref_targets,
                           prepend_note_list_css,
@@ -973,6 +974,57 @@ class ConvertTtcFontsTest(unittest.TestCase):
             with open(os.path.join(d, 'style.css')) as f:
                 self.assertEqual(f.read(),
                                  '@font-face { src: url("font/Foo.ttf"); }')
+
+class CreateHtmlCoverTest(unittest.TestCase):
+    OPF = ('<package xmlns="http://www.idpf.org/2007/opf" version="2.0">'
+           '<metadata><meta name="cover" content="ci"/></metadata><manifest>'
+           '<item id="ci" href="Images/c.jpg" media-type="image/jpeg"/>'
+           '<item id="t1" href="Text/a.xhtml" '
+           'media-type="application/xhtml+xml"/>'
+           '<item id="t2" href="Text/b.xhtml" '
+           'media-type="application/xhtml+xml"/>'
+           '</manifest><spine><itemref idref="t1"/><itemref idref="t2"/>'
+           '</spine>%s</package>')
+    NS = {'opf': 'http://www.idpf.org/2007/opf',
+          'x': 'http://www.w3.org/1999/xhtml'}
+
+    def create(self, guide='', existing=()):
+        opf = etree.fromstring(self.OPF % guide)
+        with tempfile.TemporaryDirectory() as d:
+            os.mkdir(os.path.join(d, 'Text'))
+            for name in existing:
+                open(os.path.join(d, 'Text', name), 'w').close()
+            with redirect_stdout(io.StringIO()):
+                href = create_html_cover(opf, d, 'Images/c.jpg')
+            page = etree.parse(os.path.join(d, *href.split('/')))
+        return opf, href, page
+
+    def test_cover_page_created(self):
+        opf, href, page = self.create('<guide><reference type="toc" '
+                                      'href="Text/a.xhtml"/></guide>')
+        self.assertEqual(href, 'Text/cover.xhtml')
+        self.assertEqual(page.xpath('//x:img/@src', namespaces=self.NS),
+                         ['../Images/c.jpg'])
+        item = opf.xpath('//opf:item[@href="Text/cover.xhtml"]',
+                         namespaces=self.NS)[0]
+        self.assertEqual(item.get('media-type'), 'application/xhtml+xml')
+        self.assertEqual(
+            opf.xpath('//opf:itemref/@idref', namespaces=self.NS),
+            [item.get('id'), 't1', 't2'])
+        self.assertEqual(opf.xpath('//opf:reference[@type="cover"]/@href',
+                                   namespaces=self.NS), ['Text/cover.xhtml'])
+        self.assertEqual(len(opf.xpath('//opf:guide', namespaces=self.NS)),
+                         1)
+
+    def test_guide_created(self):
+        opf = self.create()[0]
+        self.assertEqual(opf.xpath('//opf:guide/opf:reference/@href',
+                                   namespaces=self.NS), ['Text/cover.xhtml'])
+
+    def test_existing_file_not_overwritten(self):
+        self.assertEqual(self.create(existing=['cover.xhtml'])[1],
+                         'Text/cover2.xhtml')
+
 
 class SplitExtraCoverImagesTest(unittest.TestCase):
     OPF = ('<package xmlns="http://www.idpf.org/2007/opf"><metadata>'

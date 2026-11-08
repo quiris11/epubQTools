@@ -1796,6 +1796,51 @@ def set_cover_guide_ref(_xhtml_files, _itemcoverhref, _xhtml_file_paths,
     return _soup
 
 
+def create_html_cover(opftree, tempdir, image_href):
+    """Create an HTML cover page showing image_href (relative to the OPF)
+    from the cover.xhtml template, next to most of the XHTML files. Add it
+    to the manifest, first in the spine and as the guide cover reference.
+    Returns the href of the new page."""
+    xhtml_hrefs = opftree.xpath(
+        '//opf:item[@media-type="application/xhtml+xml"]/@href',
+        namespaces=OPFNS)
+    textdir = (most_common([posixpath.dirname(h) for h in xhtml_hrefs])
+               if xhtml_hrefs else '')
+    ids = set(opftree.xpath('//opf:item/@id', namespaces=OPFNS))
+    hrefs = set(opftree.xpath('//opf:item/@href', namespaces=OPFNS))
+    number = 1
+    while True:
+        suffix = '' if number == 1 else str(number)
+        href = posixpath.join(textdir, 'cover%s.xhtml' % suffix)
+        item_id = 'epubQTools-cover' + suffix
+        if (item_id not in ids and href not in hrefs and
+                not os.path.exists(os.path.join(tempdir, *href.split('/')))):
+            break
+        number += 1
+    doc = etree.fromstring(get_data('lib', 'resources/cover.xhtml'))
+    doc.find('.//{http://www.w3.org/1999/xhtml}img').set(
+        'src', posixpath.relpath(image_href, textdir or '.'))
+    write_cover_xhtml(doc.getroottree(),
+                      os.path.join(tempdir, *href.split('/')), opftree)
+    etree.SubElement(opftree.xpath('//opf:manifest', namespaces=OPFNS)[0],
+                     '{http://www.idpf.org/2007/opf}item', id=item_id,
+                     href=href, attrib={'media-type': 'application/xhtml+xml'})
+    opftree.xpath('//opf:spine', namespaces=OPFNS)[0].insert(
+        0, etree.Element('{http://www.idpf.org/2007/opf}itemref',
+                         idref=item_id))
+    reference = etree.Element('{http://www.idpf.org/2007/opf}reference',
+                              type='cover', title='Cover', href=href)
+    guides = opftree.xpath('//opf:guide', namespaces=OPFNS)
+    if guides:
+        guides[0].append(reference)
+    else:
+        etree.SubElement(opftree.xpath('//opf:package', namespaces=OPFNS)[0],
+                         '{http://www.idpf.org/2007/opf}guide').append(
+                             reference)
+    print('* No HTML cover found. Creating HTML cover: ' + href)
+    return href
+
+
 def set_cover_meta_elem(_soup, _content):
     _metadatas = _soup.xpath('//opf:metadata', namespaces=OPFNS)
     _metacovers = _soup.xpath('//opf:meta[@name="cover"]', namespaces=OPFNS)
@@ -2034,6 +2079,11 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             )
         except IndexError:
             print('* No cover images found...')
+        else:
+            if (not etree.XPath('//opf:reference[@type="cover"]',
+                                namespaces=OPFNS)(soup) and
+                    itemcovers[0].get('media-type', '').startswith('image/')):
+                create_html_cover(soup, tempdir, itemcovers[0].get('href'))
     elif len(metacovers) == 0 and len(refcovers) == 1:
         # set missing cover meta element
         cover_image = None
