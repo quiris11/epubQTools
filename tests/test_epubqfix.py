@@ -25,7 +25,8 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           remove_soft_hyphens_from_notes, noteref_targets,
                           prepend_note_list_css,
                           fill_empty_titles,
-                          decode_b64_name, find_file_in_dir,
+                          decode_b64_name, deobfuscate_font_data,
+                          find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
                           fix_links_in_tree, remove_empty_toc_entries,
                           split_extra_cover_images,
@@ -879,6 +880,36 @@ class CheckFontTest(unittest.TestCase):
                 with open(path, 'wb') as f:
                     f.write(signature + b'\x00' * 8)
                 self.assertEqual(check_font(path), (expected, signature))
+
+class DeobfuscateFontDataTest(unittest.TestCase):
+
+    KEY = bytes(range(1, 21))
+    FONT = b'OTTO' + bytes(range(256)) * 20
+
+    def obfuscate(self, data, crypt_len=1040):
+        return (bytes(b ^ self.KEY[i % 20]
+                      for i, b in enumerate(data[:crypt_len])) +
+                data[crypt_len:])
+
+    def test_plain_obfuscation(self):
+        self.assertEqual(deobfuscate_font_data(
+            self.obfuscate(self.FONT), self.KEY, 1040), self.FONT)
+
+    def test_compressed_before_obfuscation(self):
+        deflater = zlib.compressobj(9, zlib.DEFLATED, -zlib.MAX_WBITS)
+        packed = deflater.compress(self.FONT) + deflater.flush()
+        self.assertEqual(deobfuscate_font_data(
+            self.obfuscate(packed), self.KEY, 1040), self.FONT)
+
+    def test_unobfuscated_font_is_kept(self):
+        self.assertEqual(
+            deobfuscate_font_data(self.FONT, self.KEY, 1040), self.FONT)
+
+    def test_wrong_key_returns_xored_data(self):
+        data = self.obfuscate(self.FONT)
+        result = deobfuscate_font_data(data, bytes(20), 1040)
+        self.assertEqual(result, data)
+
 
 class FindFontByPostscriptNameTest(unittest.TestCase):
 

@@ -20,6 +20,7 @@ import struct
 import subprocess
 import sys
 import zipfile
+import zlib
 import uuid
 import unicodedata
 import io
@@ -611,6 +612,32 @@ def find_font_file(file_name, fontdir):
     return None
 
 
+FONT_SIGNATURES = (b'\x00\x01\x00\x00', b'OTTO', b'ttcf')
+
+
+def deobfuscate_font_data(raw, key, crypt_len):
+    """Return the font data with the obfuscation removed.
+
+    OCF 3 allows a font to be compressed (raw Deflate) before it is
+    obfuscated (e.g. Adobe InDesign does it), so the XOR-ed data may need
+    inflating. A font listed in encryption.xml but stored unobfuscated is
+    returned unchanged."""
+    if raw.startswith(FONT_SIGNATURES):
+        return raw
+    key = cycle(bytearray(key))
+    data = bytes(x ^ next(key) for x in raw[:crypt_len]) + raw[crypt_len:]
+    if data.startswith(FONT_SIGNATURES):
+        return data
+    try:
+        inflater = zlib.decompressobj(-zlib.MAX_WBITS)
+        inflated = inflater.decompress(data) + inflater.flush()
+    except zlib.error:
+        return data
+    if inflater.eof and inflated.startswith(FONT_SIGNATURES):
+        return inflated
+    return data
+
+
 # based on calibri work
 def decrypt_font(path, key, method, fontdir):
     global qfixerr
@@ -620,14 +647,10 @@ def decrypt_font(path, key, method, fontdir):
         crypt_len = 1040
     with open(path, 'rb') as f:
         raw = f.read()
-    crypt = bytearray(raw[:crypt_len])
-    key = cycle(iter(bytearray(key)))
-    decrypt = bytes(bytearray(x ^ next(key) for x in crypt))
     print('* Starting decryption of font file "%s"...'
           % os.path.basename(path), end=' ')
     with open(path, 'wb') as f:
-        f.write(decrypt)
-        f.write(raw[crypt_len:])
+        f.write(deobfuscate_font_data(raw, key, crypt_len))
     is_font, signature = check_font(path)
     if not is_font:
         print('FAILED!')
