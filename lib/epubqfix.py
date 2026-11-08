@@ -10,6 +10,7 @@ import base64
 import binascii
 import copy
 import hashlib
+import html
 import logging
 import os
 import posixpath
@@ -2939,7 +2940,7 @@ def used_classes(xhtml_files):
 
 
 def remove_info_pages(opftree, rootepubdir):
-    """Remove needless info pages (e.g. about a watermark)."""
+    """Remove needless info pages added by the shops."""
     info_files = ['watermark.', 'default-info.', 'generated.', 'platon_wm.',
                   'cover-special.', 'default-info-epub3.']
     items = opftree.xpath('//opf:item', namespaces=OPFNS)
@@ -3482,31 +3483,112 @@ def convert_note_asides(opftree, rootepubdir):
         print('* Added styles of the converted notes to "%s"' % css_href)
 
 
-def remove_support_page(href, xhtree, opftree, rootepubdir):
-    imgs = {resolve_href(href, img.get('src')) for img in
-            xhtree.xpath('//xhtml:img[@src]', namespaces=XHTMLNS)}
+LINK_ATTR_RE = re.compile(
+    r'''\s(?:src|href|xlink:href|poster|data)\s*=\s*(["'])(.*?)\1''', re.S)
+
+
+def page_image_hrefs(href, xhtree):
+    """Paths relative to the OPF of the images shown on the page."""
+    return {resolve_href(href, el.get(attr)) for el in xhtree.iter()
+            if isinstance(el.tag, str) and
+            etree.QName(el).localname in ('img', 'image')
+            for attr in ('src', 'href', '{http://www.w3.org/1999/xlink}href')
+            if el.get(attr)}
+
+
+def unused_images(imgs, opftree, rootepubdir):
+    """Images from imgs which no file of the book refers to. If a file can't
+    be read, none of them is considered unused."""
+    imgs = set(imgs) - set(
+        opftree.xpath('//opf:item[@id=//opf:meta[@name="cover"]/@content or '
+                      'contains(concat(" ", @properties, " "), '
+                      '" cover-image ")]/@href', namespaces=OPFNS))
+    for item in opftree.xpath(
+            '//opf:item[@media-type="application/xhtml+xml" or '
+            '@media-type="image/svg+xml" or @media-type="text/css"]',
+            namespaces=OPFNS):
+        if not imgs:
+            break
+        path = os.path.join(rootepubdir, item.get('href'))
+        try:
+            if item.get('media-type') == 'text/css':
+                with open(path, 'r', encoding='utf-8') as f:
+                    text = f.read()
+                imgs = {i for i in imgs
+                        if posixpath.basename(i) not in text}
+            else:
+                # not parsed: the files may still have HTML entities here
+                with open(path, 'rb') as f:
+                    raw = f.read().decode('utf-8', 'replace')
+                imgs -= {resolve_href(item.get('href'),
+                                      html.unescape(m.group(2)))
+                         for m in LINK_ATTR_RE.finditer(raw)}
+        except IOError:
+            return set()
+    return imgs
+
+
+def remove_page(href, xhtree, opftree, rootepubdir):
+    """Remove the page with its TOC entries and the images used only by it.
+    Return the removed images."""
+    imgs = page_image_hrefs(href, xhtree)
     remove_toc_entries(href, opftree, rootepubdir)
     remove_file_from_epub(href, opftree, rootepubdir)
-    # images used only by the removed page
-    for item in opftree.xpath('//opf:item[@media-type="application/xhtml+xml"'
-                              ' or @media-type="text/css"]',
-                              namespaces=OPFNS):
-        try:
-            with open(os.path.join(rootepubdir, item.get('href')), 'r',
-                      encoding='utf-8') as f:
-                text = f.read()
-        except (IOError, UnicodeDecodeError):
-            imgs = set()
-            break
-        imgs = {i for i in imgs if posixpath.basename(i) not in text}
     removed_imgs = []
-    for img in sorted(imgs):
+    for img in sorted(unused_images(imgs, opftree, rootepubdir)):
         if opftree.xpath('//opf:item[@href=$h]', h=img, namespaces=OPFNS):
             remove_file_from_epub(img, opftree, rootepubdir)
             removed_imgs.append(img)
+    return removed_imgs
+
+
+def with_images(removed_imgs):
+    return (' (with %s)' % ', '.join(removed_imgs)) if removed_imgs else ''
+
+
+def remove_support_page(href, xhtree, opftree, rootepubdir):
+    removed_imgs = remove_page(href, xhtree, opftree, rootepubdir)
     print('* Removed Wolne Lektury support page: %s%s' %
-          (href, ' (with %s)' % ', '.join(removed_imgs)
-           if removed_imgs else ''))
+          (href, with_images(removed_imgs)))
+
+
+PURCHASE_INFO_LABELS = ('zakupiono w sklepie:', 'identyfikator transakcji:',
+                        'znak wodny:')
+
+
+def is_purchase_info_page(xhtree):
+    """A page with only the table of the purchase details added by the
+    shop."""
+    cells = xhtree.xpath('//xhtml:body//xhtml:td', namespaces=XHTMLNS)
+    labels = {' '.join(''.join(td.itertext()).replace('­', '').split())
+              .lower() for td in cells}
+    if not labels.issuperset(PURCHASE_INFO_LABELS):
+        return False
+    tables = xhtree.xpath('//xhtml:body//xhtml:table', namespaces=XHTMLNS)
+    for text in xhtree.xpath('//xhtml:body//text()', namespaces=XHTMLNS):
+        owner = text.getparent()
+        if text.is_tail:
+            owner = owner.getparent()
+        if text.strip() and not any(
+                t is owner or t in owner.iterancestors() for t in tables):
+            return False
+    return True
+
+
+def remove_purchase_info_pages(opftree, rootepubdir):
+    """Remove the needless pages with the purchase details."""
+    for i in opftree.xpath('//opf:item[@media-type="application/xhtml+xml"]',
+                           namespaces=OPFNS):
+        try:
+            xhtree = etree.parse(os.path.join(rootepubdir, i.get('href')))
+        except (IOError, etree.XMLSyntaxError):
+            continue
+        if is_purchase_info_page(xhtree):
+            removed_imgs = remove_page(i.get('href'), xhtree, opftree,
+                                       rootepubdir)
+            print('* Needless info page removed: %s%s' %
+                  (i.get('href'), with_images(removed_imgs)))
+    return opftree
 
 
 def remove_fundraising_pages(opftree, rootepubdir):
@@ -3544,6 +3626,10 @@ def remove_file_from_epub(file_rel_to_opf, opftree, rootepubdir):
     for item_ncx in opftree.xpath('//opf:itemref[@idref="' + item.get('id') +
                                   '"]', namespaces=OPFNS):
         item_ncx.getparent().remove(item_ncx)
+    for ref in opftree.xpath('//opf:guide/opf:reference[@href]',
+                             namespaces=OPFNS):
+        if unquote(ref.get('href').split('#')[0]) == file_rel_to_opf:
+            ref.getparent().remove(ref)
     item.getparent().remove(item)
     os.remove(os.path.join(rootepubdir, file_rel_to_opf))
 
@@ -3848,6 +3934,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         link_reset_css = False
     opftree = remove_jacket(opftree, opf_dir_abs)
     opftree, is_fund_removed = remove_fundraising_pages(opftree, opf_dir_abs)
+    opftree = remove_purchase_info_pages(opftree, opf_dir_abs)
     _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
     opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
                            _xhtml_file_paths)

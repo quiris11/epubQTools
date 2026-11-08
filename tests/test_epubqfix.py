@@ -32,7 +32,8 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           fix_links_in_tree, remove_empty_toc_entries,
                           split_extra_cover_images,
                           image_data_end, insert_page_markers,
-                          is_fundraising_page,
+                          is_fundraising_page, is_purchase_info_page,
+                          remove_purchase_info_pages,
                           is_hiding_style, is_support_page,
                           is_wolnelektury_book, most_common, resolve_href, remove_orphan_refining_metas,
                           remove_amzn_attributes,
@@ -1146,6 +1147,86 @@ class WolneLekturyFundraisingTest(unittest.TestCase):
                          'a b.xhtml')
         self.assertEqual(resolve_href('nav.xhtml', 'support.xhtml'),
                          'support.xhtml')
+
+
+class PurchaseInfoPageTest(unittest.TestCase):
+    PAGE = ('<html xmlns="http://www.w3.org/1999/xhtml"><head><title>wm'
+            '</title></head><body>%s</body></html>')
+    TABLE = ('<table><tr><td>zakupiono w sklepie:</td><td>Sklep</td></tr>'
+             '<tr><td>identyfikator transakcji:</td><td>1628971198459280'
+             '</td></tr><tr><td>e-mail nabywcy:</td><td>a@b.pl</td></tr>'
+             '<tr><td>znak wodny:</td><td><img alt="X" '
+             'src="../Images/logo.png" /></td></tr></table>')
+    OPF = ('<package xmlns="http://www.idpf.org/2007/opf" version="2.0">'
+           '<metadata><meta name="cover" content="cover-image"/></metadata>'
+           '<manifest>'
+           '<item id="ncx" href="toc.ncx" '
+           'media-type="application/x-dtbncx+xml"/>'
+           '<item id="cover-image" href="Images/cover.jpg" '
+           'media-type="image/jpeg"/>'
+           '<item id="logo" href="Images/logo.png" media-type="image/png"/>'
+           '<item id="pic" href="Images/pic.jpg" media-type="image/jpeg"/>'
+           '<item id="wm" href="Text/wm.xhtml" '
+           'media-type="application/xhtml+xml"/>'
+           '<item id="ch" href="Text/ch.xhtml" '
+           'media-type="application/xhtml+xml"/>'
+           '</manifest><spine toc="ncx"><itemref idref="wm"/>'
+           '<itemref idref="ch"/></spine><guide><reference type="other" '
+           'title="Info" href="Text/wm.xhtml"/></guide></package>')
+    NCX = ('<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" '
+           'version="2005-1"><navMap>'
+           '<navPoint id="a"><navLabel><text>Info</text></navLabel>'
+           '<content src="Text/wm.xhtml"/></navPoint>'
+           '<navPoint id="b"><navLabel><text>Ch</text></navLabel>'
+           '<content src="Text/ch.xhtml"/></navPoint></navMap></ncx>')
+
+    def test_is_purchase_info_page(self):
+        for content, expected in (
+            (self.TABLE, True),
+            ('<p>Text</p>' + self.TABLE, False),
+            (self.TABLE.replace('znak wodny:', 'logo:'), False),
+            ('<h1>Znak wodny</h1><p>identyfikator transakcji:</p>', False),
+        ):
+            with self.subTest(content):
+                tree = etree.fromstring(self.PAGE % content).getroottree()
+                self.assertEqual(is_purchase_info_page(tree), expected)
+
+    def test_page_removed_with_its_image(self):
+        # the cover is shown on the page too, pic.jpg is used elsewhere,
+        # "logo.png" in an alt text is not a reference
+        page = self.PAGE % (self.TABLE.replace(
+            '</table>', '<tr><td><img src="../Images/cover.jpg"/>'
+            '<img src="../Images/pic.jpg"/></td></tr></table>'))
+        chapter = self.PAGE % ('<p><img src="../Images/pic.jpg" '
+                               'alt="logo.png"/></p>')
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, 'Text'))
+            os.makedirs(os.path.join(d, 'Images'))
+            for name, text in (('Text/wm.xhtml', page),
+                               ('Text/ch.xhtml', chapter),
+                               ('toc.ncx', self.NCX),
+                               ('Images/cover.jpg', ''),
+                               ('Images/logo.png', ''),
+                               ('Images/pic.jpg', '')):
+                with open(os.path.join(d, name), 'w') as f:
+                    f.write(text)
+            opftree = etree.fromstring(self.OPF).getroottree()
+            out = io.StringIO()
+            with redirect_stdout(out):
+                remove_purchase_info_pages(opftree, d)
+            files = sorted(os.listdir(os.path.join(d, 'Text')) +
+                           os.listdir(os.path.join(d, 'Images')))
+            with open(os.path.join(d, 'toc.ncx')) as f:
+                ncx = f.read()
+        self.assertEqual(files, ['ch.xhtml', 'cover.jpg', 'pic.jpg'])
+        opf = etree.tostring(opftree, encoding='unicode')
+        self.assertNotIn('wm.xhtml', opf)
+        self.assertNotIn('logo.png', opf)
+        self.assertIn('cover.jpg', opf)
+        self.assertNotIn('wm.xhtml', ncx)
+        self.assertIn('ch.xhtml', ncx)
+        self.assertEqual(out.getvalue(), '* Needless info page removed: '
+                         'Text/wm.xhtml (with Images/logo.png)\n')
 
 
 class InsertPageMarkersTest(unittest.TestCase):
