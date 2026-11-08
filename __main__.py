@@ -7,7 +7,6 @@
 
 import argparse
 import atexit
-import codecs
 import os
 import re
 import shutil
@@ -84,7 +83,13 @@ parser.add_argument('--replace-font-family', nargs='?', metavar='old,new',
                     default=None,
                     help="pair of \"old_font_family,new_font_family\""
                     "(only with -e and with --font-dir)")
-parser.add_argument("-a", "--alter", help="alternative output display",
+parser.add_argument("-v", "--verbose", help="print all messages, also the "
+                    "information about every change (by default only warnings "
+                    "and errors are printed, with the name of the book; the "
+                    "log file always gets all messages)", action="store_true")
+parser.add_argument("-a", "--alter", help="print every finding on one line "
+                    "beginning with the file name, without START and FINISH "
+                    "lines, e.g. for grep or sort (only with -q)",
                     action="store_true")
 parser.add_argument("-n", "--rename", help="rename .epub files to "
                     "'author - title.epub'",
@@ -248,13 +253,52 @@ mohDir = 'MOH'
 moh_dir = os.path.join(uni_dir, mohDir)
 
 
+BOOK_PREFIX = '--- '                # book name before its problems
+
+
+def line_kind(line, qcheck_mode=False):
+    """Kind of an output line according to the message convention (see
+    README): 'header', 'book', 'warning', 'error', 'ok', 'info' (information
+    about the work done, START and FINISH lines) or None (other lines, e.g.
+    messages of EpubCheck or kindlegen)."""
+    s = line.strip()
+    if s.startswith('=== '):
+        return 'header'
+    if line.startswith(BOOK_PREFIX):
+        return 'book'
+    if (('WARNING!' in s or s.startswith('WARNING(')) and
+            'CRITICAL!' not in s and 'ERROR!' not in s and
+            'FAILED' not in s):
+        return 'warning'
+    if (s.startswith('!') or 'CRITICAL!' in s or 'ERROR!' in s or
+            'with PROBLEMS' in s or 'PROBLEMS FOUND' in s or
+            s.endswith(('FAILED!', 'NOT FIXED')) or 'FAILED! ' in s or
+            s.startswith(('Traceback', 'ERROR(', 'FATAL('))):
+        return 'error'
+    if (s.startswith('FINISH ') or s.endswith(': OK!') or
+            s.endswith(('OK! Decrypted.', 'OK! Replaced.', 'FIXED'))):
+        return 'ok'
+    if 'Font info for ' in s:
+        return None                 # --list-fonts: asked for, always shown
+    if s.startswith('START ') or 'Info: ' in s:
+        return 'info'
+    if s.startswith('* '):
+        # internal check (-q): every '* ' line is a finding
+        return 'warning' if qcheck_mode else 'info'
+    if qcheck_mode and s:
+        return 'warning'            # '-a': 'file: finding'
+    return None
+
+
 class ColorStream(object):
     """Colors whole output lines in a terminal according to the message
     convention (see README): red - errors, yellow - warnings, green - success.
     Lines are buffered until the end of line, so a line printed in parts
     (e.g. '... decryption of font file "x"... ' + 'FAILED!') gets one color."""
-    RED, YELLOW, GREEN, RESET = '\033[31m', '\033[33m', '\033[32m', '\033[0m'
-    HEADER = '\033[1;36m'          # bold cyan
+    RESET = '\033[0m'
+    COLORS = {'header': '\033[1;36m',       # bold cyan
+              'book': '\033[1m',            # bold
+              'warning': '\033[33m', 'error': '\033[31m', 'ok': '\033[32m'}
 
     def __init__(self, stream):
         self.stream = stream
@@ -262,26 +306,7 @@ class ColorStream(object):
         self.qcheck_mode = False
 
     def color(self, line):
-        s = line.strip()
-        if s.startswith('=== '):
-            return self.HEADER
-        if (('WARNING!' in s or s.startswith('WARNING(')) and
-                'CRITICAL!' not in s and 'ERROR!' not in s and
-                'FAILED' not in s):
-            return self.YELLOW
-        if (s.startswith('!') or 'CRITICAL!' in s or 'ERROR!' in s or
-                'with PROBLEMS' in s or 'PROBLEMS FOUND' in s or
-                s.endswith(('FAILED!', 'NOT FIXED')) or 'FAILED! ' in s or
-                s.startswith(('Traceback', 'ERROR(', 'FATAL('))):
-            return self.RED
-        if (s.startswith('FINISH ') or s.endswith(': OK!') or
-                s.endswith(('OK! Decrypted.', 'OK! Replaced.', 'FIXED'))):
-            return self.GREEN
-        # internal check (-q): every other line is a finding, except info
-        if (self.qcheck_mode and s and not s.startswith('START ') and
-                'Info: ' not in s and 'Font info for ' not in s):
-            return self.YELLOW
-        return None
+        return self.COLORS.get(line_kind(line, self.qcheck_mode))
 
     def write(self, message):
         self.buf += message
@@ -310,6 +335,140 @@ else:
     color_stream = None
 
 
+class QuietStream(object):
+    """Terminal output without -v: during the work on the books (see
+    books()) only problems are printed - warnings, errors and lines of
+    unknown kind (e.g. messages of EpubCheck or kindlegen, a traceback) -
+    after the name of the book (once, before its first problem). The log
+    file (-l) gets all messages, because Logger writes to this stream and
+    to the file.
+    In a terminal the book being processed is shown in a progress line that
+    the next line overwrites."""
+
+    def __init__(self, stream, progress=None):
+        self.stream = stream
+        self.progress = progress    # the real terminal, or None
+        self.buf = ''
+        self.active = False         # working on the books
+        self.qcheck_mode = False
+        self.book = None
+        self.book_shown = False
+        self.progress_text = ''
+
+    def start_book(self, name, nr, total):
+        self.active = True
+        self.book, self.book_shown = name, False
+        if self.progress:
+            self.show_progress('[%d/%d] %s' % (nr, total, name))
+
+    def stop(self):
+        self.flush()
+        self.active = False
+        self.book = None
+        self.clear_progress()
+
+    def show_progress(self, text):
+        width = shutil.get_terminal_size().columns - 1
+        self.clear_progress()
+        self.progress_text = text[:width]
+        self.progress.write('\r' + self.progress_text)
+        self.progress.flush()
+
+    def clear_progress(self):
+        if self.progress_text:
+            self.progress.write('\r' + ' ' * len(self.progress_text) + '\r')
+            self.progress.flush()
+            self.progress_text = ''
+
+    def visible(self, line):
+        if not self.active:
+            return True
+        if not line.strip():
+            return False
+        kind = line_kind(line, self.qcheck_mode)
+        if kind == 'info' or kind == 'ok':
+            return False
+        return True
+
+    def write_line(self, line):
+        if not self.visible(line):
+            return
+        text = self.progress_text
+        self.clear_progress()
+        if self.active and self.book and not self.book_shown:
+            self.book_shown = True
+            self.stream.write(BOOK_PREFIX + self.book + '\n')
+        self.stream.write(line + '\n')
+        self.stream.flush()
+        if text:
+            self.show_progress(text)
+
+    def write(self, message):
+        self.buf += message
+        while '\n' in self.buf:
+            line, self.buf = self.buf.split('\n', 1)
+            self.write_line(line)
+
+    def flush(self):
+        if self.buf:
+            line, self.buf = self.buf, ''
+            self.write_line(line)
+        self.stream.flush()
+
+
+class ClearProgressStream(object):
+    """stderr: removes the progress line before a message (e.g. sys.exit
+    with a text or a traceback)."""
+
+    def __init__(self, stream, quiet):
+        self.stream = stream
+        self.quiet = quiet
+
+    def write(self, message):
+        self.quiet.clear_progress()
+        self.stream.write(message)
+
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
+
+
+if args.verbose:
+    quiet = None
+else:
+    terminal = sys.__stdout__
+    show_progress = (terminal is not None and terminal.isatty() and
+                     os.environ.get('TERM') != 'dumb')
+    quiet = sys.stdout = QuietStream(sys.stdout,
+                                     terminal if show_progress else None)
+    if show_progress:
+        sys.stderr = ClearProgressStream(sys.stderr, quiet)
+    atexit.register(quiet.stop)
+
+
+def books(found, base=None):
+    """Iterate over (root, file) pairs of the books of one stage; without -v
+    only problems are printed, with the book name (relative to the given
+    directory)."""
+    found = list(found)
+    try:
+        for nr, (root, f) in enumerate(found, 1):
+            if quiet:
+                quiet.start_book(os.path.normpath(os.path.relpath(
+                    os.path.join(root, f), base or uni_dir)), nr, len(found))
+            yield root, f
+    finally:
+        if quiet:
+            quiet.stop()
+
+
+def set_qcheck_mode(on):
+    sys.stdout.flush()
+    for stream in (color_stream, quiet):
+        if stream:
+            stream.flush()
+            stream.qcheck_mode = on
+
+
 def print_header(title):
     """Section header: one line of fixed width (ASCII, safe in any console)."""
     print(('=== ' + title + ' ').ljust(72, '='))
@@ -318,7 +477,8 @@ def print_header(title):
 class Logger(object):
     def __init__(self, filename='eQT-default.log'):
         self.terminal = sys.stdout
-        self.log = codecs.open(filename, 'w', 'utf-8')
+        # newline='': line ends are converted in write()
+        self.log = open(filename, 'w', encoding='utf-8', newline='')
 
     def write(self, message):
         self.terminal.write(message)
@@ -694,13 +854,13 @@ def main():
         print('')
         counter = 0
         if ind_files:
-            for ind_root, ind_file in ind_files:
+            for ind_root, ind_file in books(ind_files):
                 counter += 1
                 epbzf = zipfile.ZipFile(os.path.join(ind_root, ind_file))
                 opf_root, opf_path = find_opf(epbzf)
                 rename_files(opf_path, ind_root, epbzf, ind_file, ind_file)
         else:
-            for root, f in find_original_files():
+            for root, f in books(find_original_files()):
                 counter += 1
                 try:
                     epbzf = zipfile.ZipFile(os.path.join(root, f))
@@ -721,26 +881,21 @@ def main():
     if args.qcheck:
         print('')
         print_header('Checking with internal qcheck tool')
-        if color_stream:
-            color_stream.qcheck_mode = True
+        set_qcheck_mode(True)
         counter = 0
-        if ind_files:
-            for root, f in ind_files_m:
-                counter += 1
-                qcheck(root, f, args.alter, args.mod, args.list_fonts,
-                       args.skip_font_mime, args.skip_css_warnings)
-        else:
-            for root, f in (find_moh_files() if args.mod else
-                            find_original_files()):
-                counter += 1
-                qcheck(root, f, args.alter, args.mod, args.list_fonts,
-                       args.skip_font_mime, args.skip_css_warnings)
-        if color_stream:
-            sys.stdout.flush()
-            color_stream.qcheck_mode = False
+        for root, f in books(ind_files_m if ind_files else
+                             find_moh_files() if args.mod else
+                             find_original_files()):
+            counter += 1
+            qcheck(root, f, args.alter, args.mod, args.list_fonts,
+                   args.skip_font_mime, args.skip_css_warnings)
+        set_qcheck_mode(False)
         if counter == 0:
             print('')
             print('* NO epub files for checking found!')
+        else:
+            print('')
+            print('* Checked %d file(s).' % counter)
 
     if args.epubcheck:
 
@@ -807,22 +962,25 @@ def main():
         counter = 0
 
         if ind_files:
-            for root, f in ind_files_m:
+            for root, f in books(ind_files_m):
                 counter += 1
                 if os.path.exists(os.path.join(root, f)):
                     epubchecker(echp_temp, root, f, epubcheckstr,
                                 epubcheckjar)
                 else:
-                    print('File "%s" not found...' % f)
+                    print('! ERROR! File "%s" not found...' % f)
         else:
-            for root, f in (find_moh_files() if args.mod else
-                            find_original_files()):
+            for root, f in books(find_moh_files() if args.mod else
+                                 find_original_files()):
                 counter += 1
                 epubchecker(echp_temp, root, f, epubcheckstr, epubcheckjar)
         shutil.rmtree(echp_temp, ignore_errors=True)
         if counter == 0:
             print('')
             print('* NO epub files for checking found!')
+        else:
+            print('')
+            print('* Checked %d file(s).' % counter)
 
     if args.epub:
         print('')
@@ -833,40 +991,37 @@ def main():
         if not ind_files:
             shutil.rmtree(os.path.join(uni_dir, tmpSend2KindDir),
                           ignore_errors=True)
-        if ind_files:
-            for ind_root, ind_file in ind_files:
-                counter += 1
-                qfix(ind_root, ind_file, moh_dir_for(ind_root), args.force,
-                     args.replace_font_files,
-                     args.skip_reset_css, args.tools, args.skip_hyphenate,
-                     args.skip_justify, args.left,
-                     args.remove_colors, args.remove_fonts, args.font_dir,
-                     args.fix_missing_container, args.book_margin,
-                     args.skip_hyphenate_headers, args.replace_font_family,
-                     args.skip_page_list)
-        else:
-            for root, f in find_original_files():
-                if f.lower().endswith('_org.epub'):
-                    continue
-                counter += 1
-                qfix(root, f, moh_dir_for(root), args.force,
-                     args.replace_font_files,
-                     args.skip_reset_css, args.tools,
-                     args.skip_hyphenate, args.skip_justify, args.left,
-                     args.remove_colors,
-                     args.remove_fonts, args.font_dir,
-                     args.fix_missing_container,
-                     args.book_margin, args.skip_hyphenate_headers,
-                     args.replace_font_family, args.skip_page_list)
+        problems = []               # paths of the books with problems
+        for root, f in books(
+                ind_files or
+                [(r, f) for r, f in find_original_files()
+                 if not f.lower().endswith('_org.epub')]):
+            counter += 1
+            before = len(problem_files)
+            qfix(root, f, moh_dir_for(root), args.force,
+                 args.replace_font_files,
+                 args.skip_reset_css, args.tools,
+                 args.skip_hyphenate, args.skip_justify, args.left,
+                 args.remove_colors,
+                 args.remove_fonts, args.font_dir,
+                 args.fix_missing_container,
+                 args.book_margin, args.skip_hyphenate_headers,
+                 args.replace_font_family, args.skip_page_list)
+            if len(problem_files) > before:
+                problems.append(os.path.normpath(os.path.relpath(
+                    os.path.join(root, f), uni_dir)))
         if counter == 0:
             print('')
             print('* NO epub files for fixing found!')
-        elif problem_files:
+        elif problems:
             print('')
             print('* Files finished with PROBLEMS (%d of %d):'
-                  % (len(problem_files), counter))
-            for pf in problem_files:
+                  % (len(problems), counter))
+            for pf in problems:
                 print('  - ' + pf)
+        else:
+            print('')
+            print('* Done: %d file(s) fixed without problems.' % counter)
 
     if args.kindlegen:
         print('')
@@ -920,13 +1075,13 @@ def main():
         counter = 0
         cover_html_found = error_found = False
         if ind_files:
-            for ind_root, ind_file in ind_files:
+            for root, f in books(
+                    (moh_dir_for(r), os.path.splitext(f)[0] + '_moh.epub')
+                    for r, f in ind_files):
                 counter += 1
-                to_mobi(moh_dir_for(ind_root),
-                        os.path.splitext(ind_file)[0] + '_moh.epub',
-                        cover_html_found, error_found)
+                to_mobi(root, f, cover_html_found, error_found)
         else:
-            for root, f in find_moh_files():
+            for root, f in books(find_moh_files()):
                 counter += 1
                 to_mobi(root, f, False, False)
         if counter == 0:
@@ -955,7 +1110,7 @@ def main():
                          for r, f in ind_files]
         else:
             moh_files = find_moh_files()
-        for root, f in moh_files:
+        for root, f in books(moh_files):
             _stage_moh_epub(os.path.join(root, f), dest_dir, stats)
 
         if stats['copied'] == 0 and stats['missing'] == 0:

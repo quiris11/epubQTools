@@ -1065,8 +1065,8 @@ problem_files = []
 
 def finish_with_problems(f):
     print('FINISH (with PROBLEMS) qfix for: ' + f)
-    if f not in problem_files:
-        problem_files.append(f)
+    # every call, also for books with the same name in another subfolder
+    problem_files.append(f)
 
 
 def write_atomically(output_filename, write):

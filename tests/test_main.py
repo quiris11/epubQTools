@@ -189,7 +189,7 @@ class CommandLineTest(unittest.TestCase):
             for name, data in entries[1:] + entries[:1]:
                 z.writestr(name, data)
         result = self.run_eqt('-i', '0', '-e', '--fix-missing-container',
-                              self.dir)
+                              '-v', self.dir)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('Repaired: mimetype file', result.stdout)
         with zipfile.ZipFile(path) as z:
@@ -198,7 +198,7 @@ class CommandLineTest(unittest.TestCase):
             self.assertEqual(first.compress_type, zipfile.ZIP_STORED)
             self.assertEqual(z.read(first), b'application/epub+zip')
         result = self.run_eqt('-i', '0', '-e', '--fix-missing-container',
-                              self.dir)
+                              '-v', self.dir)
         self.assertIn('Repairing not needed', result.stdout)
 
     def epub_names(self):
@@ -215,17 +215,54 @@ class CommandLineTest(unittest.TestCase):
     def test_rename_decomposed_name_in_place(self):
         name = unicodedata.normalize('NFD', 'Łucja Ślęzak - Żółw.epub')
         self.make_epub(name, 'Żółw', 'Łucja Ślęzak')
-        result = self.run_eqt('-i', '0', '-n', self.dir)
+        result = self.run_eqt('-i', '0', '-n', '-v', self.dir)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.epub_names(), ['Łucja Ślęzak - Żółw.epub'])
         self.assertIn('to composed letters', result.stdout)
 
     def test_rename_composed_name_not_needed(self):
         self.make_epub('Łucja Ślęzak - Żółw.epub', 'Żółw', 'Łucja Ślęzak')
-        result = self.run_eqt('-i', '0', '-n', self.dir)
+        result = self.run_eqt('-i', '0', '-n', '-v', self.dir)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.epub_names(), ['Łucja Ślęzak - Żółw.epub'])
         self.assertIn('is not needed', result.stdout)
+
+    def test_quiet_output_shows_problems_with_book_name(self):
+        # a/x.epub and b/x.epub are not ZIP files, y.epub is fine
+        self.make_epub('y.epub', 'Żółw', 'Łucja Ślęzak')
+        result = self.run_eqt('-n', '-l', self.dir)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, '')
+        for sub in ('a', 'b'):
+            self.assertIn('--- %s\n! CRITICAL! Problem with file "x.epub"'
+                          % os.path.join(sub, 'x.epub'), result.stdout)
+        self.assertNotIn('y.epub', result.stdout)
+        self.assertNotIn('* ', result.stdout)
+        # the log gets all messages, without book names
+        logs = [f for f in os.listdir(self.dir) if f.endswith('.log')]
+        with open(os.path.join(self.dir, logs[0]), encoding='utf-8') as f:
+            log = f.read()
+        self.assertIn('* Renamed file "y.epub"', log)
+        self.assertNotIn('--- ', log)
+
+    def test_quiet_output_hides_start_and_finish(self):
+        result = self.run_eqt('-e', self.dir)
+        self.assertNotIn('START ', result.stdout)
+        self.assertIn('--- %s\n* EPUB file "x.epub" is corrupted! Trying '
+                      'to fix it... NOT FIXED' % os.path.join('a', 'x.epub'),
+                      result.stdout)
+        self.assertIn('* Files finished with PROBLEMS (2 of 2):\n'
+                      '  - %s\n  - %s'
+                      % (os.path.join('a', 'x.epub'),
+                         os.path.join('b', 'x.epub')),
+                      result.stdout)
+
+    def test_verbose_output(self):
+        self.make_epub('y.epub', 'Żółw', 'Łucja Ślęzak')
+        result = self.run_eqt('-n', '-v', self.dir)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('* Renamed file "y.epub"', result.stdout)
+        self.assertNotIn('--- ', result.stdout)
 
     def test_missing_directory(self):
         result = self.run_eqt('-q')

@@ -17,7 +17,7 @@ kindlegen is also looked up in `PATH`.
 
 ```
 usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]] [--author [Surname, First Name]] [--title [Title]]
-                                                        [--font-dir [DIR]] [--replace-font-family [old,new]] [-a] [-n] [-t] [-q] [-p] [-w] [-u] [--list-fonts] [-m] [-e] [-s]
+                                                        [--font-dir [DIR]] [--replace-font-family [old,new]] [-v] [-a] [-n] [-t] [-q] [-p] [-w] [-u] [--list-fonts] [-m] [-e] [-s]
                                                         [-r] [--skip-page-list] [-c] [--skip-justify] [--left] [--replace-font-files] [--remove-colors]
                                                         [--remove-fonts] [-k] [-d] [-f] [--fix-missing-container] [--book-margin [NUMBER]]
                                                         directory
@@ -39,7 +39,10 @@ options:
   --font-dir [DIR]      path to directory with user fonts stored
   --replace-font-family [old,new]
                         pair of "old_font_family,new_font_family"(only with -e and with --font-dir)
-  -a, --alter           alternative output display
+  -v, --verbose         print all messages, also the information about every change (by default only warnings and errors are
+                        printed, with the name of the book; the log file always gets all messages)
+  -a, --alter           print every finding on one line beginning with the file name, without START and FINISH lines, e.g. for
+                        grep or sort (only with -q)
   -n, --rename          rename .epub files to 'author - title.epub'
   -t, --prepare-send-to-kindle
                         copy MOH files to 'title.epub' (Send to Kindle friendly)
@@ -100,6 +103,12 @@ Soft hyphens are removed from all notes linked with noteref links: Kindle Paperw
 show the hyphen at a line break in pop-ups.
 
 #### Output messages:
+By default (without `-v`) only problems are printed while the books are processed: warnings, errors
+and messages of EpubCheck and kindlegen, each book's problems after a line `--- path/to/book.epub`.
+Books without problems print nothing; at the end of each step a summary is printed (e.g. the list of
+books finished with problems). In a terminal the book being processed is shown in a progress line.
+`-v` prints all messages below; the log file (`-l`) always gets all of them.
+
 * `* text` - information
 * `! WARNING! text` - warning, the book is processed
 * `! ERROR! text` - error, the book is processed with problems
