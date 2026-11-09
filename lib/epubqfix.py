@@ -1820,7 +1820,7 @@ def create_html_cover(opftree, tempdir, image_href):
         number += 1
     doc = etree.fromstring(get_data('lib', 'resources/cover.xhtml'))
     doc.find('.//{http://www.w3.org/1999/xhtml}img').set(
-        'src', posixpath.relpath(image_href, textdir or '.'))
+        'src', relative_href(image_href, textdir, tempdir))
     write_cover_xhtml(doc.getroottree(),
                       os.path.join(tempdir, *href.split('/')), opftree)
     etree.SubElement(opftree.xpath('//opf:manifest', namespaces=OPFNS)[0],
@@ -3008,10 +3008,27 @@ def is_support_page(xhtree):
     )
 
 
-def resolve_href(base_href, link):
-    """Path relative to the OPF of the link from the file base_href."""
-    return posixpath.normpath(posixpath.join(
+def resolve_href(base_href, link, opf_dir=None):
+    """Path relative to the OPF of the link from the file base_href.
+    With the OPF directory opf_dir, a path going outside it and back
+    (../OEBPS/a.xhtml from ../Misc/toc.ncx) becomes the manifest form
+    (a.xhtml)."""
+    href = posixpath.normpath(posixpath.join(
         posixpath.dirname(base_href), unquote(link.split('#')[0])))
+    if opf_dir and href.startswith('../'):
+        href = relative_href(href, '', opf_dir)
+    return href
+
+
+def relative_href(href, start, opf_dir):
+    """Path of href relative to the directory start (both relative to the
+    OPF directory opf_dir). posixpath.relpath on the hrefs alone resolves
+    a start going outside the OPF directory (e.g. ../Misc) against the
+    current directory, so the result would contain its name."""
+    return os.path.relpath(
+        os.path.join(opf_dir, *href.split('/')),
+        os.path.join(opf_dir, *(start or '.').split('/'))).replace(os.sep,
+                                                                  '/')
 
 
 def remove_toc_entries(href, opftree, rootepubdir):
@@ -3033,14 +3050,16 @@ def remove_toc_entries(href, opftree, rootepubdir):
                 a.getparent() for a in
                 toctree.xpath('//xhtml:nav//xhtml:li/xhtml:a[@href]',
                               namespaces=XHTMLNS)
-                if resolve_href(toc.get('href'), a.get('href')) == href
+                if resolve_href(toc.get('href'), a.get('href'),
+                                rootepubdir) == href
             ]
         else:
             entries = [
                 c.getparent() for c in
                 toctree.xpath('//ncx:navPoint/ncx:content[@src]',
                               namespaces=NCXNS)
-                if resolve_href(toc.get('href'), c.get('src')) == href
+                if resolve_href(toc.get('href'), c.get('src'),
+                                rootepubdir) == href
             ]
         if not entries:
             continue
@@ -4358,14 +4377,14 @@ def add_page_list(opftree, rootepubdir):
         return (spine.index(href), m.start() if m else 0)
 
     def link(toc_href, href, frag):
-        rel = quote(posixpath.relpath(href, posixpath.dirname(toc_href) or
-                                      '.'))
+        rel = quote(relative_href(href, posixpath.dirname(toc_href),
+                                  rootepubdir))
         return rel + '#' + frag if frag else rel
 
     # NCX: navPoint and pageTarget share one playOrder sequence
     contents = ncxtree.xpath('//ncx:navPoint/ncx:content[@src]',
                              namespaces=NCXNS)
-    nav_keys = [(resolve_href(ncx_href, c.get('src')),
+    nav_keys = [(resolve_href(ncx_href, c.get('src'), rootepubdir),
                  c.get('src').partition('#')[2]) for c in contents]
     targets = sorted([(position(*k), 0, k) for k in nav_keys] +
                      [(position(h, f), 1, (h, f)) for n, h, f in pages])

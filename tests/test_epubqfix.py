@@ -5,6 +5,7 @@
 #
 import io
 import os
+import re
 import shutil
 import struct
 import tempfile
@@ -1147,6 +1148,14 @@ class WolneLekturyFundraisingTest(unittest.TestCase):
                          'a b.xhtml')
         self.assertEqual(resolve_href('nav.xhtml', 'support.xhtml'),
                          'support.xhtml')
+        # a TOC outside the OPF directory: with the OPF directory the
+        # path gets the manifest form, independent of the current directory
+        self.assertEqual(resolve_href('../Misc/toc.ncx', '../OEBPS/a.xhtml',
+                                      '/book/OEBPS'), 'a.xhtml')
+        self.assertEqual(resolve_href('../nav.xhtml', 'OEBPS/a.xhtml#x',
+                                      'book/OEBPS'), 'a.xhtml')
+        self.assertEqual(resolve_href('../nav.xhtml', 'Other/a.xhtml',
+                                      'book/OEBPS'), '../Other/a.xhtml')
 
 
 class PurchaseInfoPageTest(unittest.TestCase):
@@ -1344,6 +1353,52 @@ class AddPageListTest(unittest.TestCase):
                 nav = f.read()
         self.assertRegex(nav, r'<nav [^>]*hidden="hidden"[^>]*'
                          r'style="display:none"[^>]*:type="page-list"')
+
+    def test_toc_outside_opf_dir(self):
+        # NCX and nav outside the OPF directory (../Misc/toc.ncx,
+        # ../nav.xhtml): the links don't depend on the current directory
+        cwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as d, \
+                tempfile.TemporaryDirectory() as other:
+            root = os.path.join(d, 'OEBPS')
+            for sub in ('OEBPS', 'Misc'):
+                os.mkdir(os.path.join(d, sub))
+            with open(os.path.join(d, 'Misc', 'toc.ncx'), 'w') as f:
+                f.write(self.NCX.replace('src="Text/rozdzia%C5%82.xhtml',
+                                         'src="../OEBPS/c1.xhtml'))
+            with open(os.path.join(root, 'c1.xhtml'), 'w') as f:
+                f.write(self.BODY % ('<p>Line</p>' * 40))
+            with open(os.path.join(d, 'nav.xhtml'), 'w') as f:
+                f.write(self.BODY % '<nav><ol><li><a href="OEBPS/c1.xhtml">'
+                        '1</a></li></ol></nav>')
+            opftree = etree.ElementTree(etree.fromstring(
+                self.OPF.replace('href="toc.ncx"', 'href="../Misc/toc.ncx"')
+                .replace('Text/rozdzia%C5%82.xhtml', 'c1.xhtml').replace(
+                    '</manifest>', '<item id="nav" href="../nav.xhtml" '
+                    'media-type="application/xhtml+xml" properties="nav"/>'
+                    '</manifest>')))
+            os.chdir(other)
+            try:
+                add_page_list(opftree, root)
+            finally:
+                os.chdir(cwd)
+            with open(os.path.join(d, 'Misc', 'toc.ncx')) as f:
+                ncx = f.read()
+            with open(os.path.join(d, 'nav.xhtml')) as f:
+                nav = f.read()
+        self.assertIn('pageList', ncx)
+        srcs = re.findall(r'<pageTarget\b.*?<content src="([^"]*)"', ncx,
+                          re.S)
+        self.assertTrue(srcs)
+        for src in srcs:
+            self.assertRegex(src, r'^\.\./OEBPS/c1\.xhtml(#eqt_page_\d+)?$')
+        self.assertRegex(nav, r'(?s)page-list.*<a href="OEBPS/c1\.xhtml">1'
+                         r'</a>')
+        # the navPoints and pageTargets of the same place share playOrder
+        ncxtree = etree.fromstring(ncx.encode('utf-8'))
+        orders = {e.get('id'): e.get('playOrder') for e in
+                  ncxtree.iter('{*}navPoint', '{*}pageTarget')}
+        self.assertEqual(orders['n1'], orders['pageTarget-1'])
 
     def test_existing_page_list(self):
         ncx = self.run_add("<span epub:type='pagebreak' id='p1'/>" +
