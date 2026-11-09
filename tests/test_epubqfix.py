@@ -37,6 +37,7 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           remove_purchase_info_pages,
                           is_hiding_style, is_support_page,
                           is_wolnelektury_book, most_common, resolve_href, remove_orphan_refining_metas,
+                          move_metadata_namespaces,
                           remove_amzn_attributes,
                           remove_thin_spaces_after_spaces,
                           remove_url_line_breaks,
@@ -1100,6 +1101,53 @@ class RemoveOrphanRefiningMetasTest(unittest.TestCase):
              ('contributor', 'contrib2', None, None, None, 'Jan Kowalski'),
              ('meta', None, 'file-as', '#contrib2', None, 'Kowalski, Jan'),
              ('meta', None, 'role', '#contrib2', 'marc:relators', 'bkd')])
+
+
+class MoveMetadataNamespacesTest(unittest.TestCase):
+    def run_move(self, opf):
+        tree = etree.fromstring(opf)
+        with redirect_stdout(io.StringIO()):
+            move_metadata_namespaces(tree)
+        return etree.tostring(tree).decode()
+
+    def test_sigil_declarations(self):
+        out = self.run_move(
+            '<package xmlns="http://www.idpf.org/2007/opf" version="2.0">'
+            '<metadata>'
+            '<dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">T</dc:title>'
+            '<dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/" '
+            'xmlns:opf="http://www.idpf.org/2007/opf" opf:role="aut">A'
+            '</dc:creator>'
+            '<dc:language xmlns:dc="http://purl.org/dc/elements/1.1/">pl'
+            '</dc:language><meta name="cover" content="c"/>'
+            '</metadata><manifest/></package>')
+        self.assertEqual(out.count('xmlns:dc='), 1)
+        self.assertEqual(out.count('xmlns:opf='), 1)
+        self.assertIn('<metadata xmlns:dc=', out)
+        self.assertIn('<dc:language>pl</dc:language>', out)
+        self.assertIn('<dc:creator opf:role="aut">A</dc:creator>', out)
+
+    def test_declared_on_package(self):
+        out = self.run_move(
+            '<package xmlns="http://www.idpf.org/2007/opf" '
+            'xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">'
+            '<metadata><dc:title>T</dc:title>'
+            '<dc:language xmlns:dc="http://purl.org/dc/elements/1.1/">pl'
+            '</dc:language></metadata></package>')
+        self.assertEqual(out.count('xmlns:dc='), 1)
+        self.assertIn('<metadata><dc:title>T</dc:title>'
+                      '<dc:language>pl</dc:language>', out)
+
+    def test_other_namespaces_kept(self):
+        opf = ('<package xmlns="http://www.idpf.org/2007/opf" version="2.0">'
+               '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/" '
+               'xmlns:opf="http://www.idpf.org/2007/opf" '
+               'xmlns:dcterms="http://purl.org/dc/terms/" '
+               'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+               '<dc:date xsi:type="dcterms:W3CDTF">2020</dc:date>'
+               '</metadata></package>')
+        self.assertEqual(self.run_move(opf),
+                         etree.tostring(etree.fromstring(opf)).decode())
 
 
 class WolneLekturyFundraisingTest(unittest.TestCase):

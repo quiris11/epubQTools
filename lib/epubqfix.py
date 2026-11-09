@@ -1995,10 +1995,38 @@ def correct_mime_types(_soup):
     return _soup
 
 
+def move_metadata_namespaces(soup):
+    """Move dc and opf namespace declarations up to <metadata>.
+
+    Old Sigil versions declare xmlns:dc (and xmlns:opf) on every metadata
+    element, e.g. <dc:language xmlns:dc="...">pl</dc:language>. Send to
+    Kindle makes a fixed layout book from such an OPF. Other namespace
+    declarations are left alone, since they may be used only in attribute
+    values like xsi:type="dcterms:W3CDTF".
+    """
+    ns = {'dc': DCNS['dc'], 'opf': OPFNS['opf']}
+    for metadata in soup.xpath('//opf:metadata', namespaces=OPFNS):
+        # lxml nsmap includes inherited declarations, so look for the
+        # declarations of descendants in the serialized subtree
+        xml = etree.tostring(metadata)
+        if not re.search(rb'\sxmlns:(?:dc|opf)=',
+                         xml[xml.index(b'>') + 1:]):
+            continue
+        print('* Moving namespace declarations of metadata elements '
+              'to <metadata>...')
+        top = {p: u for p, u in ns.items() if metadata.nsmap.get(p) != u}
+        keep = {p for el in metadata.iter(tag=etree.Element)
+                for p in el.nsmap if p is not None and p not in ns}
+        etree.cleanup_namespaces(metadata, top_nsmap=top,
+                                 keep_ns_prefixes=keep)
+    return soup
+
+
 def fix_various_opf_problems(soup, tempdir, xhtml_files,
                              xhtml_file_paths):
 
     soup = correct_mime_types(soup)
+    soup = move_metadata_namespaces(soup)
 
     # remove multiple dc:language
     lang_counter = 0
