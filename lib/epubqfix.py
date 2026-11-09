@@ -3244,25 +3244,54 @@ def noteref_targets(xhtree, file_href):
 
 
 NOTE_NUMBER = re.compile(r'\s*[\[(]?\d+[\])]?\.?\s*$')
+A_TAG = '{%s}a' % XHTMLNS['xhtml']
+
+
+def is_internal_link(el):
+    """True for a link to a place in the book (e.g. a back link of a
+    note)."""
+    return (el.tag == A_TAG and '#' in el.get('href', '') and
+            not el.get('href').startswith(('http:', 'https:')))
+
+
+def note_blocks(note):
+    """The first and the last paragraph (or div) of a note, or the note
+    itself twice if it has no paragraphs."""
+    blocks = [c for c in note if c.tag in (
+        '{%s}p' % XHTMLNS['xhtml'], '{%s}div' % XHTMLNS['xhtml'])]
+    return (blocks[0], blocks[-1]) if blocks else (note, note)
+
+
+def end_backlink(note):
+    """The back link at the end of a note (e.g. "↩"), or None."""
+    last = note_blocks(note)[1]
+    if len(last) == 0:
+        return None
+    link = last[-1]
+    if (not is_internal_link(link) or len(link) or
+            (link.tail or '').strip()):
+        return None
+    return link
+
+
+def has_start_backlink(note):
+    """True if a note starts with a back link (e.g. on its number)."""
+    el = note
+    while not is_internal_link(el):
+        if (el.text or '').strip() or len(el) == 0:
+            return False
+        el = el[0]
+    return True
 
 
 def move_backlink_to_number(note):
     """Make the number at the start of a note its back link, instead of the
     back link at its end (e.g. "↩"): Kindle Paperwhite 1 shows the next note
     in the same pop-up if the back link is at the end of a note."""
-    blocks = [c for c in note if c.tag in (
-        '{%s}p' % XHTMLNS['xhtml'], '{%s}div' % XHTMLNS['xhtml'])]
-    first, last = (blocks[0], blocks[-1]) if blocks else (note, note)
-    if len(last) == 0:
-        return
-    link = last[-1]
-    if (link.tag != '{%s}a' % XHTMLNS['xhtml'] or len(link) or
-            (link.tail or '').strip() or
-            '#' not in link.get('href', '') or
-            link.get('href').startswith(('http:', 'https:'))):
-        return
-    if (len(first) == 0 or (first.text or '').strip() or
-            first[0].tag == '{%s}a' % XHTMLNS['xhtml'] or first[0] is link or
+    first, last = note_blocks(note)
+    link = end_backlink(note)
+    if (link is None or len(first) == 0 or (first.text or '').strip() or
+            first[0].tag == A_TAG or first[0] is link or
             not NOTE_NUMBER.match(''.join(first[0].itertext()))):
         return
     number = first[0]
@@ -3278,16 +3307,46 @@ def move_backlink_to_number(note):
     link.append(number)
 
 
+NOTE_CLASS = 'eqt_note'
+
+
+def keep_note_aside(aside):
+    """Mark a note aside which stays an aside with the eqt_note class (see
+    note_aside_css) and remove borders and page breaks from its style
+    attribute."""
+    classes = (aside.get('class') or '').split()
+    if NOTE_CLASS not in classes:
+        aside.set('class', ' '.join(classes + [NOTE_CLASS]))
+    style = aside.get('style')
+    if style is not None:
+        declarations = note_declarations(style, False)
+        if declarations:
+            aside.set('style', '; '.join(declarations))
+        else:
+            del aside.attrib['style']
+
+
 def convert_note_asides_in_tree(xhtree, note_ids):
-    """Replace the note <aside> elements (with an id from note_ids or with
-    a note epub:type) with <li> elements of an <ol> list: Send to Kindle
-    does not show such notes in pop-ups, only jumps to them. An aside with
-    a single <p> becomes a <li> with the contents of the <p>. Consecutive
-    asides go to the same list. Return the number of converted notes."""
-    converted = 0
+    """Fix the note <aside> elements (with an id from note_ids or with a
+    note epub:type) for pop-ups of Send to Kindle. A back link at the end
+    of a note is moved to its number (see move_backlink_to_number). A note
+    which then starts with its back link and has no back link at the end
+    stays an aside: Send to Kindle shows such asides in pop-ups (if they
+    have no border and page breaks, see keep_note_aside). Other notes are
+    replaced with <li> elements of an <ol> list: Send to Kindle shows list
+    items with a back link at the end in pop-ups (iOS), but only jumps to
+    such asides. An aside with a single <p> becomes a <li> with the
+    contents of the <p>. Consecutive asides go to the same list. Return the
+    numbers of the converted and of the kept notes."""
+    converted = kept = 0
     for aside in xhtree.xpath('//xhtml:aside', namespaces=XHTMLNS):
         if (aside.get('id') not in note_ids and
                 not NOTE_TYPES & set((aside.get(EPUB_TYPE) or '').split())):
+            continue
+        move_backlink_to_number(aside)
+        if has_start_backlink(aside) and end_backlink(aside) is None:
+            keep_note_aside(aside)
+            kept += 1
             continue
         children = list(aside)
         if (len(children) == 1 and
@@ -3304,7 +3363,6 @@ def convert_note_asides_in_tree(xhtree, note_ids):
         # roles of asides (e.g. doc-footnote) are not allowed on <li>
         if aside.get('role') not in (None, 'none', 'presentation'):
             del aside.attrib['role']
-        move_backlink_to_number(aside)
         prev = aside.getprevious()
         if (prev is not None and prev.get('class') == 'eqt_notes' and
                 not (prev.tail or '').strip()):
@@ -3319,7 +3377,7 @@ def convert_note_asides_in_tree(xhtree, note_ids):
             ol.append(aside)
         ol.tail, aside.tail = aside.tail, '\n'
         converted += 1
-    return converted
+    return converted, kept
 
 
 # elements shown in a pop-up if a noteref link points to them or to an
@@ -3466,10 +3524,65 @@ def prepend_note_list_css(css_text):
     return prelude + NOTE_LIST_CSS.lstrip('\n') + '\n' + rules
 
 
+NOTE_ASIDE_RULE = 'aside.%s {' % NOTE_CLASS
+CSS_COMBINATOR = re.compile(r'\s*[>+~]\s*|\s+')
+ASIDE_SUBJECT = re.compile(r'aside(?![\w-])')
+
+
+def note_aside_resets(css_text, classes):
+    """The border and page break properties of the CSS rules of asides (or
+    of elements with a class from classes): Send to Kindle does not show
+    notes with them in pop-ups. 'border' stands for all border
+    properties."""
+    found = set()
+    class_selectors = [re.compile(r'\.%s(?![\w-])' % re.escape(c))
+                       for c in classes]
+    for m in CSS_RULE.finditer(css_text):
+        # the elements the rule applies to: the last compound selectors
+        subjects = [CSS_COMBINATOR.split(s.strip())[-1]
+                    for s in m.group(2).split(',')]
+        if not any(ASIDE_SUBJECT.match(s) or
+                   any(c.search(s) for c in class_selectors)
+                   for s in subjects):
+            continue
+        for declaration in m.group(4).split(';'):
+            prop = declaration.partition(':')[0].strip().lower()
+            if prop.startswith('border'):
+                found.add('border')
+            elif prop.startswith(('page-break-', 'break-')):
+                found.add(prop)
+    return found
+
+
+def note_aside_css(resets):
+    """The CSS rule which turns off the border and page break properties
+    from resets (see note_aside_resets) for the kept note asides (with the
+    eqt_note class). !important: the rules of the book may be more
+    specific."""
+    declarations = ['border: none !important'] if 'border' in resets else []
+    declarations += ['%s: auto !important' % p
+                     for p in sorted(resets - {'border'})]
+    return '\n%s\n    %s;}\n' % (NOTE_ASIDE_RULE, ';\n    '.join(declarations))
+
+
+def add_note_aside_style(xhtree, resets):
+    """Add the rule of the kept note asides (see note_aside_css) in a
+    <style> element at the end of the <head> (for a file without CSS
+    files)."""
+    head = xhtree.find('{%s}head' % XHTMLNS['xhtml'])
+    if head is None or any(
+            NOTE_ASIDE_RULE in (s.text or '')
+            for s in head.iterfind('{%s}style' % XHTMLNS['xhtml'])):
+        return
+    style = etree.SubElement(head, '{%s}style' % XHTMLNS['xhtml'],
+                             {'type': 'text/css'})
+    style.text = note_aside_css(resets)
+
+
 def convert_note_asides(opftree, rootepubdir):
-    """Convert note asides in all XHTML files of the book (see
-    convert_note_asides_in_tree) and remove soft hyphens from all notes (see
-    remove_soft_hyphens_from_notes)."""
+    """Fix note asides in all XHTML files of the book (see
+    convert_note_asides_in_tree), with their CSS styles, and remove soft
+    hyphens from all notes (see remove_soft_hyphens_from_notes)."""
     xhtml_hrefs = [posixpath.normpath(unquote(i.get('href', '')))
                    for i in opftree.xpath('//opf:manifest/opf:item',
                                           namespaces=OPFNS)
@@ -3483,51 +3596,95 @@ def convert_note_asides(opftree, rootepubdir):
     targets = set()
     for href, tree in trees.items():
         targets |= noteref_targets(tree, href)
-    converted = unhyphenated = 0
+    converted = kept = unhyphenated = 0
+    # the CSS files for the styles of the list items of the converted notes
     css_hrefs = set()
+    changed_trees = []
+    # (tree, CSS files) of the files with kept note asides
+    kept_files = []
     for href, tree in trees.items():
         note_ids = {i for f, i in targets if f == href}
-        n = convert_note_asides_in_tree(tree, note_ids)
+        n, k = convert_note_asides_in_tree(tree, note_ids)
         m = remove_soft_hyphens_from_notes(tree, note_ids)
         unhyphenated += m
-        if not n and not m:
+        if not n and not k and not m:
             continue
         converted += n
+        kept += k
         stylesheets = note_list_stylesheets(tree, href)
         if n and stylesheets:
             # the first one: the book CSS file, not the reset CSS file
             css_hrefs.add(stylesheets[0])
         elif n:
             add_note_list_style(tree)
+        if k:
+            kept_files.append((tree, stylesheets))
+        changed_trees.append((href, tree))
+    css_texts = {}
+    if converted or kept:
+        for c in opftree.xpath('//opf:item[@media-type="text/css"]',
+                               namespaces=OPFNS):
+            css_href = posixpath.normpath(unquote(c.get('href')))
+            try:
+                with open(os.path.join(rootepubdir, css_href), 'r',
+                          encoding='utf-8', newline='') as cf:
+                    css_texts[css_href] = cf.read()
+            except (IOError, UnicodeDecodeError) as e:
+                print('! WARNING! Unable to add styles of the notes to CSS '
+                      'file "%s": %s' % (css_href, e))
+    # the border and page break properties of the kept note asides
+    resets = set()
+    classes = set()
+    for tree, _ in kept_files:
+        for aside in tree.iter('{%s}aside' % XHTMLNS['xhtml']):
+            if NOTE_CLASS in (aside.get('class') or '').split():
+                classes |= set(aside.get('class').split())
+    for tree, stylesheets in kept_files:
+        for style in tree.iter('{%s}style' % XHTMLNS['xhtml']):
+            resets |= note_aside_resets(style.text or '', classes)
+        for css_href in stylesheets:
+            resets |= note_aside_resets(css_texts.get(css_href, ''), classes)
+    aside_css_hrefs = set()
+    for tree, stylesheets in kept_files:
+        if not resets:
+            break
+        if stylesheets:
+            aside_css_hrefs.add(stylesheets[0])
+        else:
+            add_note_aside_style(tree, resets)
+    for href, tree in changed_trees:
         with open(os.path.join(rootepubdir, href), 'wb') as f:
             f.write(etree.tostring(tree, xml_declaration=True,
                                    standalone=False, encoding='utf-8'))
     if unhyphenated:
         print('* Removed soft hyphens from %d notes (pop-up notes on '
               'Kindle)' % unhyphenated)
-    if not converted:
-        return
-    print('* Converted %d notes from <aside> to list items (pop-up '
-          'notes on Kindle)' % converted)
-    for c in opftree.xpath('//opf:item[@media-type="text/css"]',
-                           namespaces=OPFNS):
-        css_href = posixpath.normpath(unquote(c.get('href')))
-        css_path = os.path.join(rootepubdir, css_href)
-        try:
-            with open(css_path, 'r', encoding='utf-8', newline='') as cf:
-                css_text = cf.read()
-            css_text, changed = convert_note_aside_css(css_text)
-            if css_href in css_hrefs and 'ol.eqt_notes {' not in css_text:
-                css_text = prepend_note_list_css(css_text)
-            elif not changed:
-                continue
-            with open(css_path, 'w', encoding='utf-8', newline='') as cf:
-                cf.write(css_text)
-        except (IOError, UnicodeDecodeError) as e:
-            print('! WARNING! Unable to add styles of the converted notes to '
-                  'CSS file "%s": %s' % (css_href, e))
+    if kept:
+        print('* Kept %d notes in <aside> elements, with the eqt_note class '
+              '(pop-up notes on Kindle)' % kept)
+    if converted:
+        print('* Converted %d notes from <aside> to list items (pop-up '
+              'notes on Kindle)' % converted)
+    for css_href, css_text in css_texts.items():
+        new_text = css_text
+        if converted:
+            new_text = convert_note_aside_css(new_text)[0]
+            if (css_href in css_hrefs and
+                    'ol.eqt_notes {' not in new_text):
+                new_text = prepend_note_list_css(new_text)
+        if css_href in aside_css_hrefs and NOTE_ASIDE_RULE not in new_text:
+            new_text = new_text.rstrip('\n') + '\n' + note_aside_css(resets)
+        if new_text == css_text:
             continue
-        print('* Added styles of the converted notes to "%s"' % css_href)
+        try:
+            with open(os.path.join(rootepubdir, css_href), 'w',
+                      encoding='utf-8', newline='') as cf:
+                cf.write(new_text)
+        except IOError as e:
+            print('! WARNING! Unable to add styles of the notes to CSS '
+                  'file "%s": %s' % (css_href, e))
+            continue
+        print('* Added styles of the notes to "%s"' % css_href)
 
 
 LINK_ATTR_RE = re.compile(

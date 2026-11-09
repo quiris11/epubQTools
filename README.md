@@ -89,16 +89,22 @@ Send to Kindle keeps such a list, so the "Pages" option works also for books for
 does not generate pages itself (e.g. books with tables). Turn it off with `--skip-page-list`.
 
 #### Pop-up notes (-e):
-Send to Kindle does not show notes stored in `<aside>` elements in pop-ups, it only jumps to
-them. Note asides (linked with `epub:type="noteref"` or `role="doc-noteref"` links, or with
-`epub:type` `footnote`, `endnote`, `rearnote` or `note`) are replaced with list items of an
-`<ol class="eqt_notes">` list (consecutive notes in one list). An aside with a single `<p>`
-becomes a list item with the contents of the paragraph. The notes keep the CSS styles of the
-asides, without borders and page breaks: Send to Kindle does not show notes with a border in
-pop-ups either, and a page break in note styles turns off pop-ups in the whole book (KFX).
+Note asides (linked with `epub:type="noteref"` or `role="doc-noteref"` links, or with
+`epub:type` `footnote`, `endnote`, `rearnote` or `note`) are fixed for pop-ups of Send to Kindle.
 If a note starts with its number and ends with a back link (e.g. "↩"), the number becomes the
-back link: Kindle Paperwhite 1 shows also the next note in the pop-up if the back link is at the
-end of a note.
+back link: Kindle Paperwhite 1 and Voyage (AZW3) show also the next note in the pop-up if the back
+link is at the end of a note.
+A note which starts with its back link stays an `<aside>` and gets the `eqt_note` class. If the
+CSS rules of asides (or of the classes of the notes) set borders or page breaks, a rule
+`aside.eqt_note` turns them off with `!important` (Send to Kindle does not show notes with a
+border in pop-ups, and a page break in note styles turns off pop-ups in the whole book in KFX);
+the rules of the book are not changed, as they apply also to other asides. Such declarations are
+also removed from the `style` attributes of the notes.
+Other notes (without a back link at the start) are replaced with list items of an
+`<ol class="eqt_notes">` list (consecutive notes in one list): Send to Kindle only jumps to such
+asides, but shows such list items in pop-ups. An aside with a single `<p>` becomes a list item
+with the contents of the paragraph. The list items keep the CSS styles of the asides, without
+borders and page breaks.
 Soft hyphens are removed from all notes linked with noteref links: Kindle Paperwhite 1 does not
 show the hyphen at a line break in pop-ups.
 

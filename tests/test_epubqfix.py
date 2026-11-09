@@ -25,7 +25,8 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           create_html_cover,
                           convert_note_asides_in_tree, NOTE_LIST_CSS,
                           remove_soft_hyphens_from_notes, noteref_targets,
-                          prepend_note_list_css,
+                          prepend_note_list_css, note_aside_css,
+                          note_aside_resets,
                           fill_empty_titles,
                           decode_b64_name, deobfuscate_font_data,
                           find_file_in_dir,
@@ -546,11 +547,12 @@ class ConvertNoteAsidesTest(unittest.TestCase):
 
     def test_notes_converted_to_list_items(self):
         n, html = self.convert(self.NOTES, {'n2', 'n3'})
-        self.assertEqual(n, 3)
-        self.assertNotIn('<aside id="n', html)
+        self.assertEqual(n, (2, 1))
+        # the back link moved to the number: the note stays an aside
+        self.assertIn('<aside id="n1" epub:type="rearnote" class="eqt_note">'
+                      '<p><a href="a.xhtml#r1"><span>1</span></a> One</p>'
+                      '</aside>', html)
         # the single paragraph is replaced with the list item
-        self.assertIn('<li id="n1" epub:type="rearnote"><a href="a.xhtml#r1">'
-                      '<span>1</span></a> One</li>', html)
         self.assertIn('<li id="n2"><p>Two</p><p>Second paragraph</p></li>',
                       html)
         self.assertIn('<li id="n3" class="x">Three</li>', html)
@@ -561,7 +563,7 @@ class ConvertNoteAsidesTest(unittest.TestCase):
         n, html = self.convert(
             '<aside epub:type="footnote"><p id="fn1">One</p></aside>'
             '<aside id="n2"><p id="fn2">Two</p></aside>', set())
-        self.assertEqual(n, 1)
+        self.assertEqual(n, (1, 0))
         self.assertIn('<li epub:type="footnote" id="fn1">One</li>', html)
         # both ids kept, so the paragraph stays
         n, html = self.convert(
@@ -582,11 +584,36 @@ class ConvertNoteAsidesTest(unittest.TestCase):
             '<a href="a.xhtml#r1" role="doc-backlink">↩</a></p></aside>'
             '<aside id="n2"><p><sup>[2]</sup> Two</p><p>More '
             '<a href="a.xhtml#r2">↩</a> </p></aside>', {'n1', 'n2'})
-        self.assertIn('<li id="n1"><a href="a.xhtml#r1" role="doc-backlink">'
-                      '<span class="no">12.</span></a> One <i>x</i></li>',
+        self.assertEqual(n, (0, 2))
+        self.assertIn('<aside id="n1" class="eqt_note"><p>'
+                      '<a href="a.xhtml#r1" role="doc-backlink">'
+                      '<span class="no">12.</span></a> One <i>x</i></p>'
+                      '</aside>', html)
+        self.assertIn('<aside id="n2" class="eqt_note"><p>'
+                      '<a href="a.xhtml#r2"><sup>[2]</sup></a> Two</p>'
+                      '<p>More </p></aside>', html)
+
+    def test_notes_with_back_link_at_start_kept(self):
+        n, html = self.convert(
+            '<aside id="n1" class="fn" role="doc-footnote" '
+            'style="border-top: 1px solid; margin: 1em"><p>'
+            '<a href="a.xhtml#r1">1</a> One</p></aside>'
+            '<aside id="n2" style="page-break-before: always"><p><sup>'
+            '<a href="#r2">2</a></sup> Two</p><p>More</p></aside>'
+            '<aside id="n3"><a href="#r3">3.</a> Three</aside>',
+            {'n1', 'n2', 'n3'})
+        self.assertEqual(n, (0, 3))
+        self.assertIn('<aside id="n1" class="fn eqt_note" role="doc-footnote" '
+                      'style="margin: 1em"><p><a href="a.xhtml#r1">1</a> '
+                      'One</p></aside>', html)
+        self.assertIn('<aside id="n2" class="eqt_note"><p><sup>', html)
+        self.assertIn('<aside id="n3" class="eqt_note"><a href="#r3">3.</a>',
                       html)
-        self.assertIn('<li id="n2"><p><a href="a.xhtml#r2"><sup>[2]</sup>'
-                      '</a> Two</p><p>More </p></li>', html)
+        # a second run does not add the class again
+        tree = etree.fromstring(html)
+        self.assertEqual(convert_note_asides_in_tree(tree, {'n1'}), (0, 1))
+        self.assertIn('class="fn eqt_note"',
+                      etree.tostring(tree, encoding='unicode'))
 
     def test_back_link_kept(self):
         for note in (
@@ -634,7 +661,9 @@ class ConvertNoteAsidesTest(unittest.TestCase):
         self.assertIn('Roz\u00addział', html)
 
     def test_consecutive_notes_in_one_list(self):
-        n, html = self.convert(self.NOTES, {'n2', 'n3'})
+        n, html = self.convert(
+            self.NOTES.replace('<a href="a.xhtml#r1">&#8617;</a>', ''),
+            {'n2', 'n3'})
         self.assertEqual(html.count('<ol class="eqt_notes"'), 2)
         self.assertRegex(html, r'<ol [^>]*>\n<li id="n1".*</li>\n'
                                r'<li id="n2".*</li>\n</ol><div id="page9"/>'
@@ -718,6 +747,80 @@ class NoteListStylesTest(unittest.TestCase):
             '<title>A</title><style>li { margin: 0; }</style>')
         self.assertLess(html.index('ol.eqt_notes {'),
                         html.index('li { margin: 0; }'))
+
+
+class NoteAsideStylesTest(unittest.TestCase):
+    OPF = NoteListStylesTest.OPF
+    CSS = ('aside {\n    margin: 1em 0;\n    border-bottom: 1px solid;}\n'
+           'section > aside.fn { page-break-before: always }\n')
+    NOTE = ('<aside id="n1" class="fn"><p><a href="b.xhtml#r1">1</a> One'
+            '</p></aside>')
+
+    def run_convert(self, a_head, css=None):
+        a = ('<html xmlns="http://www.w3.org/1999/xhtml"><head>%s</head>'
+             '<body>%s</body></html>' % (a_head, self.NOTE))
+        b = XHTML % '<a role="doc-noteref" href="a.xhtml#n1">1</a>'
+        with tempfile.TemporaryDirectory() as d:
+            for name, text in (('text/a.xhtml', a), ('text/b.xhtml', b),
+                               ('css/s.css', css or self.CSS)):
+                os.makedirs(os.path.dirname(os.path.join(d, name)),
+                            exist_ok=True)
+                with open(os.path.join(d, name), 'w') as f:
+                    f.write(text)
+            opftree = etree.fromstring(self.OPF).getroottree()
+            with redirect_stdout(io.StringIO()):
+                convert_note_asides(opftree, d)
+                # a second run does not add the styles again
+                convert_note_asides(opftree, d)
+            with open(os.path.join(d, 'text/a.xhtml')) as f:
+                html = f.read()
+            with open(os.path.join(d, 'css/s.css')) as f:
+                css = f.read()
+        return html, css
+
+    def test_rule_added_to_linked_css(self):
+        html, css = self.run_convert(
+            '<link href="../css/s.css" rel="stylesheet" type="text/css"/>')
+        self.assertIn('<aside id="n1" class="fn eqt_note">', html)
+        self.assertEqual(css, self.CSS + '\naside.eqt_note {\n'
+                         '    border: none !important;\n'
+                         '    page-break-before: auto !important;}\n')
+
+    def test_no_rule_without_borders_and_page_breaks(self):
+        html, css = self.run_convert(
+            '<link href="../css/s.css" rel="stylesheet" type="text/css"/>',
+            'aside { margin: 1em; }\n')
+        self.assertIn('class="fn eqt_note"', html)
+        self.assertEqual(css, 'aside { margin: 1em; }\n')
+
+    def test_rule_in_file_without_css(self):
+        html, css = self.run_convert(
+            '<style>.fn { border: 1px solid; }</style>')
+        self.assertEqual(css, self.CSS)
+        self.assertEqual(html.count('aside.eqt_note {'), 1)
+        self.assertRegex(html, r'</style><style type="text/css">\n'
+                               r'aside.eqt_note {\n'
+                               r'    border: none !important;}\n</style>'
+                               r'</head>')
+
+
+class NoteAsideResetsTest(unittest.TestCase):
+    def test_properties_of_aside_rules(self):
+        css = ('/* x */ aside { border-bottom: 1px solid; margin: 0 }\n'
+               'section aside.fn, h1 { Page-Break-Before: always }\n'
+               'div > .x:first-child { break-inside: avoid }\n'
+               'aside p { border: 1px solid; page-break-after: always }\n'
+               'p.x span, .xy { border: 1px solid; break-after: page }\n'
+               '@media screen { aside { page-break-inside: avoid } }\n')
+        self.assertEqual(note_aside_resets(css, {'x'}),
+                         {'border', 'page-break-before', 'break-inside',
+                          'page-break-inside'})
+        self.assertEqual(note_aside_resets('p { border: 0 }', {'x'}), set())
+
+    def test_rule(self):
+        self.assertEqual(note_aside_css({'break-after', 'border'}),
+                         '\naside.eqt_note {\n    border: none !important;'
+                         '\n    break-after: auto !important;}\n')
 
 
 class PrependNoteListCssTest(unittest.TestCase):
