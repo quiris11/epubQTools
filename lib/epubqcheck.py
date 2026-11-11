@@ -816,7 +816,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts, skip_font_mime=False,
                     os.path.join(temp_font_dir, singlefile)
                 )
                 if not is_font:
-                    print('%sFont file "%s" is probably encrypted.'
+                    print('%sERROR! Font file "%s" is probably encrypted.'
                           ' Incorrect signature %r.'
                           % (_file_dec, singlefile, signature))
                 elif is_list_fonts:
