@@ -276,7 +276,8 @@ def line_kind(line, qcheck_mode=False):
             s.startswith(('Traceback', 'ERROR(', 'FATAL('))):
         return 'error'
     if (s.startswith('FINISH ') or s.endswith(': OK!') or
-            s.endswith(('OK! Decrypted.', 'OK! Replaced.', 'FIXED'))):
+            s.endswith(('OK! Decrypted.', 'OK! Replaced.', 'FIXED',
+                        'OK! Decrypted with the key recovered from the font.'))):
         return 'ok'
     if 'Font info for ' in s:
         return None                 # --list-fonts: asked for, always shown

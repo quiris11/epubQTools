@@ -3,6 +3,7 @@
 # This file is part of epubQTools, licensed under GNU Affero GPLv3 or later.
 # Copyright © Robert Błaut. See NOTICE for more information.
 #
+import hashlib
 import io
 import os
 import re
@@ -30,6 +31,9 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           note_aside_resets,
                           fill_empty_titles,
                           decode_b64_name, deobfuscate_font_data,
+                          is_consistent_sfnt, recover_font_key, decrypt_font,
+                          decrypt_unlisted_fonts,
+                          IDPF_OBFUSCATION,
                           find_file_in_dir,
                           find_font_by_postscript_name, font_postscript_name,
                           fix_links_in_tree, remove_empty_toc_entries,
@@ -1133,6 +1137,155 @@ class DeobfuscateFontDataTest(unittest.TestCase):
         data = self.obfuscate(self.FONT)
         result = deobfuscate_font_data(data, bytes(20), 1040)
         self.assertEqual(result, data)
+
+
+def build_sfnt(version=b'OTTO', tags=('BASE', 'CFF ', 'GPOS', 'GSUB', 'OS/2',
+                                      'cmap', 'head', 'hhea', 'hmtx', 'maxp',
+                                      'name', 'post')):
+    """A structurally correct font (table directory, checksums) with
+    meaningless tables."""
+    n = len(tags)
+    entry_selector = n.bit_length() - 1
+    search_range = 16 << entry_selector
+    header = version + struct.pack('>HHHH', n, search_range, entry_selector,
+                                   n * 16 - search_range)
+    directory, body, offset = b'', b'', 12 + 16 * n
+    for i, tag in enumerate(tags):
+        table = bytes((i * 37 + j * 11) % 251 for j in range(150 + 7 * i))
+        padded = table + b'\0' * (-len(table) % 4)
+        checksum = sum(struct.unpack('>%dI' % (len(padded) // 4),
+                                     padded)) & 0xffffffff
+        if tag == 'head':
+            checksum ^= 0x5a5a5a5a  # outdated, as left by font subsetters
+        directory += struct.pack('>4sIII', tag.encode('ascii'), checksum,
+                                 offset, len(table))
+        body += padded
+        offset += len(padded)
+    return header + directory + body
+
+
+class RecoverFontKeyTest(unittest.TestCase):
+
+    IDPF_KEY = hashlib.sha1(b'urn:uuid:original').digest()
+    ADOBE_KEY = bytes(range(101, 117))
+
+    def obfuscate(self, data, key, crypt_len):
+        return (bytes(b ^ key[i % len(key)]
+                      for i, b in enumerate(data[:crypt_len])) +
+                data[crypt_len:])
+
+    def test_built_font_is_consistent(self):
+        font = build_sfnt()
+        self.assertTrue(is_consistent_sfnt(font))
+        self.assertFalse(is_consistent_sfnt(font[:-4]))
+        broken = bytearray(font)
+        broken[-10] ^= 1
+        self.assertFalse(is_consistent_sfnt(bytes(broken)))
+
+    def test_idpf_key_of_opentype_font(self):
+        font = build_sfnt()
+        raw = self.obfuscate(font, self.IDPF_KEY, 1040)
+        key = recover_font_key(raw, 20, 1040)
+        self.assertEqual(key, self.IDPF_KEY)
+        self.assertEqual(deobfuscate_font_data(raw, key, 1040), font)
+
+    def test_idpf_key_of_truetype_font(self):
+        font = build_sfnt(b'\x00\x01\x00\x00',
+                          ('DSIG', 'GDEF', 'OS/2', 'cmap', 'cvt ', 'fpgm',
+                           'glyf', 'head', 'hhea', 'hmtx', 'loca', 'maxp',
+                           'name', 'post', 'prep'))
+        raw = self.obfuscate(font, self.IDPF_KEY, 1040)
+        self.assertEqual(recover_font_key(raw, 20, 1040), self.IDPF_KEY)
+
+    def test_adobe_key(self):
+        font = build_sfnt()
+        raw = self.obfuscate(font, self.ADOBE_KEY, 1024)
+        self.assertEqual(recover_font_key(raw, 16, 1024), self.ADOBE_KEY)
+
+    def test_compressed_font_is_not_recovered(self):
+        deflater = zlib.compressobj(9, zlib.DEFLATED, -zlib.MAX_WBITS)
+        packed = deflater.compress(build_sfnt() * 4) + deflater.flush()
+        raw = self.obfuscate(packed, self.IDPF_KEY, 1040)
+        self.assertIsNone(recover_font_key(raw, 20, 1040))
+
+    def test_damaged_font_is_not_recovered(self):
+        font = bytearray(build_sfnt())
+        font[-10] ^= 1
+        raw = self.obfuscate(bytes(font), self.IDPF_KEY, 1040)
+        self.assertIsNone(recover_font_key(raw, 20, 1040))
+
+    def test_decrypt_font_falls_back_to_recovered_key(self):
+        font = build_sfnt()
+        wrong_key = hashlib.sha1(b'urn:uuid:replaced').digest()
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'Font.otf')
+            with open(path, 'wb') as f:
+                f.write(self.obfuscate(font, self.IDPF_KEY, 1040))
+            out = io.StringIO()
+            with redirect_stdout(out):
+                decrypt_font(path, [(wrong_key, IDPF_OBFUSCATION)], d)
+            with open(path, 'rb') as f:
+                self.assertEqual(f.read(), font)
+        self.assertIn('OK! Decrypted with the key recovered from the font.',
+                      out.getvalue())
+
+    def unlisted(self, font_data, uid='urn:uuid:original'):
+        opftree = etree.fromstring(
+            '<package xmlns="http://www.idpf.org/2007/opf" version="2.0" '
+            'unique-identifier="id"><metadata '
+            'xmlns:dc="http://purl.org/dc/elements/1.1/">'
+            '<dc:identifier id="id">%s</dc:identifier></metadata><manifest>'
+            '<item id="f" href="font/Font.ttf" media-type="font/ttf"/>'
+            '</manifest></package>' % uid).getroottree()
+        with tempfile.TemporaryDirectory() as d:
+            os.mkdir(os.path.join(d, 'font'))
+            path = os.path.join(d, 'font', 'Font.ttf')
+            with open(path, 'wb') as f:
+                f.write(font_data)
+            out = io.StringIO()
+            with redirect_stdout(out):
+                decrypt_unlisted_fonts(opftree, d, d)
+            with open(path, 'rb') as f:
+                return f.read(), out.getvalue()
+
+    def test_unlisted_obfuscated_font_is_decrypted(self):
+        font = build_sfnt()
+        data, out = self.unlisted(self.obfuscate(font, self.IDPF_KEY, 1040))
+        self.assertEqual(data, font)
+        self.assertIn('not listed in encryption.xml', out)
+        self.assertIn('OK! Decrypted.', out)
+
+    def test_unlisted_adobe_font_with_other_key_is_decrypted(self):
+        font = build_sfnt()
+        data, out = self.unlisted(self.obfuscate(font, self.ADOBE_KEY, 1024))
+        self.assertEqual(data, font)
+        self.assertIn('recovered from the font', out)
+
+    def test_unlisted_garbage_is_reported(self):
+        garbage = bytes(range(7, 250)) * 9
+        data, out = self.unlisted(garbage, uid='no-uuid')
+        self.assertEqual(data, garbage)
+        self.assertIn('FAILED! Substitute NOT found.', out)
+
+    def test_plain_and_woff_fonts_are_left_alone(self):
+        for font in (build_sfnt(), b'wOFF' + bytes(500)):
+            data, out = self.unlisted(font)
+            self.assertEqual(data, font)
+            self.assertEqual(out, '')
+
+    def test_decrypt_font_prefers_standard_key(self):
+        font = build_sfnt()
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'Font.otf')
+            with open(path, 'wb') as f:
+                f.write(self.obfuscate(font, self.IDPF_KEY, 1040))
+            out = io.StringIO()
+            with redirect_stdout(out):
+                decrypt_font(path, [(self.IDPF_KEY, IDPF_OBFUSCATION)], d)
+            with open(path, 'rb') as f:
+                self.assertEqual(f.read(), font)
+        self.assertIn('OK! Decrypted.', out.getvalue())
+        self.assertNotIn('recovered', out.getvalue())
 
 
 class FindFontByPostscriptNameTest(unittest.TestCase):

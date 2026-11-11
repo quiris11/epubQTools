@@ -388,12 +388,35 @@ def process_encryption(encfile, opftree, fontdir):
         font_path = os.path.abspath(os.path.join(os.path.dirname(encfile),
                                     '..', *uri.split('/')))
         key = find_encryption_key(opftree, algorithm)
-        if (key and os.path.exists(font_path)):
-            decrypt_font(font_path, key, algorithm, fontdir)
+        if os.path.exists(font_path):
+            decrypt_font(font_path, [(key, algorithm)], fontdir)
     return True
 
 
-def find_encryption_key(opftree, method):
+def decrypt_unlisted_fonts(opftree, rootepubdir, fontdir):
+    """Decrypt obfuscated fonts which are not listed in encryption.xml
+    (e.g. the file was removed from the book, but the fonts were left
+    obfuscated). The obfuscation method is unknown, so both are tried."""
+    attempts = None
+    for item in opftree.xpath('//opf:item[@href]', namespaces=OPFNS):
+        if not item.get('href').lower().endswith(('.otf', '.ttf')):
+            continue
+        path = os.path.join(rootepubdir, *item.get('href').split('/'))
+        if not os.path.isfile(path) or os.path.getsize(path) == 0:
+            continue
+        is_font, signature = check_font(path)
+        if is_font or signature in (b'wOFF', b'wOF2'):
+            continue
+        if attempts is None:
+            attempts = [(find_encryption_key(opftree, method, quiet=True),
+                         method)
+                        for method in (IDPF_OBFUSCATION, ADOBE_OBFUSCATION)]
+        print('* Font file "%s" is not listed in encryption.xml, but it is '
+              'not a font (obfuscated?).' % os.path.basename(path))
+        decrypt_font(path, attempts, fontdir)
+
+
+def find_encryption_key(opftree, method, quiet=False):
     uid = None
     if method == ADOBE_OBFUSCATION:
         # find first UUID URN-based unique identifier
@@ -402,14 +425,20 @@ def find_encryption_key(opftree, method):
                 uid = dcid.text
                 break
         if uid is None:
-            print('! WARNING! UUID URN-based unique identifier in content.opf '
-                  'not found')
+            if not quiet:
+                print('! WARNING! UUID URN-based unique identifier in '
+                      'content.opf not found')
             return uid
         uid = uid.replace('\x20', '').replace('\x09', '').\
             replace('\x0D', '').replace('\x0A', '').\
             replace('-', '').replace('urn:uuid:', '').\
             replace(':', '')
-        uid = uuid.UUID(uid).bytes
+        try:
+            uid = uuid.UUID(uid).bytes
+        except ValueError:
+            if not quiet:
+                raise
+            return None
     elif method == IDPF_OBFUSCATION:
         # find unique-identifier
         uniq_id = opftree.xpath('//opf:package',
@@ -420,7 +449,8 @@ def find_encryption_key(opftree, method):
                     uid = elem.text
                     break
         if uid is None:
-            print('! WARNING! Unique identifier in content.opf not found')
+            if not quiet:
+                print('! WARNING! Unique identifier in content.opf not found')
             return uid
         uid = uid.replace('\x20', '').replace('\x09', '').\
             replace('\x0D', '').replace('\x0A', '')
@@ -639,22 +669,131 @@ def deobfuscate_font_data(raw, key, crypt_len):
     return data
 
 
+# Table tags tried as the first and the fifth entry of the table directory
+# when the obfuscation key is recovered from the font itself.
+SFNT_TABLE_TAGS = tuple(tag.encode('ascii') for tag in (
+    'BASE', 'CBDT', 'CBLC', 'CFF ', 'CFF2', 'COLR', 'CPAL', 'DSIG', 'EBDT',
+    'EBLC', 'EBSC', 'FFTM', 'GDEF', 'GPOS', 'GSUB', 'HVAR', 'JSTF', 'LTSH',
+    'MATH', 'MVAR', 'OS/2', 'PCLT', 'STAT', 'SVG ', 'VDMX', 'VORG', 'avar',
+    'cmap', 'cvt ', 'feat', 'fpgm', 'fvar', 'gasp', 'glyf', 'gvar', 'hdmx',
+    'head', 'hhea', 'hmtx', 'kern', 'loca', 'maxp', 'meta', 'morx', 'name',
+    'post', 'prep', 'prop', 'sbix', 'vhea', 'vmtx'))
+SFNT_TAG_BYTES = frozenset(range(0x20, 0x7f))
+
+
+def sfnt_header(version, num_tables):
+    """The first 12 bytes of a font with num_tables tables."""
+    entry_selector = num_tables.bit_length() - 1
+    search_range = 16 << entry_selector
+    return version + struct.pack('>HHHH', num_tables, search_range,
+                                 entry_selector,
+                                 num_tables * 16 - search_range)
+
+
+def is_consistent_sfnt(data):
+    """True if data is a complete font: the header matches the number of
+    tables, every table lies within the data and has a correct checksum
+    (the checksum of the "head" table is not checked)."""
+    if len(data) < 12:
+        return False
+    num_tables = struct.unpack('>H', data[4:6])[0]
+    dir_end = 12 + 16 * num_tables
+    if (num_tables == 0 or dir_end > len(data) or
+            data[:12] != sfnt_header(data[:4], num_tables)):
+        return False
+    for pos in range(12, dir_end, 16):
+        tag, checksum, offset, length = struct.unpack('>4sIII',
+                                                      data[pos:pos + 16])
+        if (not SFNT_TAG_BYTES.issuperset(tag) or offset < dir_end or
+                offset + length > len(data)):
+            return False
+        if tag == b'head':
+            # depends on checkSumAdjustment and is often left outdated by
+            # font subsetters (e.g. Adobe InDesign)
+            continue
+        table = data[offset:offset + length] + b'\0' * (-length % 4)
+        if sum(struct.unpack('>%dI' % (len(table) // 4),
+                             table)) & 0xffffffff != checksum:
+            return False
+    return True
+
+
+def recover_font_key(raw, key_len, crypt_len):
+    """Return the obfuscation key recovered from the obfuscated font itself
+    or None.
+
+    The key is short (16 or 20 bytes) and repeated, and the beginning of
+    a font is predictable: the 12-byte header depends only on the font type
+    and the number of tables, and the table directory starts with a table
+    tag. A candidate key is accepted only if the whole deobfuscated font is
+    consistent (checksums of all tables), so a wrong key is never returned.
+    Fonts compressed before the obfuscation cannot be recovered this way."""
+    def xor(key, start, end):
+        return bytes(raw[i] ^ key[i % key_len] for i in range(start, end))
+
+    if key_len not in (16, 20) or len(raw) < 12 + 16 * 5:
+        return None
+    for version in (b'OTTO', b'\x00\x01\x00\x00'):
+        for num_tables in range(5, 100):
+            header = sfnt_header(version, num_tables)
+            key = bytearray(key_len)
+            key[:12] = bytes(a ^ b for a, b in zip(raw[:12], header))
+            dir_end = min(12 + 16 * num_tables, crypt_len, len(raw))
+            # cheap rejection: tags which fall on the 12 known key bytes
+            if not all(SFNT_TAG_BYTES.issuperset(xor(key, pos, pos + 4))
+                       for pos in range(28, dir_end - 3, 16)
+                       if pos % key_len <= 8):
+                continue
+            for first_tag in SFNT_TABLE_TAGS:
+                key[12:16] = bytes(a ^ b for a, b in zip(raw[12:16],
+                                                         first_tag))
+                fifth_tags = SFNT_TABLE_TAGS if key_len == 20 else (None,)
+                for fifth_tag in fifth_tags:
+                    if fifth_tag:
+                        key[16:20] = bytes(a ^ b for a, b in zip(raw[76:80],
+                                                                 fifth_tag))
+                    data = (xor(key, 0, min(crypt_len, len(raw))) +
+                            raw[crypt_len:])
+                    if is_consistent_sfnt(data):
+                        return bytes(key)
+    return None
+
+
 # based on calibri work
-def decrypt_font(path, key, method, fontdir):
+def decrypt_font(path, attempts, fontdir):
+    """Decrypt the font file with the first of attempts - pairs (key from
+    the unique identifier or None, obfuscation method) - which gives a font.
+    If none does, the key is recovered from the font itself."""
     global qfixerr
-    if method == ADOBE_OBFUSCATION:
-        crypt_len = 1024
-    elif method == IDPF_OBFUSCATION:
-        crypt_len = 1040
+    sizes = {ADOBE_OBFUSCATION: (1024, 16), IDPF_OBFUSCATION: (1040, 20)}
     with open(path, 'rb') as f:
         raw = f.read()
     print('* Starting decryption of font file "%s"...'
           % os.path.basename(path), end=' ')
+    data = raw
+    recovered = False
+    for key, method in attempts:
+        if key and not data.startswith(FONT_SIGNATURES):
+            data = deobfuscate_font_data(raw, key, sizes[method][0])
+    if not data.startswith(FONT_SIGNATURES):
+        # a failed decryption leaves the file as it was
+        data = raw
+        # the standard key does not work (e.g. the unique identifier was
+        # changed after the obfuscation) - recover the key from the font
+        for key, method in attempts:
+            crypt_len, key_len = sizes[method]
+            new_key = recover_font_key(raw, key_len, crypt_len)
+            if new_key:
+                data = deobfuscate_font_data(raw, new_key, crypt_len)
+                recovered = True
+                break
     with open(path, 'wb') as f:
-        f.write(deobfuscate_font_data(raw, key, crypt_len))
+        f.write(data)
     is_font, signature = check_font(path)
     if not is_font:
         print('FAILED!')
+    elif recovered:
+        print('OK! Decrypted with the key recovered from the font.')
     else:
         print('OK! Decrypted.')
     if not is_font:
@@ -4203,6 +4342,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
             print('! Unable to proceed...')
             return True
         os.remove(enc_file)
+    decrypt_unlisted_fonts(opftree, opf_dir_abs, fontdir)
 
     if _replacefonts:
         find_and_replace_fonts(opftree, opf_dir_abs, fontdir)
