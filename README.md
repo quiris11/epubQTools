@@ -105,8 +105,13 @@ Other notes (without a back link at the start) are replaced with list items of a
 asides, but shows such list items in pop-ups. An aside with a single `<p>` becomes a list item
 with the contents of the paragraph. The list items keep the CSS styles of the asides, without
 borders and page breaks.
-Soft hyphens are removed from all notes linked with noteref links: Kindle Paperwhite 1 does not
-show the hyphen at a line break in pop-ups.
+Notes without note markup (e.g. in EPUB 2 books) in list items which end with a back link (e.g.
+"[back]") get the back link at their start, on the number of the note: Send to Kindle only jumps
+to such notes if the back link is at their end. This is done only for `<ol>` lists in which every
+item is the target of a link with only a number (in the same file) and ends with a back link to that
+link; the numbering of the list is turned off, as the numbers are now in the notes.
+Soft hyphens are removed from all notes linked with noteref links and from the notes above: Kindle
+Paperwhite 1 does not show the hyphen at a line break in pop-ups.
 
 #### Output messages:
 By default (without `-v`) only problems are printed while the books are processed: warnings, errors

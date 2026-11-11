@@ -24,6 +24,7 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           convert_note_aside_css, convert_note_asides,
                           create_html_cover,
                           convert_note_asides_in_tree, NOTE_LIST_CSS,
+                          fix_list_notes_in_tree,
                           remove_soft_hyphens_from_notes, noteref_targets,
                           prepend_note_list_css, note_aside_css,
                           note_aside_resets,
@@ -691,6 +692,122 @@ class ConvertNoteAsidesTest(unittest.TestCase):
         self.assertIn('<li id="n1">One</li>', html)
         self.assertIn('<li id="n2">Two</li>', html)
         self.assertIn('<aside id="n3"><p>Three</p></aside>', html)
+
+
+class FixListNotesTest(unittest.TestCase):
+    TEXT = ('<p>Text<sup id="r1"><a href="#n1" class="ref">1</a></sup> and'
+            '<sup id="r2"><a href="#n2" class="ref">2</a></sup>.</p>')
+    NOTES = ('<div class="footnotes"><ol>\n<li id="n1">\n<p>One. '
+             '<a href="#r1" class="back">[back]</a></p>\n</li>\n'
+             '<li id="n2"><p>Two <em>b</em>.</p><p>More. '
+             '<a href="#r2">[back]</a></p></li></ol></div>')
+
+    def fix(self, body):
+        tree = etree.fromstring(XHTML % body)
+        ids = fix_list_notes_in_tree(tree)
+        return ids, etree.tostring(tree, encoding='unicode')
+
+    def test_back_links_moved_to_numbers(self):
+        ids, html = self.fix(self.TEXT + self.NOTES)
+        self.assertEqual(ids, {'n1', 'n2'})
+        self.assertIn('<ol style="list-style-type: none">', html)
+        self.assertIn('<li id="n1">\n<p><a href="#r1" class="back">1.</a> '
+                      'One.</p>\n</li>', html)
+        self.assertIn('<li id="n2"><p><a href="#r2">2.</a> Two <em>b</em>.'
+                      '</p><p>More.</p></li>', html)
+        self.assertNotIn('[back]', html)
+        # the text and a second run change nothing
+        self.assertIn(self.TEXT, html)
+        tree = etree.fromstring(html)
+        self.assertEqual(fix_list_notes_in_tree(tree), set())
+        self.assertEqual(etree.tostring(tree, encoding='unicode'), html)
+
+    def test_notes_without_paragraphs_and_link_on_anchor(self):
+        ids, html = self.fix(
+            '<p>Text<a id="r1" href="#n1">[1]</a></p>'
+            '<ol style="margin: 0;"><li id="n1">One <i>x</i> '
+            '<a href="#r1">&#8617;</a></li></ol>')
+        self.assertEqual(ids, {'n1'})
+        self.assertIn('<ol style="margin: 0; list-style-type: none">'
+                      '<li id="n1"><a href="#r1">1.</a> One <i>x</i></li>',
+                      html)
+
+    def assert_unchanged(self, body):
+        ids, html = self.fix(body)
+        self.assertEqual(ids, set())
+        self.assertIn(body, html)
+
+    def test_other_lists_unchanged(self):
+        text = self.TEXT
+        for body in (
+                # one item is not a note: the whole list stays
+                text + self.NOTES.replace('</ol>', '<li>Other</li></ol>'),
+                # a list item without a back link
+                text + '<ol><li id="n1">One</li><li id="n2">Two</li></ol>',
+                # the back link is not at the end
+                text + '<ol><li id="n1"><a href="#r1">[back]</a> One</li>'
+                '<li id="n2">Two <a href="#r2">[back]</a></li></ol>',
+                # the back link is a number (which side is the note?)
+                text + '<ol><li id="n1">One <a href="#r1">1</a></li>'
+                '<li id="n2">Two <a href="#r2">[2]</a></li></ol>',
+                # the link in the text is not a number
+                '<p><a id="r1" href="#n1">see the list</a></p>'
+                '<ol><li id="n1">One <a href="#r1">[back]</a></li></ol>',
+                # the link in the text points elsewhere
+                '<p><a id="r1" href="#n2">1</a><a id="r2" href="#n2">2</a>'
+                '</p><ol><li id="n1">One <a href="#r1">[back]</a></li>'
+                '<li id="n2">Two <a href="#r2">[back]</a></li></ol>',
+                # the back link points to a block with other links
+                '<p id="r1"><a href="#n1">1</a> <a href="#x">2</a></p>'
+                '<ol><li id="n1">One <a href="#r1">[back]</a></li></ol>',
+                '<div id="r1"><a href="#n1">1</a></div>'
+                '<ol><li id="n1">One <a href="#r1">[back]</a></li></ol>',
+                # a link to another file
+                '<p><a id="r1" href="#n1">1</a></p><ol><li id="n1">One '
+                '<a href="a.xhtml#r1">[back]</a></li></ol>',
+                # the number is already in the note
+                '<p><a id="r1" href="#n1">1</a></p>'
+                '<ol><li id="n1">1. One <a href="#r1">[back]</a></li></ol>',
+                # not an ordered list
+                '<p><a id="r1" href="#n1">1</a></p>'
+                '<ul><li id="n1">One <a href="#r1">[back]</a></li></ul>',
+                # paragraphs and divs are not changed
+                '<p><a id="r1" href="#n1">1</a></p>'
+                '<div><p id="n1">One <a href="#r1">[back]</a></p></div>',
+                # a repeated id
+                '<p><a id="r1" href="#n1">1</a><a id="r1" href="#n1">1</a>'
+                '</p><ol><li id="n1">One <a href="#r1">[back]</a></li></ol>',
+                # links between the items of the list itself
+                '<ol><li id="n1">One <a id="r1" href="#n1">1</a> '
+                '<a href="#r1">[back]</a></li></ol>'):
+            with self.subTest(body=body):
+                self.assert_unchanged(body)
+
+    def test_book_list_notes_without_soft_hyphens(self):
+        opf = ('<package xmlns="http://www.idpf.org/2007/opf"><manifest>'
+               '<item href="a.xhtml" media-type="application/xhtml+xml"/>'
+               '<item href="s.css" media-type="text/css"/>'
+               '</manifest></package>')
+        body = ('<p>Te\u00adxt<sup id="r1"><a href="#n1">1</a></sup></p>'
+                '<ol><li id="n1"><p>No\u00adte '
+                '<a href="#r1">[back]</a></p></li></ol>')
+        out = io.StringIO()
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'a.xhtml'), 'w', encoding='utf-8') as f:
+                f.write(XHTML % body)
+            with open(os.path.join(d, 's.css'), 'w') as f:
+                f.write('p {margin: 0}\n')
+            with redirect_stdout(out):
+                convert_note_asides(etree.fromstring(opf).getroottree(), d)
+            with open(os.path.join(d, 'a.xhtml'), encoding='utf-8') as f:
+                html = f.read()
+            with open(os.path.join(d, 's.css')) as f:
+                self.assertEqual(f.read(), 'p {margin: 0}\n')
+        self.assertIn('<li id="n1"><p><a href="#r1">1.</a> Note</p></li>',
+                      html)
+        self.assertIn('Te\u00adxt', html)
+        self.assertIn('* Moved back links of 1 notes in list items',
+                      out.getvalue())
 
 
 class NoteListStylesTest(unittest.TestCase):

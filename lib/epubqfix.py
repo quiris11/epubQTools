@@ -3380,6 +3380,91 @@ def convert_note_asides_in_tree(xhtree, note_ids):
     return converted, kept
 
 
+LI_TAG = '{%s}li' % XHTMLNS['xhtml']
+OL_TAG = '{%s}ol' % XHTMLNS['xhtml']
+# inline elements with the id of a note reference around its link
+NOTEREF_WRAPPERS = {'{%s}%s' % (XHTMLNS['xhtml'], t) for t in ('sup', 'span')}
+NOTEREF_NUMBER = re.compile(r'[\[(]?(\d+)[\])]?$')
+
+
+def list_note_number(li, ids):
+    """The number of a note in a list item without note markup (see
+    fix_list_notes_in_tree), or None if the item is not such a note. ids
+    maps the ids of the file to their elements (None for repeated ids)."""
+    if not li.get('id') or has_start_backlink(li):
+        return None
+    link = end_backlink(li)
+    if link is None or not link.get('href').startswith('#'):
+        return None
+    text = ''.join(link.itertext()).strip()
+    if not text or NOTE_NUMBER.match(text):
+        return None
+    ref = ids.get(unquote(link.get('href')[1:]))
+    if ref is None:
+        return None
+    if ref.tag != A_TAG:
+        links = list(ref.iter(A_TAG))
+        if ref.tag not in NOTEREF_WRAPPERS or len(links) != 1:
+            return None
+        ref = links[0]
+    if unquote(ref.get('href', '')) != '#' + li.get('id'):
+        return None
+    number = NOTEREF_NUMBER.match(''.join(ref.itertext()).strip())
+    if number is None or any(a.tag == LI_TAG and a.getparent() is
+                             li.getparent() for a in ref.iterancestors()):
+        return None
+    # the number is already in the text of the note
+    if re.match(r'\s*[\[(]?%s[\])]?(?!\w)' % number.group(1),
+                ''.join(li.itertext())):
+        return None
+    return number.group(1)
+
+
+def fix_list_notes_in_tree(xhtree):
+    """Move the back links of notes without note markup (e.g. EPUB 2) in
+    list items from the end of the note to its start: Send to Kindle only
+    jumps to a note without markup if the back link is at its end, but shows
+    the note in a pop-up if the note starts with the back link. Only <ol>
+    lists are changed in which every item is a note: the target of a link in
+    the same file with only a number, ending with a back link (not a number,
+    e.g. "[back]") to that link or to a <sup> or <span> around it. The
+    number of the link becomes the back link at the start of the note and
+    the numbering of the list is turned off. Return the ids of the changed
+    notes."""
+    ids = {}
+    for el in xhtree.iter():
+        if isinstance(el.tag, str) and el.get('id'):
+            ids[el.get('id')] = None if el.get('id') in ids else el
+    changed = set()
+    for ol in list(xhtree.iter(OL_TAG)):
+        items = list(ol)
+        if (not items or any(i.tag != LI_TAG for i in items) or
+                'eqt_notes' in (ol.get('class') or '').split()):
+            continue
+        numbers = [list_note_number(li, ids) for li in items]
+        if None in numbers:
+            continue
+        for li, number in zip(items, numbers):
+            first, last = note_blocks(li)
+            link = end_backlink(li)
+            prev = link.getprevious()
+            if prev is not None:
+                prev.tail = (prev.tail or '').rstrip()
+            else:
+                last.text = (last.text or '').rstrip()
+            last.remove(link)
+            link.text = number + '.'
+            link.tail = ' ' + (first.text or '').lstrip()
+            first.text = None
+            first.insert(0, link)
+            changed.add(li.get('id'))
+        style = (ol.get('style') or '').strip().rstrip(';')
+        if 'list-style' not in style:
+            ol.set('style', (style + '; ' if style else '') +
+                   'list-style-type: none')
+    return changed
+
+
 # elements shown in a pop-up if a noteref link points to them or to an
 # inline element inside them
 NOTE_BLOCKS = {'{%s}%s' % (XHTMLNS['xhtml'], t) for t in (
@@ -3581,8 +3666,10 @@ def add_note_aside_style(xhtree, resets):
 
 def convert_note_asides(opftree, rootepubdir):
     """Fix note asides in all XHTML files of the book (see
-    convert_note_asides_in_tree), with their CSS styles, and remove soft
-    hyphens from all notes (see remove_soft_hyphens_from_notes)."""
+    convert_note_asides_in_tree), with their CSS styles, move the back links
+    of notes in list items without note markup (see fix_list_notes_in_tree)
+    and remove soft hyphens from all notes (see
+    remove_soft_hyphens_from_notes)."""
     xhtml_hrefs = [posixpath.normpath(unquote(i.get('href', '')))
                    for i in opftree.xpath('//opf:manifest/opf:item',
                                           namespaces=OPFNS)
@@ -3596,7 +3683,7 @@ def convert_note_asides(opftree, rootepubdir):
     targets = set()
     for href, tree in trees.items():
         targets |= noteref_targets(tree, href)
-    converted = kept = unhyphenated = 0
+    converted = kept = unhyphenated = moved = 0
     # the CSS files for the styles of the list items of the converted notes
     css_hrefs = set()
     changed_trees = []
@@ -3605,9 +3692,11 @@ def convert_note_asides(opftree, rootepubdir):
     for href, tree in trees.items():
         note_ids = {i for f, i in targets if f == href}
         n, k = convert_note_asides_in_tree(tree, note_ids)
-        m = remove_soft_hyphens_from_notes(tree, note_ids)
+        list_notes = fix_list_notes_in_tree(tree)
+        moved += len(list_notes)
+        m = remove_soft_hyphens_from_notes(tree, note_ids | list_notes)
         unhyphenated += m
-        if not n and not k and not m:
+        if not n and not k and not m and not list_notes:
             continue
         converted += n
         kept += k
@@ -3659,6 +3748,9 @@ def convert_note_asides(opftree, rootepubdir):
     if unhyphenated:
         print('* Removed soft hyphens from %d notes (pop-up notes on '
               'Kindle)' % unhyphenated)
+    if moved:
+        print('* Moved back links of %d notes in list items to their '
+              'numbers (pop-up notes on Kindle)' % moved)
     if kept:
         print('* Kept %d notes in <aside> elements, with the eqt_note class '
               '(pop-up notes on Kindle)' % kept)
