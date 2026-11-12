@@ -9,7 +9,7 @@ import unittest
 
 from lib.csscheck import (check_css, class_rules, fix_missing_semicolons,
                           fix_property_typos, fix_unusual_spaces, remove_class_rules,
-                          remove_page_descriptors)
+                          remove_page_descriptors, remove_src_descriptors)
 
 NBSP = ' '
 ZWSP = '​'
@@ -64,6 +64,42 @@ class RemovePageDescriptorsTest(unittest.TestCase):
         css = ('@page { size: A5; } p { content: "size: 1px;"; '
                'font-size: 1em } div { margin: 0 }')
         self.assertEqual(remove_page_descriptors(css), (css, 0))
+
+
+class RemoveSrcDescriptorsTest(unittest.TestCase):
+
+    FONT_FACE = ('@font-face {\nfont-family: "Judson_i";\n'
+                 'font-style: italic;\nsrc: url(../Fonts/Judson-Italic.ttf);'
+                 '\n}\n')
+
+    def test_style_rule(self):
+        self.assertEqual(
+            remove_src_descriptors(
+                self.FONT_FACE + 'p.Wiersz {\nfont-family: "Judson_i";\n'
+                'font-style: normal;\nsrc: url(../Fonts/Judson-Italic.ttf);'
+                '\ntext-indent:0%;\n}\n'),
+            (self.FONT_FACE + 'p.Wiersz {\nfont-family: "Judson_i";\n'
+             'font-style: normal;\ntext-indent:0%;\n}\n', 1))
+
+    def test_inline_last_and_nested(self):
+        self.assertEqual(
+            remove_src_descriptors(
+                'p{margin:0;SRC:url("a;b}.ttf") format("truetype")}'
+                '@media screen { i { src: url(a.ttf); color: red } }'),
+            ('p{margin:0;}@media screen { i { color: red } }', 2))
+
+    def test_font_face_and_strings_untouched(self):
+        css = (self.FONT_FACE + '@media screen { @font-face { font-family: '
+               'A; src: url(a.ttf) } }\np { content: "src: url(a.ttf);"; '
+               'font-family: A } /* src: url(a.ttf); */')
+        self.assertEqual(remove_src_descriptors(css), (css, 0))
+        self.assertNotIn('unknown property', check(css))
+
+    def test_check_passes_after_removal(self):
+        css = self.FONT_FACE + 'p { src: url(../Fonts/Judson-Italic.ttf); }'
+        self.assertIn('unknown property "src"', check(css))
+        self.assertNotIn('unknown property',
+                         check(remove_src_descriptors(css)[0]))
 
 
 class FixUnusualSpacesTest(unittest.TestCase):

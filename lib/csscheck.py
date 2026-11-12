@@ -472,6 +472,23 @@ def remove_page_descriptors(css_text):
     """Remove the @page descriptors (e.g. "size: 2px") used outside @page,
     where they are not properties and readers ignore them, also in nested
     rules. Returns the new text and the number of removed declarations."""
+    return _remove_descriptors(css_text, PAGE_DESCRIPTORS)
+
+
+def remove_src_descriptors(css_text):
+    """Remove the "src" descriptors used outside @font-face (e.g. copied
+    with the whole font description to a style rule), where they are not
+    properties and readers ignore them, also in nested rules. The @font-face
+    rules stay untouched. Returns the new text and the number of removed
+    declarations."""
+    return _remove_descriptors(css_text, {'src'})
+
+
+def _remove_descriptors(css_text, names):
+    """Remove the declarations with the given (lower case) names from the
+    style rules, also the nested ones; at-rules other than @media and
+    @supports are left alone. Returns the new text and the number of
+    removed declarations."""
     line_starts = [0] + [m.end() for m in
                          re.finditer(r'\r\n|[\r\n\f]', css_text)]
     edits = []
@@ -510,7 +527,7 @@ def remove_page_descriptors(css_text):
                     remove_declarations(d.content)
                 continue
             if (not isinstance(d, Declaration) or
-                    d.lower_name not in PAGE_DESCRIPTORS):
+                    d.lower_name not in names):
                 continue
             start = line_starts[d.source_line - 1] + d.source_column - 1
             # make sure the position is right

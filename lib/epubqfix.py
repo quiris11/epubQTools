@@ -35,7 +35,8 @@ from lib.epubqcheck import best_cover_image_item
 from lib.csscheck import (class_rules, fix_missing_semicolons,
                           fix_property_typos, fix_unusual_spaces,
                           font_face_families,
-                          remove_class_rules, remove_page_descriptors)
+                          remove_class_rules, remove_page_descriptors,
+                          remove_src_descriptors)
 from lib.hyphenator import Hyphenator
 from lib.beautify_book import beautify_book
 from collections import Counter
@@ -4551,11 +4552,16 @@ def fix_css_values(opftree, opfdir):
         if descriptors:
             print('* Removed %d @page descriptors (e.g. "size") used outside '
                   '@page in "%s"' % (descriptors, c.get('href')))
+        new_css_text, sources = remove_src_descriptors(new_css_text)
+        if sources:
+            print('* Removed %d "src" descriptors used outside @font-face '
+                  'in "%s"' % (sources, c.get('href')))
         new_css_text, typos = fix_property_typos(new_css_text)
         for typo, fix in typos:
             print('* Corrected a typo in CSS property name "%s" -> "%s" in '
                   '"%s"' % (typo, fix, c.get('href')))
-        if not count and not semicolons and not descriptors and not typos:
+        if (not count and not semicolons and not descriptors and
+                not sources and not typos):
             continue
         try:
             with open(css_path, 'w', encoding='utf-8', newline='') as cf:
