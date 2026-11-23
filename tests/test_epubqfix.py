@@ -28,7 +28,8 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           fix_list_notes_in_tree,
                           remove_soft_hyphens_from_notes, noteref_targets,
                           prepend_note_list_css, note_aside_css,
-                          note_aside_resets,
+                          note_aside_resets, inline_block_subjects,
+                          mark_inline_block_numbers, NOTE_NUMBER_CSS,
                           fill_empty_titles,
                           decode_b64_name, deobfuscate_font_data,
                           is_consistent_sfnt, recover_font_key, decrypt_font,
@@ -942,6 +943,103 @@ class NoteAsideResetsTest(unittest.TestCase):
         self.assertEqual(note_aside_css({'break-after', 'border'}),
                          '\naside.eqt_note {\n    border: none !important;'
                          '\n    break-after: auto !important;}\n')
+
+
+class InlineBlockNumbersTest(unittest.TestCase):
+    OPF = NoteListStylesTest.OPF
+    CSS = ('p.fn { margin-left: 2em }\n'
+           'section .fn-nr, h1 { display: inline-block; margin-left: 1em }\n')
+    # Tunel (d2d.pl): the back link on the number in an inline-block span
+    NOTE = ('<ol><li id="n1"><p class="fn"><span class="fn-nr">'
+            '<a role="doc-backlink" href="b.xhtml#r1">[1]</a></span> One</p>'
+            '</li></ol>')
+
+    def run_convert(self, a_head, note=None, css=None, noteref=True):
+        a = ('<html xmlns="http://www.w3.org/1999/xhtml"><head>%s</head>'
+             '<body>%s</body></html>' % (a_head, note or self.NOTE))
+        b = XHTML % ('<a role="doc-noteref" href="a.xhtml#n1">1</a>'
+                     if noteref else '<a href="a.xhtml#n1">1</a>')
+        with tempfile.TemporaryDirectory() as d:
+            for name, text in (('text/a.xhtml', a), ('text/b.xhtml', b),
+                               ('css/s.css', css or self.CSS)):
+                os.makedirs(os.path.dirname(os.path.join(d, name)),
+                            exist_ok=True)
+                with open(os.path.join(d, name), 'w') as f:
+                    f.write(text)
+            opftree = etree.fromstring(self.OPF).getroottree()
+            out = io.StringIO()
+            with redirect_stdout(out):
+                convert_note_asides(opftree, d)
+                # a second run does not add the class and the rule again
+                convert_note_asides(opftree, d)
+            with open(os.path.join(d, 'text/a.xhtml')) as f:
+                html = f.read()
+            with open(os.path.join(d, 'css/s.css')) as f:
+                css = f.read()
+        return html, css, out.getvalue()
+
+    LINK = '<link href="../css/s.css" rel="stylesheet" type="text/css"/>'
+
+    def test_class_and_rule_added(self):
+        html, css, out = self.run_convert(self.LINK)
+        self.assertIn('<span class="fn-nr eqt_note_number"><a', html)
+        self.assertEqual(css, self.CSS + NOTE_NUMBER_CSS)
+        self.assertEqual(out.count('Changed inline-block to inline around '
+                                   'back links at the start of 1 notes'), 1)
+
+    def test_rule_in_file_without_css(self):
+        html, css, _ = self.run_convert(
+            '<style>.fn-nr { display: inline-block }</style>')
+        self.assertEqual(css, self.CSS)
+        self.assertIn('class="fn-nr eqt_note_number"', html)
+        self.assertEqual(html.count('.eqt_note_number {'), 1)
+
+    def test_style_attribute(self):
+        note = self.NOTE.replace(
+            'class="fn-nr"',
+            'class="x" style="display: inline-block; margin: 0"')
+        html, css, _ = self.run_convert(self.LINK, note)
+        self.assertIn('<span class="x eqt_note_number" style="margin: 0">',
+                      html)
+        self.assertEqual(css, self.CSS + NOTE_NUMBER_CSS)
+
+    def test_unchanged(self):
+        cases = [
+            # no inline-block rule for the number
+            (self.NOTE, 'p.fn { margin: 0 }\n', True),
+            # the number is not a back link at the start of the note
+            (self.NOTE.replace('</span> One', '</span> One <span '
+                               'class="fn-nr">x</span>').replace(
+                '<span class="fn-nr"><a role="doc-backlink" '
+                'href="b.xhtml#r1">[1]</a></span>', 'Text '),
+             None, True),
+            # not linked with a noteref link
+            (self.NOTE, None, False),
+        ]
+        for note, css_in, noteref in cases:
+            html, css, out = self.run_convert(self.LINK, note, css_in,
+                                              noteref)
+            self.assertNotIn('eqt_note_number', html + css)
+            self.assertNotIn('inline-block to inline', out)
+
+    def test_subjects(self):
+        self.assertEqual(
+            inline_block_subjects(
+                '/* x */ div > span.a, .b { Display: Inline-Block }\n'
+                '.c { display: inline } .d:hover { display: inline-block }'),
+            {'span.a', '.b', '.d:hover'})
+
+    def test_other_selectors_never_match(self):
+        tree = etree.fromstring(
+            '<html xmlns="http://www.w3.org/1999/xhtml"><body><ol>'
+            '<li id="n1"><span class="a"><a href="#r1">1</a></span> x</li>'
+            '</ol></body></html>').getroottree()
+        self.assertEqual(mark_inline_block_numbers(
+            tree, {'n1'}, {'.a:hover', 'p.a', 'span#a', 'li'}), 0)
+        self.assertEqual(mark_inline_block_numbers(
+            tree, {'n1'}, {'span.a'}), 1)
+        self.assertEqual(mark_inline_block_numbers(
+            tree, {'n1'}, {'span.a'}), 0)
 
 
 class PrependNoteListCssTest(unittest.TestCase):

@@ -112,6 +112,11 @@ item is the target of a link with only a number (in the same file) and ends with
 link; the numbering of the list is turned off, as the numbers are now in the notes.
 Soft hyphens are removed from all notes linked with noteref links and from the notes above: Kindle
 Paperwhite 1 does not show the hyphen at a line break in pop-ups.
+If the back link at the start of such a note (or an element around it, e.g. the `<span>` of the
+number) has `display: inline-block` (in a CSS rule of its tag and classes or in its `style`
+attribute), it gets the `eqt_note_number` class and a rule `.eqt_note_number` sets
+`display: inline !important`: Send to Kindle (KFX) does not show such notes in pop-ups. The rules
+of the book are not changed; the declaration is removed from the `style` attribute.
 
 #### Output messages:
 By default (without `-v`) only problems are printed while the books are processed: warnings, errors

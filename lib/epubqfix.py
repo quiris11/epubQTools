@@ -3611,19 +3611,23 @@ NOTE_BLOCKS = {'{%s}%s' % (XHTMLNS['xhtml'], t) for t in (
     'li', 'p', 'div', 'aside', 'dd', 'dt', 'blockquote', 'td')}
 
 
+def find_note(xhtree, note_id):
+    """The note (a block: list item, paragraph...) with the id note_id or
+    around the element with this id, or None."""
+    found = xhtree.xpath('//xhtml:*[@id=$i]', i=note_id, namespaces=XHTMLNS)
+    note = found[0] if found else None
+    while note is not None and note.tag not in NOTE_BLOCKS:
+        note = note.getparent()
+    return note
+
+
 def remove_soft_hyphens_from_notes(xhtree, note_ids):
     """Remove soft hyphens from the notes with an id from note_ids: Kindle
     Paperwhite 1 does not show the hyphen at the end of a line broken at a
     soft hyphen in pop-ups. Return the number of changed notes."""
     changed = 0
     for note_id in note_ids:
-        found = xhtree.xpath('//xhtml:*[@id=$i]', i=note_id,
-                             namespaces=XHTMLNS)
-        if not found:
-            continue
-        note = found[0]
-        while note is not None and note.tag not in NOTE_BLOCKS:
-            note = note.getparent()
+        note = find_note(xhtree, note_id)
         if note is None:
             continue
         found = False
@@ -3804,6 +3808,105 @@ def add_note_aside_style(xhtree, resets):
     style.text = note_aside_css(resets)
 
 
+NOTE_NUMBER_CLASS = 'eqt_note_number'
+NOTE_NUMBER_RULE = '.%s {' % NOTE_NUMBER_CLASS
+NOTE_NUMBER_CSS = '\n%s\n    display: inline !important;}\n' % NOTE_NUMBER_RULE
+SIMPLE_COMPOUND = re.compile(r'([a-zA-Z][\w-]*|\*)?((?:\.[\w-]+)*)')
+
+
+def is_inline_block(declaration):
+    """True for a CSS declaration display: inline-block."""
+    prop, _, value = declaration.partition(':')
+    return (prop.strip().lower() == 'display' and
+            value.strip().lower().split('!')[0].strip() == 'inline-block')
+
+
+def inline_block_subjects(css_text):
+    """The subjects (the last compound selectors) of the CSS rules which
+    set display: inline-block."""
+    subjects = set()
+    for m in CSS_RULE.finditer(css_text):
+        if any(is_inline_block(d) for d in m.group(4).split(';')):
+            subjects |= {CSS_COMBINATOR.split(s.strip())[-1]
+                         for s in m.group(2).split(',')}
+    return subjects
+
+
+def matches_subject(el, subject):
+    """True if an element matches a compound selector of only a tag name
+    and classes (e.g. span.fn-nr); other selectors never match."""
+    m = SIMPLE_COMPOUND.fullmatch(subject)
+    if not m or not (m.group(1) or m.group(2)):
+        return False
+    tag = m.group(1)
+    if tag and tag != '*' and tag.lower() != etree.QName(el).localname:
+        return False
+    classes = (el.get('class') or '').split()
+    return all(c in classes for c in m.group(2).split('.') if c)
+
+
+def start_backlink_path(note):
+    """The elements from the first child of a note down to the back link
+    at its start (see has_start_backlink), or an empty list."""
+    path = []
+    el = note
+    while not is_internal_link(el):
+        if (el.text or '').strip() or len(el) == 0:
+            return []
+        el = el[0]
+        path.append(el)
+    return path
+
+
+def mark_inline_block_numbers(xhtree, note_ids, subjects):
+    """Add the eqt_note_number class (see NOTE_NUMBER_CSS) to the elements
+    with display: inline-block (in a CSS rule with a subject from subjects
+    or in the style attribute) around the back link at the start of the
+    notes with an id from note_ids, or on it (e.g. <span class="fn-nr"> of
+    the number): Send to Kindle (KFX) does not show such notes in pop-ups.
+    The declarations are removed from the style attributes. Return the
+    number of changed notes."""
+    changed = 0
+    for note_id in note_ids:
+        note = find_note(xhtree, note_id)
+        if note is None:
+            continue
+        found = False
+        for el in start_backlink_path(note):
+            style = el.get('style') or ''
+            declarations = style.split(';')
+            in_style = any(is_inline_block(d) for d in declarations)
+            classes = (el.get('class') or '').split()
+            if not in_style and (NOTE_NUMBER_CLASS in classes or not any(
+                    matches_subject(el, s) for s in subjects)):
+                continue
+            if in_style:
+                kept = [d.strip() for d in declarations
+                        if d.strip() and not is_inline_block(d)]
+                if kept:
+                    el.set('style', '; '.join(kept))
+                else:
+                    del el.attrib['style']
+            if NOTE_NUMBER_CLASS not in classes:
+                el.set('class', ' '.join(classes + [NOTE_NUMBER_CLASS]))
+            found = True
+        changed += found
+    return changed
+
+
+def add_note_number_style(xhtree):
+    """Add the rule of the note numbers (see NOTE_NUMBER_CSS) in a <style>
+    element at the end of the <head> (for a file without CSS files)."""
+    head = xhtree.find('{%s}head' % XHTMLNS['xhtml'])
+    if head is None or any(
+            NOTE_NUMBER_RULE in (s.text or '')
+            for s in head.iterfind('{%s}style' % XHTMLNS['xhtml'])):
+        return
+    style = etree.SubElement(head, '{%s}style' % XHTMLNS['xhtml'],
+                             {'type': 'text/css'})
+    style.text = NOTE_NUMBER_CSS
+
+
 def convert_note_asides(opftree, rootepubdir):
     """Fix note asides in all XHTML files of the book (see
     convert_note_asides_in_tree), with their CSS styles, move the back links
@@ -3823,9 +3926,23 @@ def convert_note_asides(opftree, rootepubdir):
     targets = set()
     for href, tree in trees.items():
         targets |= noteref_targets(tree, href)
-    converted = kept = unhyphenated = moved = 0
+    converted = kept = unhyphenated = moved = numbers = 0
     # the CSS files for the styles of the list items of the converted notes
     css_hrefs = set()
+    # the CSS files for the rule of the note numbers (NOTE_NUMBER_CSS)
+    number_css_hrefs = set()
+    # the texts of the CSS files, for the rules with display: inline-block
+    css_cache = {}
+
+    def css_text(css_href):
+        if css_href not in css_cache:
+            try:
+                with open(os.path.join(rootepubdir, css_href),
+                          encoding='utf-8') as cf:
+                    css_cache[css_href] = cf.read()
+            except (IOError, UnicodeDecodeError):
+                css_cache[css_href] = ''
+        return css_cache[css_href]
     changed_trees = []
     # (tree, CSS files) of the files with kept note asides
     kept_files = []
@@ -3836,11 +3953,25 @@ def convert_note_asides(opftree, rootepubdir):
         moved += len(list_notes)
         m = remove_soft_hyphens_from_notes(tree, note_ids | list_notes)
         unhyphenated += m
-        if not n and not k and not m and not list_notes:
+        stylesheets = note_list_stylesheets(tree, href)
+        b = 0
+        if note_ids | list_notes:
+            subjects = set()
+            for css_href in stylesheets:
+                subjects |= inline_block_subjects(css_text(css_href))
+            for style in tree.iter('{%s}style' % XHTMLNS['xhtml']):
+                subjects |= inline_block_subjects(style.text or '')
+            b = mark_inline_block_numbers(tree, note_ids | list_notes,
+                                          subjects)
+        if b and stylesheets:
+            number_css_hrefs.add(stylesheets[0])
+        elif b:
+            add_note_number_style(tree)
+        numbers += b
+        if not n and not k and not m and not list_notes and not b:
             continue
         converted += n
         kept += k
-        stylesheets = note_list_stylesheets(tree, href)
         if n and stylesheets:
             # the first one: the book CSS file, not the reset CSS file
             css_hrefs.add(stylesheets[0])
@@ -3850,7 +3981,7 @@ def convert_note_asides(opftree, rootepubdir):
             kept_files.append((tree, stylesheets))
         changed_trees.append((href, tree))
     css_texts = {}
-    if converted or kept:
+    if converted or kept or number_css_hrefs:
         for c in opftree.xpath('//opf:item[@media-type="text/css"]',
                                namespaces=OPFNS):
             css_href = posixpath.normpath(unquote(c.get('href')))
@@ -3897,6 +4028,9 @@ def convert_note_asides(opftree, rootepubdir):
     if converted:
         print('* Converted %d notes from <aside> to list items (pop-up '
               'notes on Kindle)' % converted)
+    if numbers:
+        print('* Changed inline-block to inline around back links at the '
+              'start of %d notes (pop-up notes on Kindle)' % numbers)
     for css_href, css_text in css_texts.items():
         new_text = css_text
         if converted:
@@ -3906,6 +4040,9 @@ def convert_note_asides(opftree, rootepubdir):
                 new_text = prepend_note_list_css(new_text)
         if css_href in aside_css_hrefs and NOTE_ASIDE_RULE not in new_text:
             new_text = new_text.rstrip('\n') + '\n' + note_aside_css(resets)
+        if (css_href in number_css_hrefs and
+                NOTE_NUMBER_RULE not in new_text):
+            new_text = new_text.rstrip('\n') + '\n' + NOTE_NUMBER_CSS
         if new_text == css_text:
             continue
         try:
