@@ -39,9 +39,11 @@ class FixHtmlTocTest(unittest.TestCase):
             f.write(text)
 
     def book(self, pages, spine, ncx_href='toc.ncx', opf_dir='',
-             chapters=('c1.xhtml', 'c2.xhtml', 'c3.xhtml', 'c4.xhtml')):
+             chapters=('c1.xhtml', 'c2.xhtml', 'c3.xhtml', 'c4.xhtml'),
+             guide_toc=None):
         """Write the files (paths relative to the OPF folder) and return
-        the OPF tree with the TOC fixed."""
+        the OPF tree with the TOC fixed (guide_toc: the href of the TOC
+        in the guide of the book before the fix)."""
         hrefs = list(chapters) + list(pages)
         items = [('i%d' % n, h, 'application/xhtml+xml')
                  for n, h in enumerate(hrefs)]
@@ -50,6 +52,10 @@ class FixHtmlTocTest(unittest.TestCase):
                    'text/css')]
         ids = dict((h, 'i%d' % n) for n, h in enumerate(hrefs))
         tree = etree.fromstring(opf(items, [ids[h] for h in spine]).encode())
+        if guide_toc is not None:
+            guide = etree.SubElement(tree, '{%s}guide' % OPFNS['opf'])
+            etree.SubElement(guide, '{%s}reference' % OPFNS['opf'],
+                             type='toc', title='Spis treści', href=guide_toc)
         root = os.path.join(self.dir, opf_dir)
         os.makedirs(root, exist_ok=True)
         ncx_dir = os.path.dirname(os.path.normpath(
@@ -95,6 +101,38 @@ class FixHtmlTocTest(unittest.TestCase):
         # e.g. a hidden EPUB 3 nav document
         pages = {'nav.xhtml': self.links(
             'c1.xhtml', 'c2.xhtml', 'c3.xhtml', 'c4.xhtml')}
+        tree, root = self.book(pages, ['c1.xhtml', 'c2.xhtml', 'c3.xhtml',
+                                       'c4.xhtml'])
+        self.assertEqual(self.toc_ref(tree), ['epubQTools-toc.xhtml'])
+
+    def test_hidden_nav_in_guide_is_replaced(self):
+        # an EPUB 3 nav document outside the spine given as the TOC in the
+        # guide is never seen by the reader turning the pages
+        pages = {'nav.xhtml': '<h1>Spis treści</h1>' + self.links(
+            'c1.xhtml', 'c2.xhtml', 'c3.xhtml', 'c4.xhtml')}
+        tree, root = self.book(pages, ['c1.xhtml', 'c2.xhtml', 'c3.xhtml',
+                                       'c4.xhtml'], guide_toc='nav.xhtml')
+        self.assertEqual(self.toc_ref(tree), ['epubQTools-toc.xhtml'])
+        self.assertTrue(os.path.exists(
+            os.path.join(root, 'epubQTools-toc.xhtml')))
+        self.assertIn('epubQTools-toc', tree.xpath(
+            '//opf:spine/opf:itemref/@idref', namespaces=OPFNS))
+
+    def test_guide_toc_to_missing_file_is_replaced(self):
+        tree, root = self.book({}, ['c1.xhtml', 'c2.xhtml', 'c3.xhtml',
+                                    'c4.xhtml'], guide_toc='gone.xhtml#t')
+        self.assertEqual(self.toc_ref(tree), ['epubQTools-toc.xhtml'])
+
+    def test_guide_toc_page_of_book_is_kept(self):
+        pages = {'text/spis.xhtml': '<h1>Contents</h1>'}
+        tree, root = self.book(pages, ['text/spis.xhtml', 'c1.xhtml'],
+                               guide_toc='text/./spis.xhtml#top')
+        self.assertEqual(self.toc_ref(tree), ['text/./spis.xhtml#top'])
+        self.assertFalse(os.path.exists(
+            os.path.join(root, 'epubQTools-toc.xhtml')))
+
+    def test_spis_tresci_in_hidden_nav_only(self):
+        pages = {'nav.xhtml': '<h1>Spis treści</h1>'}
         tree, root = self.book(pages, ['c1.xhtml', 'c2.xhtml', 'c3.xhtml',
                                        'c4.xhtml'])
         self.assertEqual(self.toc_ref(tree), ['epubQTools-toc.xhtml'])

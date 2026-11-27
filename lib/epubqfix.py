@@ -1519,14 +1519,26 @@ def links_to_book_files(xhtml_file, xhtml_file_path):
     return links
 
 
+def spine_hrefs(opftree):
+    """The hrefs of the pages of the book (the files of the spine), not
+    e.g. a hidden EPUB 3 nav document."""
+    return set(opftree.xpath(
+        '//opf:manifest/opf:item[@id = //opf:spine/opf:itemref/@idref]'
+        '/@href', namespaces=OPFNS))
+
+
+def is_book_page(href, spine):
+    """Whether an href (relative to the OPF file, maybe with a fragment)
+    points to a page of the book."""
+    path = posixpath.normpath(unquote(href.split('#')[0]))
+    return any(posixpath.normpath(unquote(s)) == path for s in spine)
+
+
 def find_toc_by_links(opftree, tempdir, xhtml_files, xhtml_file_paths):
     """The href of an xhtml file which links to most of the chapters of
     the NCX (a table of contents in any language), or None."""
     files, chapters = ncx_targets(opftree, tempdir)
-    # only the pages of the book (e.g. not a hidden EPUB 3 nav document)
-    spine = set(opftree.xpath(
-        '//opf:manifest/opf:item[@id = //opf:spine/opf:itemref/@idref]'
-        '/@href', namespaces=OPFNS))
+    spine = spine_hrefs(opftree)
     for xhtml_file, xhtml_file_path in zip(xhtml_files, xhtml_file_paths):
         if xhtml_file_path not in spine:
             continue
@@ -1561,9 +1573,21 @@ def css_href_from(textdir, css_href, tempdir):
 def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
     reftocs = etree.XPath('//opf:reference[@type="toc"]',
                           namespaces=OPFNS)(soup)
+    spine = spine_hrefs(soup)
+    # a TOC which is not a page of the book (e.g. a hidden EPUB 3 nav
+    # document) is never seen by the reader turning the pages
+    if reftocs and not any(is_book_page(r.get('href', ''), spine)
+                           for r in reftocs):
+        print('* HTML TOC is not a page of the book. Looking for another...')
+        for r in reftocs:
+            remove_node(r)
+        reftocs = []
     if len(reftocs) == 0:
         html_toc = None
-        for xhtml_file in xhtml_files:
+        for xhtml_file, xhtml_file_path in zip(xhtml_files,
+                                               xhtml_file_paths):
+            if not is_book_page(xhtml_file_path, spine):
+                continue
             try:
                 xhtmltree = etree.parse(xhtml_file,
                                         parser=etree.XMLParser(
@@ -1573,14 +1597,9 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             alltexts = etree.XPath('//text()', namespaces=XHTMLNS)(xhtmltree)
             alltext = ' '.join(alltexts)
             if alltext.find('Spis treści') != -1:
-                html_toc = xhtml_file
+                html_toc = xhtml_file_path
                 break
-        if html_toc is not None:
-            for xhtml_file_path in xhtml_file_paths:
-                if xhtml_file_path.find(os.path.basename(html_toc)) != -1:
-                    html_toc = xhtml_file_path
-                    break
-        else:
+        if html_toc is None:
             html_toc = find_toc_by_links(soup, tempdir, xhtml_files,
                                          xhtml_file_paths)
         if html_toc is not None:
