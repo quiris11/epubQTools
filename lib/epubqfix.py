@@ -103,6 +103,10 @@ OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 XHTMLNS = {'xhtml': 'http://www.w3.org/1999/xhtml'}
 DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
+# an xhtml file is a table of contents when it links to most of the
+# files of the chapters of the NCX (at least TOC_MIN_FILES files)
+TOC_MIN_FILES = 3
+TOC_LINKED_SHARE = 0.8
 MBPNS = {'mbp': 'https://kindlegen.s3.amazonaws.com/'
          'AmazonKindlePublishingGuidelines.pdf'}
 SVGNS = {'svg': 'http://www.w3.org/2000/svg'}
@@ -1460,6 +1464,100 @@ def fix_nav_in_cover_file(opftree, tempdir):
     return opftree
 
 
+def ncx_href(opftree):
+    """The href of the NCX file (relative to the OPF file), or None."""
+    items = opftree.xpath(
+        '//opf:item[@media-type="application/x-dtbncx+xml"]',
+        namespaces=OPFNS)
+    return items[0].get('href') if items else None
+
+
+def ncx_targets(opftree, tempdir):
+    """The files (paths relative to the OPF file) the chapters of the NCX
+    point to, in the order of the NCX, and the number of chapters."""
+    href = ncx_href(opftree)
+    if href is None:
+        return [], 0
+    try:
+        ncxtree = etree.parse(os.path.join(tempdir, href),
+                              etree.XMLParser(recover=True))
+    except (OSError, etree.Error):
+        return [], 0
+    if ncxtree.getroot() is None:
+        return [], 0
+    files = []
+    points = ncxtree.xpath('//ncx:navMap//ncx:navPoint/ncx:content/@src',
+                           namespaces=NCXNS)
+    for src in points:
+        path = unquote(src.split('#')[0])
+        if path:
+            path = posixpath.normpath(posixpath.join(
+                posixpath.dirname(href), path))
+            if path not in files:
+                files.append(path)
+    return files, len(points)
+
+
+def links_to_book_files(xhtml_file, xhtml_file_path):
+    """The links of an xhtml file to other files, as paths relative to
+    the OPF file, or None when the file cannot be read."""
+    try:
+        tree = etree.parse(xhtml_file, parser=etree.XMLParser(recover=True))
+    except (OSError, etree.Error):
+        return None
+    if tree.getroot() is None:
+        return None
+    links = []
+    for href in tree.xpath('//xhtml:a/@href', namespaces=XHTMLNS):
+        path = unquote(href.split('#')[0].strip())
+        if not path or ':' in path:
+            continue
+        path = posixpath.normpath(posixpath.join(
+            posixpath.dirname(xhtml_file_path), path))
+        if path != posixpath.normpath(xhtml_file_path):
+            links.append(path)
+    return links
+
+
+def find_toc_by_links(opftree, tempdir, xhtml_files, xhtml_file_paths):
+    """The href of an xhtml file which links to most of the chapters of
+    the NCX (a table of contents in any language), or None."""
+    files, chapters = ncx_targets(opftree, tempdir)
+    # only the pages of the book (e.g. not a hidden EPUB 3 nav document)
+    spine = set(opftree.xpath(
+        '//opf:manifest/opf:item[@id = //opf:spine/opf:itemref/@idref]'
+        '/@href', namespaces=OPFNS))
+    for xhtml_file, xhtml_file_path in zip(xhtml_files, xhtml_file_paths):
+        if xhtml_file_path not in spine:
+            continue
+        this = posixpath.normpath(unquote(xhtml_file_path))
+        others = [f for f in files if f != this]
+        if len(others) < TOC_MIN_FILES:
+            continue
+        links = links_to_book_files(xhtml_file, unquote(xhtml_file_path))
+        if not links:
+            continue
+        # most of the chapters linked, but not many more links than
+        # chapters (e.g. a page of notes links back to every note)
+        linked = set(links)
+        if (sum(f in linked for f in others) >=
+                TOC_LINKED_SHARE * len(others) and
+                len(links) <= 2 * chapters + TOC_MIN_FILES):
+            return xhtml_file_path
+    return None
+
+
+def css_href_from(textdir, css_href, tempdir):
+    """The href of a CSS file (relative to the OPF file) for an xhtml
+    file in textdir (relative to the OPF file)."""
+    href = os.path.join(
+        os.path.relpath(tempdir, os.path.join(tempdir, textdir)),
+        css_href).replace('\\', '/')
+    # e.g. "../OEBPS/../styles/a.css" when the texts are outside the
+    # folder of the OPF file
+    return posixpath.normpath(href) if textdir.startswith('..') else href
+
+
 def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
     reftocs = etree.XPath('//opf:reference[@type="toc"]',
                           namespaces=OPFNS)(soup)
@@ -1482,6 +1580,10 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
                 if xhtml_file_path.find(os.path.basename(html_toc)) != -1:
                     html_toc = xhtml_file_path
                     break
+        else:
+            html_toc = find_toc_by_links(soup, tempdir, xhtml_files,
+                                         xhtml_file_paths)
+        if html_toc is not None:
             newtocreference = etree.Element(
                 '{http://www.idpf.org/2007/opf}reference', title='TOC',
                 type='toc', href=html_toc
@@ -1491,12 +1593,8 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             parser = etree.XMLParser(remove_blank_text=True)
             transform = etree.XSLT(etree.fromstring(
                 read_resource('ncx2end-0.2.xsl')))
-            try:
-                toc_ncx_file = etree.XPath(
-                    '//opf:item[@media-type="application/x-dtbncx+xml"]',
-                    namespaces=OPFNS
-                )(soup)[0].get('href')
-            except IndexError:
+            toc_ncx_file = ncx_href(soup)
+            if toc_ncx_file is None:
                 return soup
             try:
                 ncxtree = etree.parse(os.path.join(tempdir, toc_ncx_file),
@@ -1504,31 +1602,35 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
             except Exception:
                 return soup
             result = transform(ncxtree)
+            # the paths in the NCX are relative to the NCX file, which
+            # may be in another folder than the OPF file
+            ncx_dir = posixpath.dirname(toc_ncx_file)
+
+            def from_opf(src):
+                path, sep, frag = src.partition('#')
+                if path:
+                    path = posixpath.normpath(posixpath.join(ncx_dir, path))
+                return path, sep + frag
+
             ncx_contents = ncxtree.xpath('//ncx:content', namespaces=NCXNS)
-            if all(
-                os.path.dirname(x.get('src')) == os.path.dirname(
-                    ncx_contents[0].get('src')
-                ) for x in ncx_contents
-            ):
-                try:
-                    textdir = os.path.dirname(ncx_contents[0].get('src'))
-                except IndexError:
-                    textdir = ''
-                anchs = result.xpath('//xhtml:a', namespaces=XHTMLNS)
-                for a in anchs:
-                    a.set('href', os.path.basename(a.get('href')))
-            else:
-                textdir = ''
+            dirs = set(posixpath.dirname(from_opf(x.get('src', ''))[0])
+                       for x in ncx_contents)
+            # the new TOC goes to the folder of the texts when they all
+            # are in one folder, otherwise next to the OPF file
+            textdir = dirs.pop() if len(dirs) == 1 else ''
+            for a in result.xpath('//xhtml:a', namespaces=XHTMLNS):
+                if textdir:
+                    a.set('href', posixpath.basename(a.get('href')))
+                elif ncx_dir:
+                    path, frag = from_opf(a.get('href', ''))
+                    if path:
+                        a.set('href', path + frag)
             head = result.xpath('//xhtml:head', namespaces=XHTMLNS)[0]
             for ci in soup.xpath('//opf:item[@media-type="text/css"]',
                                  namespaces=OPFNS):
                 head.append(etree.fromstring(
                     '<link href="%s" rel="stylesheet" type="text/css" />'
-                    % os.path.join(
-                        os.path.relpath(tempdir,
-                                        os.path.join(tempdir, textdir)),
-                        ci.get('href')
-                    ).replace('\\', '/')
+                    % css_href_from(textdir, ci.get('href'), tempdir)
                 ))
             with open(os.path.join(tempdir, textdir, 'epubQTools-toc.xhtml'),
                       'wb') as f:
