@@ -210,7 +210,12 @@ class TestTranslations(unittest.TestCase):
         self.assertEqual(tr('No change', 'en'), 'No change')
         self.assertEqual(tr('No change', 'de'), 'No change')
         self.assertEqual(tr('Not translated', 'pl'), 'Not translated')
-        self.assertEqual(translations.language(), 'en')  # without calibre
+        try:
+            from calibre.utils.localization import get_lang
+            expected = get_lang()       # in calibre: its language
+        except ImportError:
+            expected = 'en'             # without calibre
+        self.assertEqual(translations.language(), expected)
 
 
 class TestBuild(unittest.TestCase):
