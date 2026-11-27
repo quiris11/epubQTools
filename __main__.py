@@ -163,7 +163,7 @@ parser.add_argument("--fix-missing-container",
                     action="store_true")
 parser.add_argument('--book-margin', nargs='?', metavar='NUMBER',
                     help='Add left and right book margin to reset CSS file '
-                    '(only with -e)')
+                    '(only with -e, not with -c)')
 
 
 def is_number_list(text):

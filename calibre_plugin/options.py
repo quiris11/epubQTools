@@ -13,15 +13,16 @@ ALIGN_JUSTIFY = 'justify'           # "text-align: left" -> justify (as -e)
 ALIGN_LEFT = 'left'                 # "text-align: justify" -> left (--left)
 ALIGN_KEEP = 'keep'                 # no change (--skip-justify)
 
-# the defaults give the same result as -e in the terminal
+# the defaults give the same result as -c -r -e in the terminal
 DEFAULTS = {
     'hyphenate': True,              # -s turns it off
-    'hyphenate_headers': True,      # -r turns it off
-    'reset_css': True,              # -c turns it off
+    'hyphenate_headers': False,     # off as -r; on without -r
+    'reset_css': False,             # off as -c; on without -c
     'align': ALIGN_JUSTIFY,
     'remove_colors': False,         # --remove-colors (only with alignment)
     'remove_fonts': False,          # --remove-fonts
-    'book_margin': None,            # --book-margin, pixels or None
+    'book_margin': None,            # --book-margin, pixels or None (only
+                                    # with reset_css)
     'page_list': True,              # --skip-page-list turns it off
 }
 

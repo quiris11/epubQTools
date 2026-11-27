@@ -57,16 +57,16 @@ the books saved with problems (with a warning), the books which could not be fix
 **Show details** shows all messages for every book.
 
 ### Settings
-The defaults give the same result as `-e` on the command line:
+The defaults give the same result as `-c -r -e` on the command line:
 
 | Setting | Default | Command line option |
 |---|---|---|
 | Hyphenate words (Polish books only) | on | `-s` turns it off |
-| Hyphenate also words in headings | on | `-r` turns it off |
-| Add a CSS reset | on | `-c` turns it off |
+| Hyphenate also words in headings | off | on without `-r` |
+| Add a CSS reset | off | on without `-c` |
 | Text alignment: justify text aligned to the left / align justified text to the left / no change | justify | – / `--left` / `--skip-justify` |
 | Remove colors (not with "No change") | off | `--remove-colors` |
-| Left and right margin | off | `--book-margin` |
+| Left and right margin (only with "Add a CSS reset") | off | `--book-margin` |
 | Remove embedded fonts | off | `--remove-fonts` |
 | Add an approximate page list | on | `--skip-page-list` turns it off |
 
@@ -161,7 +161,7 @@ options:
   --fix-missing-container
                         Fix missing META-INF/container.xml file and incorrect mimetype file (not first, compressed or wrong content) in original EPUB file (only with -e)
   --book-margin [NUMBER]
-                        Add left and right book margin to reset CSS file (only with -e)
+                        Add left and right book margin to reset CSS file (only with -e, not with -c)
 ```
 
 `-m`, `-k` and `-t` use only the _moh.epub files in the 'MOH' subfolder. Old results of earlier

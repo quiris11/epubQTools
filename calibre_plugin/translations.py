@@ -84,9 +84,13 @@ POLISH = {
     'Other': 'Inne',
     'Add an approximate page list (in books without one)':
     'Dodaj przybliżoną listę stron (w książkach bez niej)',
+    'The margin is written to the CSS reset, so this option works only '
+    'with “Add a CSS reset”.':
+    'Margines jest zapisywany w resecie CSS, więc ta opcja działa tylko '
+    'z „Dołącz reset CSS”.',
     'Restore defaults': 'Przywróć domyślne',
-    'Settings like “-e” in the terminal.':
-    'Ustawienia jak „-e” w terminalu.',
+    'Settings like “-c -r -e” in the terminal.':
+    'Ustawienia jak „-c -r -e” w terminalu.',
 }
 
 TRANSLATIONS = {'pl': POLISH}

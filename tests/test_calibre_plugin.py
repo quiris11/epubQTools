@@ -75,13 +75,13 @@ class FakeDB(object):
 
 class TestOptions(unittest.TestCase):
 
-    def test_defaults_are_like_e(self):
+    def test_defaults_are_like_c_r_e(self):
         o = options.qfix_options({})
-        self.assertEqual(o['_resetmargins'], True)      # -c is store_false
+        self.assertEqual(o['_resetmargins'], False)     # -c
         self.assertEqual(o['arg_justify'], True)        # --skip-justify too
         self.assertEqual(o['arg_left'], False)
         self.assertEqual(o['skip_hyph'], False)
-        self.assertEqual(o['dont_hyph_headers'], False)
+        self.assertEqual(o['dont_hyph_headers'], True)      # -r
         self.assertEqual(o['skip_pages'], False)
         self.assertEqual(o['del_colors'], False)
         self.assertEqual(o['del_fonts'], False)

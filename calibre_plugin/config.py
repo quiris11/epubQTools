@@ -72,7 +72,11 @@ class ConfigWidget(QWidget):
         self.margin = QSpinBox(box)
         self.margin.setRange(0, 200)
         self.margin.setSuffix(' px')
-        self.use_margin.toggled.connect(self.margin.setEnabled)
+        self.use_margin.setToolTip(
+            tr('The margin is written to the CSS reset, so this option '
+               'works only with “Add a CSS reset”.'))
+        self.reset_css.toggled.connect(self.update_margin)
+        self.use_margin.toggled.connect(self.update_margin)
         row.addWidget(self.use_margin)
         row.addWidget(self.margin)
         row.addStretch(1)
@@ -95,7 +99,7 @@ class ConfigWidget(QWidget):
         row = QHBoxLayout()
         row.addStretch(1)
         defaults = QPushButton(tr('Restore defaults'), self)
-        defaults.setToolTip(tr('Settings like “-e” in the terminal.'))
+        defaults.setToolTip(tr('Settings like “-c -r -e” in the terminal.'))
         defaults.clicked.connect(lambda: self.show_settings(DEFAULTS))
         row.addWidget(defaults)
         layout.addLayout(row)
@@ -114,9 +118,15 @@ class ConfigWidget(QWidget):
         self.remove_colors.setEnabled(s['align'] != ALIGN_KEEP)
         self.use_margin.setChecked(s['book_margin'] is not None)
         self.margin.setValue(s['book_margin'] or 0)
-        self.margin.setEnabled(s['book_margin'] is not None)
+        self.update_margin()
         self.remove_fonts.setChecked(s['remove_fonts'])
         self.page_list.setChecked(s['page_list'])
+
+    def update_margin(self):
+        """The margin only with the CSS reset (qfix writes it there)."""
+        reset = self.reset_css.isChecked()
+        self.use_margin.setEnabled(reset)
+        self.margin.setEnabled(reset and self.use_margin.isChecked())
 
     def settings(self):
         align = next(value for value, button in self.align_buttons.items()

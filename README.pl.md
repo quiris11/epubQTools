@@ -63,16 +63,16 @@ formatu EPUB. **Pokaż szczegóły** pokazuje wszystkie komunikaty dla każdej
 książki.
 
 ### Ustawienia
-Ustawienia domyślne dają ten sam wynik co `-e` w terminalu:
+Ustawienia domyślne dają ten sam wynik co `-c -r -e` w terminalu:
 
 | Ustawienie | Domyślnie | Opcja w terminalu |
 |---|---|---|
 | Dziel wyrazy (tylko książki po polsku) | tak | `-s` wyłącza |
-| Dziel też wyrazy w nagłówkach | tak | `-r` wyłącza |
-| Dołącz reset CSS | tak | `-c` wyłącza |
+| Dziel też wyrazy w nagłówkach | nie | włączone bez `-r` |
+| Dołącz reset CSS | nie | włączony bez `-c` |
 | Wyrównanie tekstu: wyjustuj / do lewej / bez zmian | wyjustuj | – / `--left` / `--skip-justify` |
 | Usuń kolory (nie przy „Bez zmian”) | nie | `--remove-colors` |
-| Margines lewy i prawy | nie | `--book-margin` |
+| Margines lewy i prawy (tylko z „Dołącz reset CSS”) | nie | `--book-margin` |
 | Usuń wbudowane fonty | nie | `--remove-fonts` |
 | Dodaj przybliżoną listę stron | tak | `--skip-page-list` wyłącza |
 
@@ -169,7 +169,7 @@ options:
   --fix-missing-container
                         Fix missing META-INF/container.xml file and incorrect mimetype file (not first, compressed or wrong content) in original EPUB file (only with -e)
   --book-margin [NUMBER]
-                        Add left and right book margin to reset CSS file (only with -e)
+                        Add left and right book margin to reset CSS file (only with -e, not with -c)
 ```
 
 Najważniejsze opcje po polsku:
