@@ -17,8 +17,8 @@ kindlegen is also looked up in `PATH`.
 
 ```
 usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]] [--author [Surname, First Name]] [--title [Title]]
-                                                        [--font-dir [DIR]] [--replace-font-family [old,new]] [-v] [-a] [-n] [-t] [-q] [-p] [-w] [-u] [--list-fonts] [-m] [-e] [-s]
-                                                        [-r] [--skip-page-list] [-c] [--skip-justify] [--left] [--replace-font-files] [--remove-colors]
+                                                        [-v] [-a] [-n] [-t] [-q] [-p] [-w] [-u] [--list-fonts] [-m] [-e] [-s]
+                                                        [-r] [--skip-page-list] [-c] [--skip-justify] [--left] [--remove-colors]
                                                         [--remove-fonts] [-k] [-d] [-f] [--fix-missing-container] [--book-margin [NUMBER]]
                                                         directory
 
@@ -36,9 +36,6 @@ options:
   --author [Surname, First Name]
                         set new author name (only with -i)
   --title [Title]       set new book title (only with -i
-  --font-dir [DIR]      path to directory with user fonts stored
-  --replace-font-family [old,new]
-                        pair of "old_font_family,new_font_family"(only with -e and with --font-dir)
   -v, --verbose         print all messages, also the information about every change (by default only warnings and errors are
                         printed, with the name of the book; the log file always gets all messages)
   -a, --alter           print every finding on one line beginning with the file name, without START and FINISH lines, e.g. for
@@ -62,7 +59,6 @@ options:
                         a CSS with "hyphens: manual" only is linked instead (only with -e)
   --skip-justify        skip replacing "text-align: left" with "text-align: justify" in all CSS files (only with -e)
   --left                replace "text-align: justify" with "text-align: left" in all CSS files (experimental) (only with -e)
-  --replace-font-files  replace font files (only with -e)
   --remove-colors       remove all color definitions from CSS files (only with -e)
   --remove-fonts        remove all embedded font files (only with -e)
   -k, --kindlegen       convert _moh.epub files to .mobi with kindlegen

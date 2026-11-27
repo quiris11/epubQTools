@@ -77,12 +77,6 @@ parser.add_argument('--author', nargs='?', metavar='Surname, First Name',
 parser.add_argument('--title', nargs='?', metavar='Title',
                     const='no_title',
                     help='set new book title (only with -i')
-parser.add_argument('--font-dir', nargs='?', metavar='DIR', default=None,
-                    help='path to directory with user fonts stored')
-parser.add_argument('--replace-font-family', nargs='?', metavar='old,new',
-                    default=None,
-                    help="pair of \"old_font_family,new_font_family\""
-                    "(only with -e and with --font-dir)")
 parser.add_argument("-v", "--verbose", help="print all messages, also the "
                     "information about every change (by default only warnings "
                     "and errors are printed, with the name of the book; the "
@@ -144,9 +138,6 @@ parser.add_argument("--skip-justify", help='skip replacing '
 parser.add_argument("--left", help='replace "text-align: justify" '
                     'with "text-align: left" in all CSS files (experimental) '
                     '(only with -e)',
-                    action="store_true")
-parser.add_argument("--replace-font-files",
-                    help="replace font files (only with -e)",
                     action="store_true")
 parser.add_argument("--remove-colors",
                     help="remove all color definitions from CSS files "
@@ -785,9 +776,6 @@ def main():
     if args.skip_page_list and not args.epub:
         print('! WARNING! --skip-page-list was ignored because it works only '
               'with -e.')
-    if args.replace_font_files and not args.epub:
-        print('! WARNING! --replace-font-files was ignored because it works '
-              'only with -e.')
     if not args.skip_justify and not args.epub:
         print('! WARNING! --skip-justify was ignored because it works only '
               'with -e.')
@@ -1000,14 +988,12 @@ def main():
             counter += 1
             before = len(problem_files)
             qfix(root, f, moh_dir_for(root), args.force,
-                 args.replace_font_files,
                  args.skip_reset_css, args.tools,
                  args.skip_hyphenate, args.skip_justify, args.left,
-                 args.remove_colors,
-                 args.remove_fonts, args.font_dir,
+                 args.remove_colors, args.remove_fonts,
                  args.fix_missing_container,
                  args.book_margin, args.skip_hyphenate_headers,
-                 args.replace_font_family, args.skip_page_list)
+                 args.skip_page_list)
             if len(problem_files) > before:
                 problems.append(os.path.normpath(os.path.relpath(
                     os.path.join(root, f), uni_dir)))

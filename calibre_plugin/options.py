@@ -52,7 +52,6 @@ def qfix_options(settings):
     s = with_defaults(settings)
     return {
         '_forced': True,            # the book is fixed in a new temp dir
-        '_replacefonts': False,
         '_resetmargins': s['reset_css'],
         'zbf': None,                # not used by qfix
         'skip_hyph': not s['hyphenate'],
@@ -60,11 +59,9 @@ def qfix_options(settings):
         'arg_left': s['align'] == ALIGN_LEFT,
         'del_colors': s['remove_colors'],
         'del_fonts': s['remove_fonts'],
-        'fontdir': None,
         'fix_container_only': False,
         'html_margin': (None if s['book_margin'] is None
                         else str(s['book_margin'])),
         'dont_hyph_headers': not s['hyphenate_headers'],
-        'pair_family': None,
         'skip_pages': not s['page_list'],
     }

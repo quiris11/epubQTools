@@ -83,7 +83,6 @@ class TestOptions(unittest.TestCase):
         self.assertEqual(o['del_colors'], False)
         self.assertEqual(o['del_fonts'], False)
         self.assertIsNone(o['html_margin'])
-        self.assertIsNone(o['fontdir'])
         self.assertEqual(o['fix_container_only'], False)
 
     def test_names_are_arguments_of_qfix(self):

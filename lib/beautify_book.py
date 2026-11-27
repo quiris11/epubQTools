@@ -9,10 +9,8 @@
 import os
 import sys
 import re
-import shutil
 import logging
 from collections import Counter
-from .epubqcheck import list_font_basic_properties
 from urllib.parse import unquote
 
 try:
@@ -59,206 +57,28 @@ def clean_meta_tags(opftree):
             clean_meta_tag(dc)
 
 
-def change_font_family_value(cssvalue, new_name):
-    cssvalue.value = new_name
-    cssvalue._type = 'STRING'
-
-
-def fix_property(prop, old_name, new_name, is_url):
+def fix_property(prop, old_name, new_name):
     changed = False
     ff = prop.propertyValue
     for i in range(ff.length):
         val = ff.item(i)
         if (hasattr(val.value, 'lower') and
                 val.value.lower() == old_name.lower()):
-            if is_url:
-                val.value = new_name
-            else:
-                change_font_family_value(val, new_name)
+            val.value = new_name
             changed = True
     return changed
 
 
-def fix_declaration(style, old_name, new_name, is_url):
+def fix_sheet(sheet, old_name, new_name):
+    """Replace the URL old_name with new_name in "src" of @font-face
+    rules."""
     changed = False
-    if is_url:
-        prop_list = ('src',)
-    else:
-        prop_list = ('font-family', 'font')
-    for x in prop_list:
-        prop = style.getProperty(x)
-        if prop is not None:
-            changed |= fix_property(prop, old_name, new_name, is_url)
-    return changed
-
-
-def fix_sheet(sheet, old_name, new_name, is_url):
-    changed = False
-    if is_url:
-        rules_list = (css_parser.css.CSSRule.FONT_FACE_RULE,)
-    else:
-        rules_list = (css_parser.css.CSSRule.FONT_FACE_RULE,
-                      css_parser.css.CSSRule.STYLE_RULE)
     for rule in sheet.cssRules:
-        if rule.type in rules_list:
-            if fix_declaration(rule.style, old_name, new_name, is_url):
+        if rule.type == css_parser.css.CSSRule.FONT_FACE_RULE:
+            prop = rule.style.getProperty('src')
+            if prop is not None and fix_property(prop, old_name, new_name):
                 changed = True
     return changed
-
-
-def replace_file(epub_dir, old_path, new_absolute_path):
-    font_replaced = False
-    old_absolute_path = os.path.join(epub_dir, old_path)
-    if os.path.exists(old_absolute_path):
-        os.remove(old_absolute_path)
-        shutil.copyfile(new_absolute_path, os.path.join(
-            os.path.dirname(old_absolute_path),
-            os.path.basename(new_absolute_path)
-        ))
-        font_replaced = True
-    if font_replaced:
-        print('* File "%s" was replaced with "%s"...' % (
-            os.path.basename(old_absolute_path),
-            os.path.basename(new_absolute_path)
-        ))
-
-
-def update_css_font_families(epub_dir, opftree):
-
-    def find_css_font_file_families(epub_dir, opftree):
-        font_families = []
-        css_items = etree.XPath(
-            '//opf:item[@media-type="text/css"]',
-            namespaces=OPFNS
-        )(opftree)
-        for c in css_items:
-            css_file_path = os.path.join(epub_dir, c.get('href'))
-            sheet = css_parser.parseFile(css_file_path, validate=True)
-            for rule in sheet:
-                if rule.type == rule.FONT_FACE_RULE:
-                    css_font_family = None
-                    font_file_family = None
-                    for p in rule.style:
-                        if p.name == 'font-family' and css_font_family is None:
-                            try:
-                                css_font_family = p.value.split(
-                                    ',')[0].strip().strip('"').strip("'")
-                            except Exception:
-                                continue
-                            continue
-                        if p.name == 'src' and font_file_family is None:
-                            ffs = rule.style.getProperty(p.name).propertyValue
-                            ff_url = ffs.item(0).value
-                            with open(os.path.join(
-                                os.path.dirname(css_file_path), ff_url
-                            ), 'rb') as f:
-                                lfp = list_font_basic_properties(f.read())
-                                lfp = list(lfp)
-                                if 'subset of' in lfp[0]:
-                                    lfp[0] = re.sub(
-                                        r'\w+?\s-\ssubset\sof\s', '',
-                                        lfp[0]
-                                    )
-                                font_file_family = lfp[0]
-                                continue
-                    font_families.append([css_font_family, font_file_family])
-            return font_families
-
-    print('* Updating font-family in all CSS files...')
-    ff_list = find_css_font_file_families(epub_dir, opftree)
-    css_items = etree.XPath('//opf:item[@media-type="text/css"]',
-                            namespaces=OPFNS)(opftree)
-    for c in css_items:
-        css_file_path = os.path.join(epub_dir, c.get('href'))
-        sheet = css_parser.parseFile(css_file_path, validate=True)
-
-        for ff in ff_list:
-            fix_sheet(sheet, ff[0], ff[1], False)
-
-        with open(os.path.join(epub_dir, c.get('href')), 'w') as f:
-            f.write(sheet.cssText)
-
-
-def replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family):
-
-    # TODO: replace also family-name in CSS
-
-    def find_old_family_fonts(epub_dir, opftree, family_name):
-        font_items = etree.XPath(
-            '//opf:item[@media-type="application/font-sfnt"]',
-            namespaces=OPFNS
-        )(opftree)
-        family_font_list = []
-        for f in font_items:
-            furl = f.get('href')
-            with open(os.path.join(epub_dir, furl), 'rb') as f:
-                lfp = list_font_basic_properties(f.read())
-                lfp = list(lfp)
-                if 'subset of' in lfp[0]:
-                    lfp[0] = re.sub(r'\w+?\s-\ssubset\sof\s', '', lfp[0])
-                if lfp[0] == family_name:
-                    family_font_list.append([furl] + lfp)
-        return family_font_list
-
-    def find_new_family_fonts(user_font_dir, epub_dir, opftree, family_name,
-                              is_all):
-        family_font_list = []
-        for root, dirs, files in os.walk(user_font_dir):
-            for f in files:
-                furl = os.path.join(root, f)
-                if (
-                    furl.lower().endswith('.ttf') or
-                    furl.lower().endswith('.otf')
-                ):
-                    with open(os.path.join(furl), 'rb') as f:
-                        try:
-                            lfp = list_font_basic_properties(f.read())
-                        except Exception:
-                            continue
-                        if is_all:
-                            family_font_list.append([furl] + list(lfp))
-                        elif lfp[0] == family_name:
-                            family_font_list.append([furl] + list(lfp))
-        return family_font_list
-
-    if pair_family is not None and user_font_dir is not None:
-        if ',' in pair_family:
-            of = pair_family.split(',')[0].strip("'")
-            nf = pair_family.split(',')[1].strip("'")
-            print('* Replacing old font family "%s" with '
-                  'new font family "%s"...' % (of, nf))
-        else:
-            print('! ERROR! Font replacing failed. You should provide pair of font '
-                  'families comma separated: "old,new"')
-            return None
-    else:
-        return None
-    new_font_files = find_new_family_fonts(user_font_dir, epub_dir, opftree,
-                                           nf, False)
-    old_font_files = find_old_family_fonts(epub_dir, opftree, of)
-    if old_font_files == []:
-        print('! ERROR! No font with family name "%s" was found in EPUB file'
-              '...' % (of))
-    if new_font_files == []:
-        print('! ERROR! No font with family name "%s" was found in provided '
-              'directory "%s"...' % (nf, user_font_dir))
-        print('* Choose from the below list of font family names:')
-        for i in find_new_family_fonts(user_font_dir, epub_dir, opftree,
-                                       nf, True):
-            print(
-                '* Font info for %s, Family name: "%s", '
-                'isRegular: %s, isBold: %s, isItalic: %s' %
-                (
-                    os.path.basename(i[0]), i[1], i[2], i[3], i[4]
-                )
-            )
-    for o in old_font_files:
-        for n in new_font_files:
-            if o[2] == n[2] and o[3] == n[3] and o[4] == n[4]:
-                nfp = os.path.join(os.path.dirname(o[0]),
-                                   os.path.basename(n[0]))
-                rename_replace_files(opftree, ncxtree, epub_dir, o[0], nfp,
-                                     n[0])
 
 
 def fix_body_id_links(opftree, epub_dir, ncxtree):
@@ -302,8 +122,7 @@ def fix_body_id_links(opftree, epub_dir, ncxtree):
             c.set('src', c.get('src').split('#')[0])
 
 
-def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
-                         new_name_path, new_absolute_path):
+def rename_file(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
 
     def fix_references_in_xhtml(opftree, epub_dir, old_name_path,
                                 new_name_path):
@@ -398,7 +217,7 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
                 os.path.dirname(c.get('href'))
             ).replace('\\', '/')
 
-            fix_sheet(sheet, old_css_path, new_css_path, True)
+            fix_sheet(sheet, old_css_path, new_css_path)
 
             with open(os.path.join(epub_dir, c.get('href')), 'wb') as f:
                 f.write(sheet.cssText)
@@ -429,16 +248,13 @@ def rename_replace_files(opftree, ncxtree, epub_dir, old_name_path,
 
     opftree, is_updated = update_opf(opftree, old_name_path, new_name_path)
     if is_updated:
-        if new_absolute_path:
-            replace_file(epub_dir, old_name_path, new_absolute_path)
-        else:
-            try:
-                os.rename(os.path.join(epub_dir, old_name_path),
-                          os.path.join(epub_dir, new_name_path))
-            except WindowsError:
-                os.unlink(os.path.join(epub_dir, new_name_path))
-                os.rename(os.path.join(epub_dir, old_name_path),
-                          os.path.join(epub_dir, new_name_path))
+        try:
+            os.rename(os.path.join(epub_dir, old_name_path),
+                      os.path.join(epub_dir, new_name_path))
+        except WindowsError:
+            os.unlink(os.path.join(epub_dir, new_name_path))
+            os.rename(os.path.join(epub_dir, old_name_path),
+                      os.path.join(epub_dir, new_name_path))
         ncxtree = update_ncx(ncxtree, old_name_path, new_name_path)
         update_css(opftree, epub_dir, old_name_path, new_name_path)
         fix_references_in_xhtml(opftree, epub_dir, old_name_path,
@@ -473,9 +289,9 @@ def rename_calibre_cover(opftree, ncxtree, epub_dir):
             if most_xthml_dir != '':
                 pass
             try:
-                rename_replace_files(
+                rename_file(
                     opftree, ncxtree, epub_dir, r.get('href'),
-                    os.path.join(most_xthml_dir, 'cover.html'), False
+                    os.path.join(most_xthml_dir, 'cover.html')
                 )
             except WindowsError:
                 pass
@@ -508,8 +324,8 @@ def rename_cover_img(opftree, ncxtree, epub_dir):
                                          'cover' + e)
             if not os.path.isfile(os.path.join(epub_dir, new_name_path)):
                 print("* Renaming cover image to: " + new_name_path)
-                rename_replace_files(opftree, ncxtree, epub_dir, cover_file,
-                                     new_name_path, False)
+                rename_file(opftree, ncxtree, epub_dir, cover_file,
+                            new_name_path)
                 break
 
 
@@ -574,7 +390,7 @@ def fix_display_none(opftree, epub_dir, cont_src_list):
             write_file_changes_back(xhtree, os.path.join(epub_dir, xhtml_url))
 
 
-def beautify_book(root, f, user_font_dir, pair_family):
+def beautify_book(root, f):
     from .epubqfix import pack_epub
     from .epubqfix import unpack_epub
     from .epubqfix import clean_temp
@@ -601,11 +417,8 @@ def beautify_book(root, f, user_font_dir, pair_family):
     make_cover_item_first(opftree)
     cont_src_list = make_content_src_list(ncxtree)
     fix_display_none(opftree, epub_dir, cont_src_list)
-    replace_fonts(user_font_dir, epub_dir, ncxtree, opftree, pair_family)
 
     clean_meta_tags(opftree)
-    # temprorary disabled due critical problems
-    # update_css_font_families(epub_dir, opftree)
 
     write_file_changes_back(opftree, opf_path)
     write_file_changes_back(ncxtree, ncx_path)

@@ -35,8 +35,7 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           is_consistent_sfnt, recover_font_key, decrypt_font,
                           decrypt_unlisted_fonts,
                           IDPF_OBFUSCATION,
-                          find_file_in_dir,
-                          find_font_by_postscript_name, font_postscript_name,
+                          ttc_face_postscript_name,
                           fix_links_in_tree, remove_empty_toc_entries,
                           split_extra_cover_images,
                           image_data_end, insert_page_markers,
@@ -1164,28 +1163,6 @@ class StripNavAriaLabelsTest(unittest.TestCase):
         self.assertEqual(strip_nav_aria_labels(raw), (raw, 0))
 
 
-class FindFileInDirTest(unittest.TestCase):
-
-    def test_case_insensitive(self):
-        with tempfile.TemporaryDirectory() as d:
-            os.mkdir(os.path.join(d, 'sub'))
-            path = os.path.join(d, 'sub', 'texgyreschola-bold.otf')
-            open(path, 'w').close()
-            self.assertEqual(
-                find_file_in_dir('TeXGyreSchola-Bold.otf', d, True), path)
-            self.assertIsNone(
-                find_file_in_dir('TeXGyreSchola-Bold.otf', d, False))
-            self.assertIsNone(find_file_in_dir('Other.otf', d, True))
-
-    def test_exact_match_first(self):
-        with tempfile.TemporaryDirectory() as d:
-            for name in ('font.otf', 'Font.otf'):
-                open(os.path.join(d, name), 'w').close()
-            self.assertEqual(find_file_in_dir('Font.otf', d, False),
-                             os.path.join(d, 'Font.otf'))
-
-
-
 def ttf_with_postscript_name(ps_name):
     """Minimal TTF: offset table, one table record and a name table."""
     string = ps_name.encode('utf-16-be')
@@ -1321,7 +1298,7 @@ class RecoverFontKeyTest(unittest.TestCase):
                 f.write(self.obfuscate(font, self.IDPF_KEY, 1040))
             out = io.StringIO()
             with redirect_stdout(out):
-                decrypt_font(path, [(wrong_key, IDPF_OBFUSCATION)], d)
+                decrypt_font(path, [(wrong_key, IDPF_OBFUSCATION)])
             with open(path, 'rb') as f:
                 self.assertEqual(f.read(), font)
         self.assertIn('OK! Decrypted with the key recovered from the font.',
@@ -1342,7 +1319,7 @@ class RecoverFontKeyTest(unittest.TestCase):
                 f.write(font_data)
             out = io.StringIO()
             with redirect_stdout(out):
-                decrypt_unlisted_fonts(opftree, d, d)
+                decrypt_unlisted_fonts(opftree, d)
             with open(path, 'rb') as f:
                 return f.read(), out.getvalue()
 
@@ -1363,7 +1340,7 @@ class RecoverFontKeyTest(unittest.TestCase):
         garbage = bytes(range(7, 250)) * 9
         data, out = self.unlisted(garbage, uid='no-uuid')
         self.assertEqual(data, garbage)
-        self.assertIn('FAILED! Substitute NOT found.', out)
+        self.assertIn('FAILED!', out)
 
     def test_plain_and_woff_fonts_are_left_alone(self):
         for font in (build_sfnt(), b'wOFF' + bytes(500)):
@@ -1379,32 +1356,11 @@ class RecoverFontKeyTest(unittest.TestCase):
                 f.write(self.obfuscate(font, self.IDPF_KEY, 1040))
             out = io.StringIO()
             with redirect_stdout(out):
-                decrypt_font(path, [(self.IDPF_KEY, IDPF_OBFUSCATION)], d)
+                decrypt_font(path, [(self.IDPF_KEY, IDPF_OBFUSCATION)])
             with open(path, 'rb') as f:
                 self.assertEqual(f.read(), font)
         self.assertIn('OK! Decrypted.', out.getvalue())
         self.assertNotIn('recovered', out.getvalue())
-
-
-class FindFontByPostscriptNameTest(unittest.TestCase):
-
-    def test_postscript_name(self):
-        with tempfile.TemporaryDirectory() as d:
-            path = os.path.join(d, 'cambriai.ttf')
-            with open(path, 'wb') as f:
-                f.write(ttf_with_postscript_name('Cambria-Italic'))
-            self.assertEqual(font_postscript_name(path), 'Cambria-Italic')
-            self.assertEqual(find_font_by_postscript_name(
-                'Cambria-Italic.ttf', d, False), path)
-            self.assertIsNone(find_font_by_postscript_name(
-                'Cambria-Bold.ttf', d, False))
-
-    def test_not_a_font(self):
-        with tempfile.TemporaryDirectory() as d:
-            path = os.path.join(d, 'broken.ttf')
-            with open(path, 'wb') as f:
-                f.write(b'\x00\x01\x00\x00\x00\x05')
-            self.assertIsNone(font_postscript_name(path))
 
 
 def ttc_with_postscript_names(*ps_names):
@@ -1444,7 +1400,8 @@ class ConvertTtcFontsTest(unittest.TestCase):
                                                          'Foo.ttc')))
             path = os.path.join(d, 'font', 'Foo.ttf')
             self.assertEqual(check_font(path)[0], True)
-            self.assertEqual(font_postscript_name(path), 'Foo')
+            with open(path, 'rb') as f:
+                self.assertEqual(ttc_face_postscript_name(f.read(), 0), 'Foo')
             with open(os.path.join(d, 'style.css')) as f:
                 self.assertEqual(f.read(),
                                  '@font-face { src: url("font/Foo.ttf"); }')

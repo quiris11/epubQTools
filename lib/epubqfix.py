@@ -100,7 +100,6 @@ PAGEBREAK_RE = re.compile(
 PAGE_LIST_RE = re.compile(
     r'<pageList\b|epub:type\s*=\s*["\'][^"\']*\bpage-list\b')
 
-HOME = os.path.expanduser("~")
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
        '"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">')
 DTDN = '<!DOCTYPE html>'
@@ -366,7 +365,7 @@ def remove_node(node):
 
 
 # based on calibri work
-def process_encryption(encfile, opftree, fontdir):
+def process_encryption(encfile, opftree):
     print('* Font decrypting started...')
     root = etree.parse(encfile)
     for em in root.xpath(
@@ -383,11 +382,11 @@ def process_encryption(encfile, opftree, fontdir):
                                     '..', *uri.split('/')))
         key = find_encryption_key(opftree, algorithm)
         if os.path.exists(font_path):
-            decrypt_font(font_path, [(key, algorithm)], fontdir)
+            decrypt_font(font_path, [(key, algorithm)])
     return True
 
 
-def decrypt_unlisted_fonts(opftree, rootepubdir, fontdir):
+def decrypt_unlisted_fonts(opftree, rootepubdir):
     """Decrypt obfuscated fonts which are not listed in encryption.xml
     (e.g. the file was removed from the book, but the fonts were left
     obfuscated). The obfuscation method is unknown, so both are tried."""
@@ -407,7 +406,7 @@ def decrypt_unlisted_fonts(opftree, rootepubdir, fontdir):
                         for method in (IDPF_OBFUSCATION, ADOBE_OBFUSCATION)]
         print('* Font file "%s" is not listed in encryption.xml, but it is '
               'not a font (obfuscated?).' % os.path.basename(path))
-        decrypt_font(path, attempts, fontdir)
+        decrypt_font(path, attempts)
 
 
 def find_encryption_key(opftree, method, quiet=False):
@@ -452,46 +451,6 @@ def find_encryption_key(opftree, method, quiet=False):
     return uid
 
 
-def system_font_dirs():
-    """System font directories. On Linux they are searched recursively,
-    because fonts are stored in subdirectories there."""
-    if sys.platform == 'win32':
-        return [os.path.abspath(os.path.join(os.environ['WINDIR'], 'Fonts'))]
-    dirs = [os.path.join(os.path.sep, 'Library', 'Fonts'),
-            os.path.join(HOME, 'Library', 'Fonts')]
-    if sys.platform.startswith('linux'):
-        data_home = os.environ.get('XDG_DATA_HOME') or os.path.join(
-            HOME, '.local', 'share')
-        dirs += [os.path.join(data_home, 'fonts'),
-                 os.path.join(HOME, '.fonts'),
-                 os.path.join(os.path.sep, 'usr', 'local', 'share', 'fonts'),
-                 os.path.join(os.path.sep, 'usr', 'share', 'fonts')]
-    return dirs
-
-
-def find_file_in_dir(file_name, directory, recursive):
-    """Path of file_name in directory or None. An exact name match has
-    priority over a case-insensitive one (installed fonts are often renamed
-    to lower case, e.g. texgyreschola-bold.otf)."""
-    if not os.path.isdir(directory):
-        return None
-    if os.path.isfile(os.path.join(directory, file_name)):
-        return os.path.join(directory, file_name)
-    if recursive:
-        walk = list(os.walk(directory))
-    else:
-        walk = [(directory, [], os.listdir(directory))]
-    for root, dirs, files in walk:
-        if file_name in files:
-            return os.path.join(root, file_name)
-    lower_name = file_name.lower()
-    for root, dirs, files in walk:
-        for f in sorted(files):
-            if f.lower() == lower_name:
-                return os.path.join(root, f)
-    return None
-
-
 def name_table_postscript_name(name):
     """PostScript name (nameID 6) from raw name table data or None."""
     count, string_offset = struct.unpack('>HH', name[2:6])
@@ -505,26 +464,6 @@ def name_table_postscript_name(name):
             return raw.decode('utf-16-be', 'ignore')
         if platform == 1:
             return raw.decode('latin-1')
-    return None
-
-
-def font_postscript_name(path):
-    """PostScript name (name table, nameID 6) of a TTF/OTF file or None."""
-    try:
-        with open(path, 'rb') as f:
-            header = f.read(12)
-            if header[:4] not in {b'\x00\x01\x00\x00', b'OTTO'}:
-                return None
-            num_tables = struct.unpack('>H', header[4:6])[0]
-            tables = f.read(16 * num_tables)
-            for i in range(num_tables):
-                tag, _, offset, length = struct.unpack(
-                    '>4sIII', tables[16 * i:16 * (i + 1)])
-                if tag == b'name':
-                    f.seek(offset)
-                    return name_table_postscript_name(f.read(length))
-    except (OSError, struct.error):
-        return None
     return None
 
 
@@ -592,49 +531,6 @@ def extract_ttc_face(data, offset):
 
 def normalize_font_name(name):
     return re.sub(r'[\s_-]', '', name).lower()
-
-
-def find_font_by_postscript_name(file_name, directory, recursive):
-    """Path of a TTF/OTF font whose PostScript name matches the base name of
-    file_name or None. Installed fonts often have different file names than
-    the embedded ones (e.g. Cambria-Italic.ttf is installed as
-    cambriai.ttf)."""
-    if not os.path.isdir(directory):
-        return None
-    wanted = normalize_font_name(os.path.splitext(file_name)[0])
-    if recursive:
-        walk = os.walk(directory)
-    else:
-        walk = [(directory, [], os.listdir(directory))]
-    for root, dirs, files in walk:
-        for f in sorted(files):
-            if not f.lower().endswith(('.ttf', '.otf')):
-                continue
-            ps_name = font_postscript_name(os.path.join(root, f))
-            if ps_name and normalize_font_name(ps_name) == wanted:
-                return os.path.join(root, f)
-    return None
-
-
-def find_font_file(file_name, fontdir):
-    """Path of a font file named file_name (case-insensitive) or None.
-    The user font directory (--font-dir) has priority, then user and system
-    font directories. When no file name matches, a TTF/OTF font with a
-    matching PostScript name is searched for (not for TTC collections)."""
-    recursive = sys.platform.startswith('linux')
-    dirs = [(fontdir, False)] if fontdir else []
-    dirs += [(d, recursive) for d in system_font_dirs()]
-    for directory, rec in dirs:
-        found = find_file_in_dir(file_name, directory, rec)
-        if found:
-            return found
-    if file_name.lower().endswith('.ttc'):
-        return None
-    for directory, rec in dirs:
-        found = find_font_by_postscript_name(file_name, directory, rec)
-        if found:
-            return found
-    return None
 
 
 FONT_SIGNATURES = (b'\x00\x01\x00\x00', b'OTTO', b'ttcf')
@@ -754,7 +650,7 @@ def recover_font_key(raw, key_len, crypt_len):
 
 
 # based on calibri work
-def decrypt_font(path, attempts, fontdir):
+def decrypt_font(path, attempts):
     """Decrypt the font file with the first of attempts - pairs (key from
     the unique identifier or None, obfuscation method) - which gives a font.
     If none does, the key is recovered from the font itself."""
@@ -785,33 +681,12 @@ def decrypt_font(path, attempts, fontdir):
         f.write(data)
     is_font, signature = check_font(path)
     if not is_font:
+        qfixerr = True
         print('FAILED!')
     elif recovered:
         print('OK! Decrypted with the key recovered from the font.')
     else:
         print('OK! Decrypted.')
-    if not is_font:
-        print('* Starting replace procedure for encrypted file "%s" with font'
-              ' from system directory...' % os.path.basename(path), end=' ')
-        substitute = find_font_file(os.path.basename(path), fontdir)
-        if substitute:
-            os.remove(path)
-            shutil.copyfile(substitute, path)
-        is_font, signature = check_font(path)
-        if is_font:
-            print('OK! Replaced.')
-        else:
-            qfixerr = True
-            print('FAILED! Substitute NOT found.')
-
-
-def find_and_replace_fonts(opftree, rootepubdir, fontdir):
-    items = etree.XPath('//opf:item[@href]', namespaces=OPFNS)(opftree)
-    for item in items:
-        if (item.get('href').lower().endswith('.otf') or
-                item.get('href').lower().endswith('.ttf')):
-            actual_font_path = os.path.join(rootepubdir, item.get('href'))
-            replace_font(actual_font_path, fontdir)
 
 
 def convert_ttc_fonts(opftree, rootepubdir):
@@ -1173,22 +1048,6 @@ def generate_ncx_from_nav(opftree, opf_dir_abs):
     print('* Generated NCX file "%s" from EPUB 3 navigation document '
           '"%s" (%d TOC entries).' % (ncx_href, nav_href, len(navpoints)))
     return opftree
-
-
-def replace_font(actual_font_path, fontdir):
-    global qfixerr
-    font_replaced = False
-    substitute = find_font_file(os.path.basename(actual_font_path), fontdir)
-    if substitute:
-        os.remove(actual_font_path)
-        shutil.copyfile(substitute, actual_font_path)
-        font_replaced = True
-    if font_replaced:
-        print('* Font replaced: ' + os.path.basename(actual_font_path))
-    else:
-        qfixerr = True
-        print('! WARNING! Font "%s" not replaced. Substitute NOT found.'
-              % os.path.basename(actual_font_path))
 
 
 # temporary directories in use (removed after an unexpected error) and
@@ -4357,9 +4216,9 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
                 standalone=False, encoding='utf-8', doctype=set_dtd(opftree)))
 
 
-def process_epub(_tempdir, _replacefonts, _resetmargins,
-                 skip_hyph, arg_justify, arg_left, fontdir, del_colors,
-                 del_fonts, html_margin, dont_hyph_headers, skip_pages):
+def process_epub(_tempdir, _resetmargins, skip_hyph, arg_justify, arg_left,
+                 del_colors, del_fonts, html_margin, dont_hyph_headers,
+                 skip_pages):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path, is_fixed = find_roots(_tempdir)
@@ -4458,7 +4317,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
     # parse encryption.xml file
     enc_file = os.path.join(_tempdir, 'META-INF', 'encryption.xml')
     if os.path.exists(enc_file):
-        if not process_encryption(enc_file, opftree, fontdir):
+        if not process_encryption(enc_file, opftree):
             # not a font obfuscation (e.g. DRM) - removing encryption.xml
             # would produce a broken book that looks like a plain EPUB
             print('! CRITICAL! encryption.xml describes encryption other '
@@ -4466,10 +4325,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
             print('! Unable to proceed...')
             return True
         os.remove(enc_file)
-    decrypt_unlisted_fonts(opftree, opf_dir_abs, fontdir)
-
-    if _replacefonts:
-        find_and_replace_fonts(opftree, opf_dir_abs, fontdir)
+    decrypt_unlisted_fonts(opftree, opf_dir_abs)
     convert_ttc_fonts(opftree, opf_dir_abs)
     try:
         book_lang = opftree.xpath("//dc:language", namespaces=DCNS)[0].text
@@ -5071,10 +4927,9 @@ def qfix(root, f, moh_dir, *args, **kwargs):
         return 1
 
 
-def _qfix(root, f, moh_dir, _forced, _replacefonts, _resetmargins, zbf,
+def _qfix(root, f, moh_dir, _forced, _resetmargins, zbf,
          skip_hyph, arg_justify, arg_left, del_colors, del_fonts,
-         fontdir, fix_container_only, html_margin, dont_hyph_headers,
-         pair_family, skip_pages):
+         fix_container_only, html_margin, dont_hyph_headers, skip_pages):
     global qfixerr
     qfixerr = False
     if fix_container_only:
@@ -5099,9 +4954,8 @@ def _qfix(root, f, moh_dir, _forced, _replacefonts, _resetmargins, zbf,
     if skip_hyph:
         print('* Hyphenating is turned OFF...')
     is_failed = process_epub(
-        _tempdir, _replacefonts, _resetmargins, skip_hyph,
-        arg_justify, arg_left, fontdir, del_colors,
-        del_fonts, html_margin, dont_hyph_headers, skip_pages)
+        _tempdir, _resetmargins, skip_hyph, arg_justify, arg_left,
+        del_colors, del_fonts, html_margin, dont_hyph_headers, skip_pages)
     if not is_failed:
         os.makedirs(moh_dir, exist_ok=True)
         pack_epub(os.path.join(moh_dir, newfile), _tempdir)
@@ -5113,4 +4967,4 @@ def _qfix(root, f, moh_dir, _forced, _replacefonts, _resetmargins, zbf,
         print('FINISH qfix for: ' + f)
     clean_temp(_tempdir)
     if not is_failed:
-        beautify_book(moh_dir, f, fontdir, pair_family)
+        beautify_book(moh_dir, f)
