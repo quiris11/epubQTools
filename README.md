@@ -39,7 +39,7 @@ not hyphenated. A book without a language is treated as Polish.
 ## calibre plugin
 
 ### Installing
-Requires calibre 6 or newer (https://calibre-ebook.com).
+Requires calibre 6.17 or newer (https://calibre-ebook.com).
 1. Download **epubQTools-calibre-VERSION.zip** from the
    [latest release](https://github.com/quiris11/epubQTools/releases/latest)
    (under "Assets"). Do not unpack it.
@@ -55,9 +55,12 @@ To remove it: **Preferences → Plugins**, select "epubQTools", **Remove plugin*
 ### Using
 Select books and click **epubQTools**. The arrow next to the button opens a menu:
 * **Fix the selected books** - the same as the button. The fixed book becomes the
-  EPUB format, the original is kept as **ORIGINAL_EPUB**. Fixing a book again
-  always starts from the original.
-* **Restore the original** - brings the original EPUB back.
+  EPUB format, the original is kept in the **Data files** of the book (file
+  "epubQTools original.epub"). Fixing a book again always starts from the
+  original. Converting the book in calibre (e.g. to MOBI) starts from the fixed
+  EPUB.
+* **Restore the original** - brings the original EPUB back. In calibre older
+  than 8 the copy of the original stays in the data files.
 * **Settings…** - what to change in the books (below).
 
 You can keep using calibre while the books are being fixed. At the end a window

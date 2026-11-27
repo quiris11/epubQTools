@@ -12,9 +12,11 @@ without calibre."""
 POLISH = {
     # __init__.py: description in Preferences > Plugins
     'Fixes the selected EPUB books like “epubQTools -e”. The fixed version '
-    'becomes the EPUB format, the original is kept as ORIGINAL_EPUB.':
+    'becomes the EPUB format, the original is kept in the data files of '
+    'the book.':
     'Poprawia zaznaczone książki EPUB tak jak „epubQTools -e”. Poprawiona '
-    'wersja staje się formatem EPUB, oryginał zostaje jako ORIGINAL_EPUB.',
+    'wersja staje się formatem EPUB, oryginał zostaje w plikach danych '
+    'książki.',
 
     # action.py: toolbar button and its menu
     'Fix the selected EPUB books (like epubQTools -e)':
@@ -47,13 +49,12 @@ POLISH = {
     'Without the EPUB format (skipped):': 'Bez formatu EPUB (pominięte):',
 
     # action.py: restoring the original
-    'The selected books have no saved original (format ORIGINAL_EPUB).':
-    'Zaznaczone książki nie mają zachowanego oryginału (format '
-    'ORIGINAL_EPUB).',
+    'The selected books have no original saved by epubQTools.':
+    'Zaznaczone książki nie mają oryginału zachowanego przez epubQTools.',
     'Restore the original in the selected books (%d)? The fixed EPUB will '
-    'be replaced with the original (ORIGINAL_EPUB).':
+    'be replaced with the original saved by epubQTools.':
     'Przywrócić oryginał w zaznaczonych książkach (%d)? Poprawiona wersja '
-    'EPUB zostanie zastąpiona oryginałem (ORIGINAL_EPUB).',
+    'EPUB zostanie zastąpiona oryginałem zachowanym przez epubQTools.',
     'epubQTools: original restored (%d)':
     'epubQTools: przywrócono oryginał (%d)',
 

@@ -6,7 +6,8 @@
 
 """epubQTools as a calibre plugin: fixes the selected EPUB books like
 'epubQTools -e'. The fixed book becomes the EPUB format, the original is
-kept as ORIGINAL_EPUB. Build the plugin with build_calibre_plugin.py."""
+kept as a data file of the book. Build the plugin with
+build_calibre_plugin.py."""
 
 from calibre.customize import InterfaceActionBase
 
@@ -18,11 +19,11 @@ class EpubQToolsPlugin(InterfaceActionBase):
     name = 'epubQTools'
     description = tr('Fixes the selected EPUB books like “epubQTools -e”. '
                      'The fixed version becomes the EPUB format, the '
-                     'original is kept as ORIGINAL_EPUB.')
+                     'original is kept in the data files of the book.')
     supported_platforms = ['windows', 'osx', 'linux']
     author = 'Robert Błaut'
     version = (1, 0, 0)
-    minimum_calibre_version = (6, 0, 0)
+    minimum_calibre_version = (6, 17, 0)   # data files of books
     actual_plugin = 'calibre_plugins.epubqtools.action:EpubQToolsAction'
 
     def is_customizable(self):

@@ -6,6 +6,7 @@
 """Parts of the calibre plugin which work without calibre: settings,
 work with the library (on a fake library) and the built zip."""
 import ast
+import collections
 import importlib.util
 import inspect
 import os
@@ -36,11 +37,13 @@ def load(name):
 options = load('options')
 library = load('library')
 translations = load('translations')
+ORIG = library.ORIGINAL_FILE
 
 
 class FakeDB(object):
     """The calls of db.new_api used by the plugin, with the behaviour of
-    calibre 9.19: save_original_format overwrites ORIGINAL_EPUB."""
+    calibre 9.19. Data files are kept under their relpath next to the
+    formats."""
 
     def __init__(self, books):
         self.books = books          # id -> {'title': str, fmt: bytes}
@@ -49,7 +52,7 @@ class FakeDB(object):
         return book_id in self.books
 
     def has_format(self, book_id, fmt):
-        return fmt in self.books.get(book_id, {})
+        return fmt in self.books.get(book_id, {}) and '/' not in fmt
 
     def field_for(self, field, book_id):
         return self.books[book_id][field]
@@ -58,19 +61,46 @@ class FakeDB(object):
         with open(dest, 'wb') as f:
             f.write(self.books[book_id][fmt])
 
-    def save_original_format(self, book_id, fmt):
-        self.books[book_id]['ORIGINAL_' + fmt] = self.books[book_id][fmt]
-        return True
-
     def add_format(self, book_id, fmt, path, run_hooks=True):
         with open(path, 'rb') as f:
             self.books[book_id][fmt] = f.read()
         return True
 
+    def remove_formats(self, formats_map):
+        for book_id, fmts in formats_map.items():
+            for fmt in fmts:
+                self.books[book_id].pop(fmt, None)
+
     def restore_original_format(self, book_id, original_fmt):
         book = self.books[book_id]
         book[original_fmt[len('ORIGINAL_'):]] = book.pop(original_fmt)
         return True
+
+    def list_extra_files(self, book_id):
+        return tuple(collections.namedtuple('ExtraFile', 'relpath')(k)
+                     for k in self.books[book_id] if '/' in k)
+
+    def add_extra_files(self, book_id, files):
+        for relpath, path in files.items():
+            with open(path, 'rb') as f:
+                self.books[book_id][relpath] = f.read()
+        return dict.fromkeys(files, True)
+
+    def copy_extra_file_to(self, book_id, relpath, dest):
+        self.copy_format_to(book_id, relpath, dest)
+
+    def remove_extra_files(self, book_id, relpaths):
+        for relpath in relpaths:
+            del self.books[book_id][relpath]
+        return dict.fromkeys(relpaths)
+
+
+class OldFakeDB(FakeDB):
+    """calibre < 8: no remove_extra_files."""
+
+    @property
+    def remove_extra_files(self):
+        raise AttributeError('remove_extra_files')
 
 
 class TestOptions(unittest.TestCase):
@@ -137,15 +167,19 @@ class TestLibrary(unittest.TestCase):
         self.assertEqual(len(library.file_name('a' * 300, 1)), 105)
 
     def test_copy_books_prefers_original(self):
-        db = FakeDB({1: {'title': 'A', 'EPUB': b'fixed',
-                         'ORIGINAL_EPUB': b'orig'},
+        db = FakeDB({1: {'title': 'A', 'EPUB': b'fixed', ORIG: b'orig',
+                         'ORIGINAL_EPUB': b'polished'},
                      2: {'title': 'B', 'EPUB': b'b'},
-                     3: {'title': 'C', 'MOBI': b'c'}})
-        books, skipped = library.copy_books(db, [1, 2, 3], self.dir)
-        self.assertEqual([(b[0], b[2]) for b in books], [(1, 'A'), (2, 'B')])
+                     3: {'title': 'C', 'MOBI': b'c'},
+                     4: {'title': 'D', 'EPUB': b'fixed',
+                         'ORIGINAL_EPUB': b'orig'}})
+        books, skipped = library.copy_books(db, [1, 2, 3, 4], self.dir)
+        self.assertEqual([(b[0], b[2]) for b in books],
+                         [(1, 'A'), (2, 'B'), (4, 'D')])
         self.assertEqual(skipped, ['C'])
-        with open(books[0][1], 'rb') as f:
-            self.assertEqual(f.read(), b'orig')
+        for book, data in zip(books, (b'orig', b'b', b'orig')):
+            with open(book[1], 'rb') as f:
+                self.assertEqual(f.read(), data)
         self.assertEqual(os.path.dirname(books[1][1]),
                          os.path.join(self.dir, '2'))
 
@@ -153,28 +187,57 @@ class TestLibrary(unittest.TestCase):
         db = FakeDB({1: {'title': 'A', 'EPUB': b'orig'}})
         self.assertTrue(library.store_fixed(db, 1, self.fixed(b'fix1')))
         self.assertTrue(library.store_fixed(db, 1, self.fixed(b'fix2')))
-        self.assertEqual(db.books[1]['EPUB'], b'fix2')
-        self.assertEqual(db.books[1]['ORIGINAL_EPUB'], b'orig')
+        self.assertEqual(db.books[1], {'title': 'A', 'EPUB': b'fix2',
+                                       ORIG: b'orig'})
+
+    def test_converted_from_fixed(self):
+        """calibre converts from ORIGINAL_EPUB if the book has it, so the
+        book must not have it after fixing."""
+        db = FakeDB({1: {'title': 'A', 'EPUB': b'fix0',
+                         'ORIGINAL_EPUB': b'orig'},
+                     2: {'title': 'B', 'EPUB': b'polished', ORIG: b'orig',
+                         'ORIGINAL_EPUB': b'fix1'}})
+        self.assertTrue(library.store_fixed(db, 1, self.fixed(b'fix')))
+        self.assertTrue(library.store_fixed(db, 2, self.fixed(b'fix')))
+        for book in (db.books[1], db.books[2]):
+            self.assertEqual(book[ORIG], b'orig')
+            self.assertEqual(book['EPUB'], b'fix')
+            self.assertNotIn('ORIGINAL_EPUB', book)
 
     def test_store_book_gone(self):
         db = FakeDB({1: {'title': 'A', 'MOBI': b'm'}})
         self.assertFalse(library.store_fixed(db, 1, self.fixed(b'x')))
         self.assertFalse(library.store_fixed(db, 2, self.fixed(b'x')))
-        self.assertNotIn('EPUB', db.books[1])
+        self.assertEqual(db.books[1], {'title': 'A', 'MOBI': b'm'})
 
     def test_store_epub_removed_original_kept(self):
         db = FakeDB({1: {'title': 'A', 'ORIGINAL_EPUB': b'orig'}})
         self.assertTrue(library.store_fixed(db, 1, self.fixed(b'fix')))
         self.assertEqual(db.books[1], {'title': 'A', 'EPUB': b'fix',
-                                       'ORIGINAL_EPUB': b'orig'})
+                                       ORIG: b'orig'})
 
     def test_restore(self):
         db = FakeDB({1: {'title': 'A', 'EPUB': b'orig'},
-                     2: {'title': 'B', 'EPUB': b'b'}})
+                     2: {'title': 'B', 'EPUB': b'b'},
+                     3: {'title': 'C', 'EPUB': b'fix',
+                         'ORIGINAL_EPUB': b'orig'}})
         library.store_fixed(db, 1, self.fixed(b'fix'))
-        self.assertTrue(library.restore_original(db, 1))
+        self.assertEqual([library.has_original(db, i) for i in (1, 2, 3, 4)],
+                         [True, False, True, False])
+        self.assertTrue(library.restore_original(db, 1, self.dir))
         self.assertEqual(db.books[1], {'title': 'A', 'EPUB': b'orig'})
-        self.assertFalse(library.restore_original(db, 2))
+        self.assertFalse(library.restore_original(db, 2, self.dir))
+        self.assertTrue(library.restore_original(db, 3, self.dir))
+        self.assertEqual(db.books[3], {'title': 'C', 'EPUB': b'orig'})
+        self.assertFalse(library.has_original(db, 1))
+
+    def test_restore_old_calibre(self):
+        """calibre < 8 cannot remove data files: the original stays."""
+        db = OldFakeDB({1: {'title': 'A', 'EPUB': b'orig'}})
+        library.store_fixed(db, 1, self.fixed(b'fix'))
+        self.assertTrue(library.restore_original(db, 1, self.dir))
+        self.assertEqual(db.books[1], {'title': 'A', 'EPUB': b'orig',
+                                       ORIG: b'orig'})
 
 
 class TestTranslations(unittest.TestCase):

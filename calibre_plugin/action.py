@@ -17,7 +17,7 @@ from calibre.gui2.actions import InterfaceAction
 from calibre.ptempfile import PersistentTemporaryDirectory
 
 from .config import current_settings
-from .library import ORIGINAL, copy_books, restore_original, store_fixed
+from .library import copy_books, has_original, restore_original, store_fixed
 from .translations import tr
 
 TITLE = 'epubQTools'
@@ -143,19 +143,24 @@ class EpubQToolsAction(InterfaceAction):
     def restore_selected(self):
         book_ids = self.selected_ids()
         db = self.gui.current_db.new_api
-        with_original = [i for i in book_ids if db.has_format(i, ORIGINAL)]
+        with_original = [i for i in book_ids if has_original(db, i)]
         if not with_original:
             return info_dialog(
                 self.gui, TITLE,
-                tr('The selected books have no saved original (format '
-                   'ORIGINAL_EPUB).'), show=True)
+                tr('The selected books have no original saved by '
+                   'epubQTools.'), show=True)
         if not question_dialog(
                 self.gui, TITLE,
                 tr('Restore the original in the selected books (%d)? The '
-                   'fixed EPUB will be replaced with the original '
-                   '(ORIGINAL_EPUB).') % len(with_original)):
+                   'fixed EPUB will be replaced with the original saved '
+                   'by epubQTools.') % len(with_original)):
             return
-        restored = [i for i in with_original if restore_original(db, i)]
+        work_dir = PersistentTemporaryDirectory('_epubqtools')
+        try:
+            restored = [i for i in with_original
+                        if restore_original(db, i, work_dir)]
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
         if restored:
             self.refresh(restored)
         self.gui.status_bar.show_message(

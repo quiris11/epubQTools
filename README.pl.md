@@ -41,7 +41,7 @@ francuskie nie są dzielone. Książka bez języka jest traktowana jak polska.
 ## Wtyczka do calibre
 
 ### Instalacja
-Potrzebny jest calibre 6 lub nowszy (https://calibre-ebook.com).
+Potrzebny jest calibre 6.17 lub nowszy (https://calibre-ebook.com).
 1. Pobierz plik **epubQTools-calibre-WERSJA.zip** z
    [najnowszego wydania](https://github.com/quiris11/epubQTools/releases/latest)
    (w części „Assets”). Nie rozpakowuj go.
@@ -58,9 +58,12 @@ Usunięcie: **Ustawienia → Wtyczki**, zaznacz „epubQTools”, **Usuń wtyczk
 ### Używanie
 Zaznacz książki i kliknij **epubQTools**. Strzałka obok przycisku otwiera menu:
 * **Popraw zaznaczone książki** – to samo co przycisk. Poprawiona książka staje
-  się formatem EPUB, a oryginał zostaje jako **ORIGINAL_EPUB**. Ponowne
-  poprawianie zawsze zaczyna się od oryginału.
-* **Przywróć oryginał** – przywraca oryginalny EPUB.
+  się formatem EPUB, a oryginał zostaje w **plikach danych** książki (plik
+  „epubQTools original.epub”). Ponowne poprawianie zawsze zaczyna się od
+  oryginału. Konwersja książki w calibre (np. do MOBI) zaczyna się od
+  poprawionego EPUB.
+* **Przywróć oryginał** – przywraca oryginalny EPUB. W calibre starszym niż 8
+  kopia oryginału zostaje w plikach danych.
 * **Ustawienia…** – co zmieniać w książkach (niżej).
 
 W czasie poprawiania można dalej korzystać z calibre. Na koniec okienko pokazuje
