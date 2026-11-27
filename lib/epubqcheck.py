@@ -17,6 +17,7 @@ import struct
 from urllib.parse import unquote
 from .htmlconstants import entities
 from .csscheck import check_css
+from .hyphenation import is_no_language, is_polish, looks_polish
 
 try:
     from tidylib import tidy_document
@@ -226,6 +227,23 @@ def find_cover_image(_opftree, _file_dec):
         print(_file_dec + 'No images in an entire book found...')
 
 
+def book_texts(epub, opftree, folder):
+    """The texts of the bodies of the xhtml files of the book."""
+    for item in opftree.xpath(
+            '//opf:item[@media-type="application/xhtml+xml"]',
+            namespaces=OPFNS):
+        name = os.path.normpath(folder + item.get('href', '')).replace(
+            '\\', '/')
+        try:
+            tree = etree.fromstring(epub.read(name), recover_parser)
+        except (KeyError, etree.Error, ValueError):
+            continue
+        if tree is None:
+            continue
+        for body in tree.xpath('//xhtml:body', namespaces=XHTMLNS):
+            yield from body.itertext()
+
+
 def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
                     skip_font_mime=False):
 
@@ -371,17 +389,20 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
                 if t.text.isupper():
                     print(_file_dec + 'dc:title (book title) UPPERCASED: '
                           '"%s". Consider changing...' % titles[0].text)
-    language_tags = etree.XPath('//dc:language/text()',
-                                namespaces=DCNS)(opftree)
+    language_tags = [
+        x.strip() for x in etree.XPath('//dc:language/text()',
+                                       namespaces=DCNS)(opftree)
+        if not is_no_language(x)]
     if len(language_tags) == 0:
         print(_file_dec + 'No dc:language defined')
     else:
         if len(language_tags) > 1:
             print(_file_dec + 'Multiple dc:language tags')
-        for _lang in language_tags:
-            if _lang != 'pl':
-                print(_file_dec + 'Problem with '
-                      'dc:language. Current value: ' + _lang)
+        other_langs = [x for x in language_tags if not is_polish(x)]
+        if other_langs and looks_polish(
+                book_texts(_epubfile, opftree, _folder)):
+            print('%sdc:language is "%s", but the text looks Polish'
+                  % (_file_dec, other_langs[0]))
 
     _metacovers = etree.XPath('//opf:meta[@name="cover"]',
                               namespaces=OPFNS)(opftree)
