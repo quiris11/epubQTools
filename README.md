@@ -1,6 +1,8 @@
 epubQTools [![Release](https://img.shields.io/github/release/quiris11/epubqtools.svg)](https://github.com/quiris11/epubqtools/releases/latest)
 ==========
 
+[Polska wersja](README.pl.md)
+
 Tools for checking, fixing and hyphenating EPUB books, especially for Kindle
 readers (Send to Kindle). epubQTools fixes the problems which spoil reading
 (broken CSS, covers, links, notes, obfuscated fonts...), hyphenates Polish books,
@@ -35,15 +37,18 @@ To update the plugin, install the new file the same way (the settings are kept).
 To remove it: **Preferences → Plugins**, select "epubQTools", **Remove plugin**.
 
 ### Using
+The plugin uses the language of calibre: Polish when calibre is in Polish,
+English otherwise.
+
 Select one or more books and click the **epubQTools** button (or the arrow next to
-it for the menu):
-* **Popraw zaznaczone książki** (fix the selected books) - the same as the button.
-  The fixed book replaces the EPUB format and the original is kept as the
-  **ORIGINAL_EPUB** format. The original is kept only the first time, so fixing
-  a book again starts from the original, not from the fixed version.
-* **Przywróć oryginał** (restore the original) - the EPUB format becomes the
-  original again and ORIGINAL_EPUB is removed.
-* **Ustawienia…** (settings) - see below.
+it for the menu). The menu has three items:
+* **Fix the selected books** (the same as the button). The fixed book replaces
+  the EPUB format and the original is kept as the **ORIGINAL_EPUB** format. The
+  original is kept only the first time, so fixing a book again starts from the
+  original, not from the fixed version.
+* **Restore the original** - the EPUB format becomes the original again and
+  ORIGINAL_EPUB is removed.
+* **Settings…** - see below.
 
 The books are fixed in the background (shown in calibre's Jobs), so calibre can
 be used meanwhile. At the end a window shows how many books were fixed and lists
@@ -56,14 +61,14 @@ The defaults give the same result as `-e` on the command line:
 
 | Setting | Default | Command line option |
 |---|---|---|
-| Dziel wyrazy (hyphenate; Polish books only) | on | `-s` turns it off |
-| Dziel też wyrazy w nagłówkach (hyphenate headers) | on | `-r` turns it off |
-| Dołącz reset CSS (link the reset CSS) | on | `-c` turns it off |
-| Wyrównanie tekstu (alignment): justify / left / no change | justify | – / `--left` / `--skip-justify` |
-| Usuń kolory (remove colors; not with "no change") | off | `--remove-colors` |
-| Margines lewy i prawy (left and right margin) | off | `--book-margin` |
-| Usuń wbudowane fonty (remove embedded fonts) | off | `--remove-fonts` |
-| Dodaj przybliżoną listę stron (approximate page list) | on | `--skip-page-list` turns it off |
+| Hyphenate words (Polish books only) | on | `-s` turns it off |
+| Hyphenate also words in headings | on | `-r` turns it off |
+| Add a CSS reset | on | `-c` turns it off |
+| Text alignment: justify text aligned to the left / align justified text to the left / no change | justify | – / `--left` / `--skip-justify` |
+| Remove colors (not with "No change") | off | `--remove-colors` |
+| Left and right margin | off | `--book-margin` |
+| Remove embedded fonts | off | `--remove-fonts` |
+| Add an approximate page list | on | `--skip-page-list` turns it off |
 
 ## Command line
 
@@ -162,46 +167,6 @@ options:
 `-m`, `-k` and `-t` use only the _moh.epub files in the 'MOH' subfolder. Old results of earlier
 versions (next to the originals, or directly in 'MOH' for books from subfolders) are skipped and
 listed in a warning.
-
-### Page list (-e):
-Books without a page list (no NCX `pageList`, no nav `page-list`, no `pagebreak` markers) get
-a list of approximate pages: empty `<span id="eqt_page_N"></span>` markers in the text, a
-`pageList` in the NCX and, in EPUB 3, a hidden `<nav epub:type="page-list">`. Every spine file
-starts a new page; a block (paragraph, heading, list item...) takes ceil(chars / 68) lines and a
-page has 29 lines (calibrated on Polish books with print page numbers, average error ~15% per
-book, systematic error under 4%).
-Send to Kindle keeps such a list, so the "Pages" option works also for books for which Amazon
-does not generate pages itself (e.g. books with tables). Turn it off with `--skip-page-list`.
-
-### Pop-up notes (-e):
-Note asides (linked with `epub:type="noteref"` or `role="doc-noteref"` links, or with
-`epub:type` `footnote`, `endnote`, `rearnote` or `note`) are fixed for pop-ups of Send to Kindle.
-If a note starts with its number and ends with a back link (e.g. "↩"), the number becomes the
-back link: Kindle Paperwhite 1 and Voyage (AZW3) show also the next note in the pop-up if the back
-link is at the end of a note.
-A note which starts with its back link stays an `<aside>` and gets the `eqt_note` class. If the
-CSS rules of asides (or of the classes of the notes) set borders or page breaks, a rule
-`aside.eqt_note` turns them off with `!important` (Send to Kindle does not show notes with a
-border in pop-ups, and a page break in note styles turns off pop-ups in the whole book in KFX);
-the rules of the book are not changed, as they apply also to other asides. Such declarations are
-also removed from the `style` attributes of the notes.
-Other notes (without a back link at the start) are replaced with list items of an
-`<ol class="eqt_notes">` list (consecutive notes in one list): Send to Kindle only jumps to such
-asides, but shows such list items in pop-ups. An aside with a single `<p>` becomes a list item
-with the contents of the paragraph. The list items keep the CSS styles of the asides, without
-borders and page breaks.
-Notes without note markup (e.g. in EPUB 2 books) in list items which end with a back link (e.g.
-"[back]") get the back link at their start, on the number of the note: Send to Kindle only jumps
-to such notes if the back link is at their end. This is done only for `<ol>` lists in which every
-item is the target of a link with only a number (in the same file) and ends with a back link to that
-link; the numbering of the list is turned off, as the numbers are now in the notes.
-Soft hyphens are removed from all notes linked with noteref links and from the notes above: Kindle
-Paperwhite 1 does not show the hyphen at a line break in pop-ups.
-If the back link at the start of such a note (or an element around it, e.g. the `<span>` of the
-number) has `display: inline-block` (in a CSS rule of its tag and classes or in its `style`
-attribute), it gets the `eqt_note_number` class and a rule `.eqt_note_number` sets
-`display: inline !important`: Send to Kindle (KFX) does not show such notes in pop-ups. The rules
-of the book are not changed; the declaration is removed from the `style` attribute.
 
 ### Output messages:
 By default (without `-v`) only problems are printed while the books are processed: warnings, errors
