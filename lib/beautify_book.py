@@ -7,6 +7,7 @@
 
 
 import os
+import posixpath
 import sys
 import re
 import logging
@@ -241,10 +242,27 @@ def rename_file(opftree, ncxtree, epub_dir, old_name_path, new_name_path):
         return opftree, True
 
     def update_ncx(ncxtree, old_name_path, new_name_path):
+        # the paths in the NCX are relative to the NCX file, which may be
+        # in another folder than the OPF file
+        ncx_items = etree.XPath(
+            '//opf:item[@media-type="application/x-dtbncx+xml"]',
+            namespaces=OPFNS)(opftree)
+        ncx_dir = posixpath.dirname(ncx_items[0].get('href')) \
+            if ncx_items else ''
+        old_path = posixpath.normpath(old_name_path.replace('\\', '/'))
+        new_path = new_name_path.replace('\\', '/')
         contents = etree.XPath('//ncx:content', namespaces=NCXNS)(ncxtree)
         for c in contents:
-            if c.get('src') == old_name_path:
-                c.set('src', new_name_path.replace('\\', '/'))
+            src = c.get('src') or ''
+            path, sep, frag = src.partition('#')
+            if src == old_name_path:
+                # same as before when the NCX is next to the OPF file
+                c.set('src', new_path)
+            elif path and posixpath.normpath(posixpath.join(
+                    ncx_dir, unquote(path))) == old_path:
+                c.set('src', posixpath.relpath(
+                    posixpath.normpath(new_path), ncx_dir or '.') +
+                    sep + frag)
 
     opftree, is_updated = update_opf(opftree, old_name_path, new_name_path)
     if is_updated:

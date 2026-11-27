@@ -12,6 +12,7 @@ from contextlib import redirect_stdout
 
 from lxml import etree
 
+from lib.beautify_book import rename_file
 from lib.epubqfix import OPFNS, XHTMLNS, find_xhtml_files, fix_html_toc
 from tests.test_epubqcheck import XHTML, opf
 
@@ -148,6 +149,49 @@ class FixHtmlTocTest(unittest.TestCase):
         self.assertEqual(
             toc.xpath('//xhtml:link/@href', namespaces=XHTMLNS),
             ['./styles/s.css'])
+
+
+class RenameFileNcxTest(unittest.TestCase):
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.dir)
+
+    def rename(self, ncx_href, srcs, old, new):
+        opftree = etree.fromstring(opf(
+            [('t', old, 'application/xhtml+xml'),
+             ('ncx', ncx_href, 'application/x-dtbncx+xml')], ['t']).encode())
+        root = os.path.join(self.dir, 'OEBPS')
+        os.makedirs(root)
+        os.makedirs(os.path.dirname(os.path.normpath(
+            os.path.join(root, old))), exist_ok=True)
+        with open(os.path.join(root, old), 'w', encoding='utf-8') as f:
+            f.write(XHTML % '<p>title</p>')
+        ncxtree = etree.fromstring((NCX % ''.join(
+            NAV_POINT % (n, n, n, src)
+            for n, src in enumerate(srcs, 1))).encode()).getroottree()
+        with redirect_stdout(io.StringIO()):
+            rename_file(opftree, ncxtree, root, old, new)
+        self.assertTrue(os.path.isfile(os.path.join(root, new)))
+        return ncxtree.xpath('//ncx:content/@src', namespaces={
+            'ncx': 'http://www.daisy.org/z3986/2005/ncx/'})
+
+    def test_ncx_in_other_folder(self):
+        # OEBPS/content.opf, toc.ncx and text/ in the root folder
+        self.assertEqual(
+            self.rename('../toc.ncx',
+                        ['text/titlepage.xhtml', 'text/titlepage.xhtml#a',
+                         'text/other.xhtml'],
+                        '../text/titlepage.xhtml', '../text/cover.html'),
+            ['text/cover.html', 'text/cover.html#a', 'text/other.xhtml'])
+
+    def test_ncx_next_to_opf(self):
+        self.assertEqual(
+            self.rename('toc.ncx', ['text/titlepage.xhtml', 'other.xhtml'],
+                        'text/titlepage.xhtml', 'text/cover.html'),
+            ['text/cover.html', 'other.xhtml'])
 
 
 if __name__ == '__main__':
