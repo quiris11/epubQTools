@@ -22,7 +22,8 @@ WARNING! - may cause problems in some readers:
 
 import re
 import sys
-from pkgutil import get_data
+
+from lib.resource_data import read_resource
 
 try:
     import tinycss2
@@ -35,7 +36,7 @@ except ImportError as e:
 # property names known to browsers (MDN) and used in e-books
 KNOWN_PROPERTIES = {
     line.strip() for line in
-    get_data('lib', 'resources/css_properties.txt').decode('utf-8')
+    read_resource('css_properties.txt').decode('utf-8')
     .splitlines() if line.strip() and not line.startswith('#')
 } | {'adobe-hyphenate', 'adobe-text-layout', 'oeb-column-number'}
 # descriptors allowed only inside @font-face and @page
@@ -257,7 +258,7 @@ ZERO_WIDTH_SPACE = '​'
 # keywords allowed in values (colors, border styles, font weights etc.)
 VALUE_KEYWORDS = {
     line.strip() for line in
-    get_data('lib', 'resources/css_value_keywords.txt').decode('utf-8')
+    read_resource('css_value_keywords.txt').decode('utf-8')
     .splitlines() if line.strip() and not line.startswith('#')
 }
 VALUE_WORD_RE = re.compile(

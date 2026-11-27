@@ -27,7 +27,6 @@ import unicodedata
 import io
 import traceback
 
-from pkgutil import get_data
 from urllib.parse import quote, unquote
 from itertools import cycle
 from lib.htmlconstants import entities
@@ -38,6 +37,7 @@ from lib.csscheck import (class_rules, fix_missing_semicolons,
                           remove_class_rules, remove_page_descriptors,
                           remove_src_descriptors)
 from lib.hyphenator import Hyphenator
+from lib.resource_data import read_resource
 from lib.beautify_book import beautify_book
 from collections import Counter
 from functools import reduce
@@ -62,21 +62,14 @@ css_parser.log.raiseExceptions = False
 # set up recover parser for malformed XML
 recover_parser = etree.XMLParser(recover=True)
 
-if not hasattr(sys, 'frozen'):
-    dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='epubQTools-tmp-')
-    dic_name = os.path.join(dic_tmp_dir, 'hyph_pl_PL.dic')
-    try:
-        with open(dic_name, 'wb') as f:
-            data = get_data('lib', 'resources/dictionaries/hyph_pl_PL.dic')
-            f.write(data)
-        hyph = Hyphenator(dic_name)
-    finally:
-        shutil.rmtree(dic_tmp_dir)
-else:
-    hyph = Hyphenator(os.path.join(
-        os.path.dirname(sys.executable), 'resources',
-        'dictionaries', 'hyph_pl_PL.dic'
-    ))
+dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='epubQTools-tmp-')
+dic_name = os.path.join(dic_tmp_dir, 'hyph_pl_PL.dic')
+try:
+    with open(dic_name, 'wb') as f:
+        f.write(read_resource('dictionaries/hyph_pl_PL.dic'))
+    hyph = Hyphenator(dic_name)
+finally:
+    shutil.rmtree(dic_tmp_dir)
 MY_LANGUAGE = 'pl'
 MY_LANGUAGE2 = 'pl-PL'
 HYPHEN_MARK = '\u00AD'
@@ -1267,7 +1260,7 @@ def rebuilt_container(epub):
     for name in epub.namelist():
         if name.endswith('.opf'):
             cr_tree = etree.fromstring(
-                get_data('lib', 'resources/container.xml'))
+                read_resource('container.xml'))
             cr_tree.xpath('//cr:rootfile',
                           namespaces=CRNS)[0].set('full-path', name)
             return etree.tostring(cr_tree, pretty_print=True,
@@ -1410,7 +1403,7 @@ def find_roots(tempdir):
                                              'container.xml')
                     opf_path = os.path.join(reldir, f)
                     cr_tree = etree.fromstring(
-                        get_data('lib', 'resources/container.xml')
+                        read_resource('container.xml')
                     )
                     cr_tree.xpath(
                         '//cr:rootfile',
@@ -1629,14 +1622,8 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
         else:
             print('* Fix for a missing HTML TOC file. Generating a new TOC...')
             parser = etree.XMLParser(remove_blank_text=True)
-            if not hasattr(sys, 'frozen'):
-                transform = etree.XSLT(etree.fromstring(get_data('lib',
-                                       'resources/ncx2end-0.2.xsl')))
-            else:
-                transform = etree.XSLT(etree.parse(os.path.join(
-                    os.path.dirname(sys.executable), 'resources',
-                    'ncx2end-0.2.xsl'
-                )))
+            transform = etree.XSLT(etree.fromstring(
+                read_resource('ncx2end-0.2.xsl')))
             try:
                 toc_ncx_file = etree.XPath(
                     '//opf:item[@media-type="application/x-dtbncx+xml"]',
@@ -1958,7 +1945,7 @@ def create_html_cover(opftree, tempdir, image_href):
                 not os.path.exists(os.path.join(tempdir, *href.split('/')))):
             break
         number += 1
-    doc = etree.fromstring(get_data('lib', 'resources/cover.xhtml'))
+    doc = etree.fromstring(read_resource('cover.xhtml'))
     doc.find('.//{http://www.w3.org/1999/xhtml}img').set(
         'src', relative_href(image_href, textdir, tempdir))
     write_cover_xhtml(doc.getroottree(),
@@ -4408,8 +4395,7 @@ def process_epub(_tempdir, _replacefonts, _resetmargins,
         print('* Adding com.apple.ibooks.display-options.xml '
               'file...')
         with open(ibooks_file, 'wb') as f:
-            data = get_data('lib',
-                            'resources/com.apple.ibooks.display-options.xml')
+            data = read_resource('com.apple.ibooks.display-options.xml')
             f.write(data)
     elif os.path.exists(ibooks_file) and del_fonts:
         print('* Removing needless com.apple.ibooks.display-options.xml '
