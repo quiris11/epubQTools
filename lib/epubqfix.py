@@ -1694,6 +1694,72 @@ def fix_html_toc(soup, tempdir, xhtml_files, xhtml_file_paths):
     return soup
 
 
+def has_epub_type(element, value):
+    return value in element.get('{%s}type' % EPUBNS['epub'], '').split()
+
+
+def fix_toc_landmark(opftree, rootepubdir, book_lang=''):
+    """Point the "toc" landmark of the EPUB 3 navigation document to the
+    HTML TOC of the guide. Send to Kindle takes the "Go to - Table of
+    Contents" of an EPUB 3 book from the landmarks, not from the guide."""
+    refs = opftree.xpath('//opf:reference[@type="toc"]/@href',
+                         namespaces=OPFNS)
+    spine = spine_hrefs(opftree)
+    nav_item = find_epub3_nav_item(opftree)
+    if not refs or not is_book_page(refs[0], spine) or nav_item is None:
+        return
+    toc_href = refs[0]
+    nav_href = unquote(nav_item.get('href'))
+    nav_path = os.path.join(rootepubdir, nav_href)
+    try:
+        navtree = etree.parse(nav_path,
+                              etree.XMLParser(remove_blank_text=True))
+    except (IOError, etree.XMLSyntaxError):
+        return
+    navs = navtree.xpath('//xhtml:nav', namespaces=XHTMLNS)
+    if not navs:
+        return
+    path, sep, frag = toc_href.partition('#')
+    href = quote(relative_href(posixpath.normpath(unquote(path)),
+                               posixpath.dirname(nav_href),
+                               rootepubdir)) + sep + frag
+    x = '{%s}' % XHTMLNS['xhtml']
+    landmarks = [n for n in navs if has_epub_type(n, 'landmarks')]
+    if landmarks:
+        tocs = [a for a in landmarks[0].iter(x + 'a')
+                if has_epub_type(a, 'toc')]
+        if tocs and is_book_page(
+                resolve_href(nav_href, tocs[0].get('href', ''),
+                             rootepubdir), spine):
+            return
+        if tocs:
+            tocs[0].set('href', href)
+            print('* Pointing the "toc" landmark to the HTML TOC...')
+        else:
+            ol = landmarks[0].find(x + 'ol')
+            if ol is None:
+                ol = etree.SubElement(landmarks[0], x + 'ol')
+            a = etree.SubElement(etree.SubElement(ol, x + 'li'), x + 'a',
+                                 href=href)
+            a.set('{%s}type' % EPUBNS['epub'], 'toc')
+            a.text = 'Spis treści' if is_polish(book_lang) else 'Contents'
+            print('* Adding the HTML TOC to the landmarks...')
+    else:
+        # Kindle ignores the hidden attribute (see the page-list)
+        nav = etree.Element(x + 'nav', hidden='hidden', style='display:none')
+        nav.set('{%s}type' % EPUBNS['epub'], 'landmarks')
+        a = etree.SubElement(etree.SubElement(
+            etree.SubElement(nav, x + 'ol'), x + 'li'), x + 'a', href=href)
+        a.set('{%s}type' % EPUBNS['epub'], 'toc')
+        a.text = 'Spis treści' if is_polish(book_lang) else 'Contents'
+        tocnav = [n for n in navs if has_epub_type(n, 'toc')]
+        (tocnav or navs)[0].addnext(nav)
+        print('* Adding landmarks with the HTML TOC...')
+    with open(nav_path, 'wb') as f:
+        f.write(etree.tostring(navtree, pretty_print=True,
+                               xml_declaration=True, encoding='utf-8'))
+
+
 def fix_mismatched_covers(opftree, tempdir):
     global qfixerr
     refcvs = opftree.xpath('//opf:reference[@type="cover"]', namespaces=OPFNS)
@@ -4516,6 +4582,7 @@ def process_epub(_tempdir, _resetmargins, skip_hyph, arg_justify, arg_left,
     _xhtml_files, _xhtml_file_paths = find_xhtml_files(opf_dir_abs, opftree)
     opftree = fix_html_toc(opftree, opf_dir_abs, _xhtml_files,
                            _xhtml_file_paths)
+    fix_toc_landmark(opftree, opf_dir_abs, book_lang)
     convert_dl_to_ul(opftree, opf_dir_abs)
     if is_hyphenated:
         print('* Hyphenating texts...')

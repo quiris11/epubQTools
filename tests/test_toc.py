@@ -13,7 +13,8 @@ from contextlib import redirect_stdout
 from lxml import etree
 
 from lib.beautify_book import rename_file
-from lib.epubqfix import OPFNS, XHTMLNS, find_xhtml_files, fix_html_toc
+from lib.epubqfix import (OPFNS, XHTMLNS, find_xhtml_files, fix_html_toc,
+                          fix_toc_landmark)
 from tests.test_epubqcheck import XHTML, opf
 
 NCX = '''<?xml version="1.0" encoding="utf-8"?>
@@ -187,6 +188,89 @@ class FixHtmlTocTest(unittest.TestCase):
         self.assertEqual(
             toc.xpath('//xhtml:link/@href', namespaces=XHTMLNS),
             ['./styles/s.css'])
+
+
+class TocLandmarkTest(unittest.TestCase):
+    """Send to Kindle takes the "Go to - Table of Contents" of an EPUB 3
+    book from the "toc" landmark of the navigation document."""
+
+    NAV = ('<?xml version="1.0" encoding="utf-8"?>'
+           '<html xmlns="http://www.w3.org/1999/xhtml" '
+           'xmlns:epub="http://www.idpf.org/2007/ops"><head><title>t</title>'
+           '</head><body><nav epub:type="toc"><ol><li>'
+           '<a href="text/c1.xhtml">C1</a></li></ol></nav>%s</body></html>')
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.dir)
+
+    def landmarks(self, nav_extra, guide_toc='text/toc.xhtml',
+                  nav=True, lang='pl'):
+        """Write a book (nav.xhtml next to the OPF, the pages in text/),
+        fix the landmark and return the hrefs and texts of the "toc"
+        landmarks."""
+        items = [('c1', 'text/c1.xhtml', 'application/xhtml+xml'),
+                 ('toc', 'text/toc.xhtml', 'application/xhtml+xml'),
+                 ('nav', 'nav.xhtml', 'application/xhtml+xml')]
+        tree = etree.fromstring(opf(
+            items, ['c1', 'toc'],
+            '<dc:language>%s</dc:language>' % lang).encode())
+        if nav:
+            tree.xpath('//opf:item[@id="nav"]', namespaces=OPFNS)[0].set(
+                'properties', 'nav')
+        guide = tree.xpath('//opf:guide', namespaces=OPFNS)[0]
+        etree.SubElement(guide, '{%s}reference' % OPFNS['opf'],
+                         type='toc', title='TOC', href=guide_toc)
+        os.makedirs(os.path.join(self.dir, 'text'))
+        for href in ('text/c1.xhtml', 'text/toc.xhtml'):
+            with open(os.path.join(self.dir, href), 'w',
+                      encoding='utf-8') as f:
+                f.write(XHTML % '<p>text</p>')
+        path = os.path.join(self.dir, 'nav.xhtml')
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(self.NAV % nav_extra)
+        with redirect_stdout(io.StringIO()):
+            fix_toc_landmark(tree, self.dir, lang)
+        navtree = etree.parse(path)
+        ns = dict(XHTMLNS, epub='http://www.idpf.org/2007/ops')
+        self.assertEqual(len(navtree.xpath(
+            '//xhtml:nav[@epub:type="landmarks"]', namespaces=ns)),
+            1 if nav else 0)
+        return [(a.get('href'), a.text) for a in navtree.xpath(
+            '//xhtml:nav[@epub:type="landmarks"]//xhtml:a[@epub:type="toc"]',
+            namespaces=ns)]
+
+    def test_added_to_landmarks_without_toc(self):
+        # as in the books made for this library: cover, title page, body
+        self.assertEqual(self.landmarks(
+            '<nav epub:type="landmarks" hidden="hidden"><ol><li>'
+            '<a epub:type="cover" href="text/c1.xhtml">Cover</a></li></ol>'
+            '</nav>'), [('text/toc.xhtml', 'Spis treści')])
+
+    def test_new_landmarks(self):
+        self.assertEqual(self.landmarks('', lang='en'),
+                         [('text/toc.xhtml', 'Contents')])
+
+    def test_landmark_to_hidden_nav_is_replaced(self):
+        self.assertEqual(self.landmarks(
+            '<nav epub:type="landmarks"><ol><li><a epub:type="toc" '
+            'href="nav.xhtml#toc">Spis</a></li></ol></nav>'),
+            [('text/toc.xhtml', 'Spis')])
+
+    def test_landmark_to_page_of_book_is_kept(self):
+        self.assertEqual(self.landmarks(
+            '<nav epub:type="landmarks"><ol><li><a epub:type="toc" '
+            'href="text/c1.xhtml#spis">Spis</a></li></ol></nav>'),
+            [('text/c1.xhtml#spis', 'Spis')])
+
+    def test_guide_toc_with_fragment(self):
+        self.assertEqual(self.landmarks('', guide_toc='text/toc.xhtml#t'),
+                         [('text/toc.xhtml#t', 'Spis treści')])
+
+    def test_epub2_book_without_nav(self):
+        self.assertEqual(self.landmarks('', nav=False), [])
 
 
 class RenameFileNcxTest(unittest.TestCase):
