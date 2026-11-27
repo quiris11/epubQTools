@@ -43,6 +43,7 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           remove_purchase_info_pages,
                           is_hiding_style, is_support_page,
                           is_wolnelektury_book, most_common, resolve_href, remove_orphan_refining_metas,
+                          remove_css_colors,
                           move_metadata_namespaces,
                           remove_amzn_attributes,
                           remove_thin_spaces_after_spaces,
@@ -1880,3 +1881,20 @@ class AddPageListTest(unittest.TestCase):
         ncx = self.run_add("<span epub:type='pagebreak' id='p1'/>" +
                            '<p>Line</p>' * 40, 'c1.xhtml')
         self.assertNotIn('pageList', ncx)
+
+
+class RemoveCssColorsTest(unittest.TestCase):
+
+    def test_whole_declarations_removed(self):
+        self.assertEqual(
+            remove_css_colors('p {background-color: #eee; margin: 0; '
+                              'color: red}\nh1 {color: blue; font-size: 2em}'),
+            'p {margin: 0; }\nh1 {font-size: 2em}')
+
+    def test_other_rules_and_properties_kept(self):
+        css = ('.color:hover {border-color: red; text-decoration: none}\n'
+               '@media screen { a {COLOR: #00f !important} }')
+        self.assertEqual(
+            remove_css_colors(css),
+            '.color:hover {border-color: red; text-decoration: none}\n'
+            '@media screen { a {} }')

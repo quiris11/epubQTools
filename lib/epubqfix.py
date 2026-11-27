@@ -4597,6 +4597,19 @@ def process_corrupted_zip(e, root, f, zipbinf):
         return 1
 
 
+CSS_COLOR_DECL = re.compile(
+    r'(?<![\w-])(?:background-)?color\s*:[^;]*(?:;\s*|$)', re.IGNORECASE)
+
+
+def remove_css_colors(css):
+    """Remove the whole color and background-color declarations. Only the
+    insides of {...} blocks are touched, so selectors (e.g. ".color:hover")
+    stay, and other properties ending with "color" (border-color) are kept."""
+    return re.sub(r'\{([^{}]*)\}',
+                  lambda m: '{' + CSS_COLOR_DECL.sub('', m.group(1)) + '}',
+                  css)
+
+
 def modify_css_align(opftree, opfdir, mode, del_colors):
     global qfixerr
     if mode == 'justify':
@@ -4615,7 +4628,7 @@ def modify_css_align(opftree, opfdir, mode, del_colors):
                 if del_colors:
                     print('* Removing all color definitions from all '
                           'CSS files...')
-                    cc = re.sub(r'color\s*:\s*(.*?)(;|\r|\n)', '', cc)
+                    cc = remove_css_colors(cc)
                 cf.seek(0)
                 cf.truncate()
                 cf.write(cc)
