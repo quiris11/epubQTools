@@ -36,7 +36,9 @@ from .csscheck import (class_rules, fix_missing_semicolons,
                           font_face_families,
                           remove_class_rules, remove_page_descriptors,
                           remove_src_descriptors)
-from .hyphenator import Hyphenator
+from .hyphenation import (WORD_RE, hyphenator_for, is_no_language,
+                          is_polish, looks_polish, polish_hyphenator,
+                          primary_language)
 from .resource_data import read_resource
 from .beautify_book import beautify_book
 from collections import Counter
@@ -62,16 +64,10 @@ css_parser.log.raiseExceptions = False
 # set up recover parser for malformed XML
 recover_parser = etree.XMLParser(recover=True)
 
-dic_tmp_dir = tempfile.mkdtemp(suffix='', prefix='epubQTools-tmp-')
-dic_name = os.path.join(dic_tmp_dir, 'hyph_pl_PL.dic')
-try:
-    with open(dic_name, 'wb') as f:
-        f.write(read_resource('dictionaries/hyph_pl_PL.dic'))
-    hyph = Hyphenator(dic_name)
-finally:
-    shutil.rmtree(dic_tmp_dir)
+hyph = polish_hyphenator()
+# the language of books without one (and of books with a wrong one when
+# their text is Polish)
 MY_LANGUAGE = 'pl'
-MY_LANGUAGE2 = 'pl-PL'
 HYPHEN_MARK = '\u00AD'
 HIDDEN_DIV_TEXT_RE = re.compile(r'[A-Za-z0-9_-]+')
 # classes of the reset spans of marked texts (a Legimi watermark)
@@ -1307,20 +1303,27 @@ def find_xhtml_files(rootepubdir, opftree):
 
 
 def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
-                                   dont_hyph_headers, skip_hyph):
-    # set correct xml:lang attribute for html tag
+                                   dont_hyph_headers, skip_hyph,
+                                   book_lang=MY_LANGUAGE):
+    # single letters are kept with the next word in Polish books only
+    is_pl = is_polish(book_lang)
 
     def fix_hanging_single_conjunctions_and_place_back(tel, txt):
-        newt = re.sub(r'(?<=\s\w)\s+', '\u00A0', txt)
-        # fix when paragraph starts with single letter (aesthetic reasons only)
-        newt = re.sub(r'(?<=^\w)\s+', '\u00A0', newt)
+        newt = txt
+        if is_pl:
+            newt = re.sub(r'(?<=\s\w)\s+', '\u00A0', newt)
+            # fix when paragraph starts with single letter (aesthetic
+            # reasons only)
+            newt = re.sub(r'(?<=^\w)\s+', '\u00A0', newt)
         if tel.is_text:
             parent.text = newt
         elif tel.is_tail:
             parent.tail = newt
 
+    # set correct xml:lang attribute for html tag
     html_tag = source_file.xpath('//xhtml:html', namespaces=XHTMLNS)[0]
-    html_tag.attrib['{http://www.w3.org/XML/1998/namespace}lang'] = MY_LANGUAGE
+    html_tag.attrib['{http://www.w3.org/XML/1998/namespace}lang'] = (
+        MY_LANGUAGE if is_pl else book_lang.strip())
     if 'lang' in html_tag.attrib:
         del html_tag.attrib['lang']
 
@@ -1357,10 +1360,15 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
                 fix_hanging_single_conjunctions_and_place_back(t, t)
                 continue
         lang = parent.get('{http://www.w3.org/XML/1998/namespace}lang')
-        if lang is not None and lang != MY_LANGUAGE and lang != MY_LANGUAGE2:
+        if lang is not None and \
+                primary_language(lang) != primary_language(book_lang):
             continue
         newt = ''
-        wlist = re.compile(r'\w+|[^\w]', re.UNICODE).findall(t)
+        if is_pl:
+            wlist = re.compile(r'\w+|[^\w]', re.UNICODE).findall(t)
+        else:
+            # with combining marks inside words (e.g. Indic vowel signs)
+            wlist = WORD_RE.findall(t)
         if skip_hyph:
             for w in wlist:
                 newt += w.replace(HYPHEN_MARK, '')
@@ -2008,6 +2016,19 @@ def move_metadata_namespaces(soup):
     return soup
 
 
+def book_texts(xhtml_files):
+    """The texts of the bodies of the xhtml files."""
+    for xhfile in xhtml_files:
+        try:
+            tree = etree.parse(xhfile, parser=etree.XMLParser(recover=True))
+        except (OSError, etree.Error):
+            continue
+        if tree.getroot() is None:
+            continue
+        for body in tree.xpath('//xhtml:body', namespaces=XHTMLNS):
+            yield from body.itertext()
+
+
 def fix_various_opf_problems(soup, tempdir, xhtml_files,
                              xhtml_file_paths):
 
@@ -2030,10 +2051,16 @@ def fix_various_opf_problems(soup, tempdir, xhtml_files,
             for attr in list(lang.attrib):
                 del lang.attrib[attr]
 
-    # set dc:language to my language
+    # Polish (also written as pl-PL, pol etc.) and no language become
+    # "pl"; another language is kept unless the text is Polish
     for lang in soup.xpath("//dc:language", namespaces=DCNS):
-        if lang is not None and lang.text != MY_LANGUAGE:
-            print('* Correcting book language to: ' + MY_LANGUAGE)
+        if is_polish(lang.text) or is_no_language(lang.text):
+            if lang.text != MY_LANGUAGE:
+                print('* Correcting book language to: ' + MY_LANGUAGE)
+                lang.text = MY_LANGUAGE
+        elif looks_polish(book_texts(xhtml_files)):
+            print('* The text of the book is Polish, not "%s". Correcting '
+                  'book language to: %s' % (lang.text.strip(), MY_LANGUAGE))
             lang.text = MY_LANGUAGE
 
     # add missing dc:language
@@ -4154,9 +4181,11 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
     # workaround strange strip tag bug during hyphenation:
     xhtree = etree.fromstring(etree.tostring(xhtree, encoding='utf-8'))
     # print(etree.tostring(xhtree))
-    if book_lang == 'pl':
-        xhtree = hyphenate_and_fix_conjunctions(xhtree, HYPHEN_MARK, hyph,
-                                                dont_hyph_headers, skip_hyph)
+    if not is_no_language(book_lang):
+        xhtree = hyphenate_and_fix_conjunctions(
+            xhtree, HYPHEN_MARK,
+            None if skip_hyph else hyphenator_for(book_lang)[0],
+            dont_hyph_headers, skip_hyph, book_lang)
     xhtree = fix_styles(xhtree)
     if is_xml_ext_fixed:
         xhtree = xml2html_fix_references(xhtree, os.path.dirname(xhfile),
@@ -4331,8 +4360,20 @@ def process_epub(_tempdir, _resetmargins, skip_hyph, arg_justify, arg_left,
         book_lang = opftree.xpath("//dc:language", namespaces=DCNS)[0].text
     except IndexError:
         book_lang = ''
-    # hyphenation is done only for Polish books (see below)
-    is_hyphenated = not skip_hyph and book_lang == 'pl'
+    book_lang = (book_lang or '').strip()
+    # a dictionary for the book language: Polish one of epubQTools or
+    # one of calibre (none without calibre)
+    if not skip_hyph:
+        book_hyph, dic_name = hyphenator_for(book_lang)
+        if book_hyph is None:
+            print('* No hyphenation dictionary for the book language "%s" '
+                  '(%s). Hyphenating is turned OFF...' %
+                  (book_lang, dic_name))
+            skip_hyph = True
+        elif not is_polish(book_lang):
+            print('* Hyphenation dictionary for the book language "%s": %s'
+                  % (book_lang, dic_name))
+    is_hyphenated = not skip_hyph
     if _resetmargins:
         print('* Setting custom CSS styles...')
         opftree, is_reset_css = append_reset_css_file(
