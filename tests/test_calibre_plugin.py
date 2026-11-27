@@ -5,9 +5,11 @@
 #
 """Parts of the calibre plugin which work without calibre: settings,
 work with the library (on a fake library) and the built zip."""
+import ast
 import importlib.util
 import inspect
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -33,6 +35,7 @@ def load(name):
 
 options = load('options')
 library = load('library')
+translations = load('translations')
 
 
 class FakeDB(object):
@@ -174,6 +177,42 @@ class TestLibrary(unittest.TestCase):
         self.assertFalse(library.restore_original(db, 2))
 
 
+class TestTranslations(unittest.TestCase):
+
+    def texts(self):
+        """The texts given to tr() in the modules of the plugin."""
+        found = set()
+        for name in os.listdir(PLUGIN):
+            if not name.endswith('.py') or name == 'translations.py':
+                continue
+            with open(os.path.join(PLUGIN, name), encoding='utf-8') as f:
+                tree = ast.parse(f.read())
+            for node in ast.walk(tree):
+                if (isinstance(node, ast.Call) and
+                        isinstance(node.func, ast.Name) and
+                        node.func.id == 'tr'):
+                    self.assertIsInstance(node.args[0], ast.Constant)
+                    found.add(node.args[0].value)
+        return found
+
+    def test_every_text_has_polish(self):
+        self.assertEqual(self.texts(), set(translations.POLISH))
+
+    def test_same_placeholders(self):
+        for en, pl in translations.POLISH.items():
+            self.assertEqual(re.findall('%.', en), re.findall('%.', pl), en)
+            self.assertNotEqual(en, pl)
+
+    def test_language(self):
+        tr = translations.tr
+        self.assertEqual(tr('No change', 'pl'), 'Bez zmian')
+        self.assertEqual(tr('No change', 'pl_PL'), 'Bez zmian')
+        self.assertEqual(tr('No change', 'en'), 'No change')
+        self.assertEqual(tr('No change', 'de'), 'No change')
+        self.assertEqual(tr('Not translated', 'pl'), 'Not translated')
+        self.assertEqual(translations.language(), 'en')  # without calibre
+
+
 class TestBuild(unittest.TestCase):
 
     def test_zip(self):
@@ -185,7 +224,7 @@ class TestBuild(unittest.TestCase):
             self.assertIsNone(z.testzip())
             self.assertEqual(sorted(z.namelist()), sorted(names))
         for name in ('__init__.py', 'action.py', 'config.py', 'library.py',
-                     'options.py', 'worker.py',
+                     'options.py', 'translations.py', 'worker.py',
                      'plugin-import-name-epubqtools.txt', 'NOTICE',
                      'lib/__init__.py', 'lib/epubqfix.py',
                      'lib/resources/dictionaries/hyph_pl_PL.dic',

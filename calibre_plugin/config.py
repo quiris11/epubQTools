@@ -15,6 +15,7 @@ from calibre.utils.config import JSONConfig
 
 from .options import (ALIGN_JUSTIFY, ALIGN_KEEP, ALIGN_LEFT, DEFAULTS,
                       with_defaults)
+from .translations import tr
 
 # stored in the calibre configuration folder (plugins/epubQTools.json),
 # separately on every computer
@@ -31,43 +32,43 @@ class ConfigWidget(QWidget):
         QWidget.__init__(self)
         layout = QVBoxLayout(self)
 
-        box = QGroupBox('Dzielenie wyrazów', self)
+        box = QGroupBox(tr('Hyphenation'), self)
         bl = QVBoxLayout(box)
-        self.hyphenate = QCheckBox('Dziel wyrazy', box)
+        self.hyphenate = QCheckBox(tr('Hyphenate words'), box)
         self.hyphenate_headers = QCheckBox(
-            'Dziel też wyrazy w nagłówkach (h1, h2, h3…)', box)
+            tr('Hyphenate also words in headings (h1, h2, h3…)'), box)
         self.hyphenate.toggled.connect(self.hyphenate_headers.setEnabled)
         bl.addWidget(self.hyphenate)
         bl.addWidget(self.hyphenate_headers)
         layout.addWidget(box)
 
-        box = QGroupBox('Wygląd tekstu', self)
+        box = QGroupBox(tr('Text appearance'), self)
         bl = QVBoxLayout(box)
-        self.reset_css = QCheckBox('Dołącz reset CSS', box)
+        self.reset_css = QCheckBox(tr('Add a CSS reset'), box)
         self.reset_css.setToolTip(
-            'Bez tej opcji książka dzielona dostaje tylko CSS '
-            '„hyphens: manual”.')
+            tr('Without this option a hyphenated book gets only the CSS '
+               '“hyphens: manual”.'))
         bl.addWidget(self.reset_css)
-        bl.addWidget(QLabel('Wyrównanie tekstu:', box))
+        bl.addWidget(QLabel(tr('Text alignment:'), box))
         self.align = QButtonGroup(box)
         self.align_buttons = {}
         for value, text in (
-                (ALIGN_JUSTIFY, 'Wyjustuj tekst wyrównany do lewej'),
-                (ALIGN_LEFT, 'Wyrównaj do lewej tekst wyjustowany'),
-                (ALIGN_KEEP, 'Bez zmian')):
+                (ALIGN_JUSTIFY, tr('Justify text aligned to the left')),
+                (ALIGN_LEFT, tr('Align justified text to the left')),
+                (ALIGN_KEEP, tr('No change'))):
             button = QRadioButton(text, box)
             self.align.addButton(button)
             self.align_buttons[value] = button
             bl.addWidget(button)
-        self.remove_colors = QCheckBox('Usuń kolory', box)
+        self.remove_colors = QCheckBox(tr('Remove colors'), box)
         self.remove_colors.setToolTip(
-            'Kolory są usuwane przy zmianie wyrównania, więc ta opcja '
-            'działa tylko wtedy, gdy wyrównanie nie jest „Bez zmian”.')
+            tr('Colors are removed when the alignment is changed, so this '
+               'option works only when the alignment is not “No change”.'))
         self.align_buttons[ALIGN_KEEP].toggled.connect(
             lambda keep: self.remove_colors.setEnabled(not keep))
         bl.addWidget(self.remove_colors)
         row = QHBoxLayout()
-        self.use_margin = QCheckBox('Margines lewy i prawy:', box)
+        self.use_margin = QCheckBox(tr('Left and right margin:'), box)
         self.margin = QSpinBox(box)
         self.margin.setRange(0, 200)
         self.margin.setSuffix(' px')
@@ -78,23 +79,23 @@ class ConfigWidget(QWidget):
         bl.addLayout(row)
         layout.addWidget(box)
 
-        box = QGroupBox('Fonty', self)
+        box = QGroupBox(tr('Fonts'), self)
         bl = QVBoxLayout(box)
-        self.remove_fonts = QCheckBox('Usuń wbudowane fonty', box)
+        self.remove_fonts = QCheckBox(tr('Remove embedded fonts'), box)
         bl.addWidget(self.remove_fonts)
         layout.addWidget(box)
 
-        box = QGroupBox('Inne', self)
+        box = QGroupBox(tr('Other'), self)
         bl = QVBoxLayout(box)
         self.page_list = QCheckBox(
-            'Dodaj przybliżoną listę stron (w książkach bez niej)', box)
+            tr('Add an approximate page list (in books without one)'), box)
         bl.addWidget(self.page_list)
         layout.addWidget(box)
 
         row = QHBoxLayout()
         row.addStretch(1)
-        defaults = QPushButton('Przywróć domyślne', self)
-        defaults.setToolTip('Ustawienia jak „-e” w terminalu.')
+        defaults = QPushButton(tr('Restore defaults'), self)
+        defaults.setToolTip(tr('Settings like “-e” in the terminal.'))
         defaults.clicked.connect(lambda: self.show_settings(DEFAULTS))
         row.addWidget(defaults)
         layout.addLayout(row)

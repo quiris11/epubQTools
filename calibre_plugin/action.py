@@ -18,6 +18,7 @@ from calibre.ptempfile import PersistentTemporaryDirectory
 
 from .config import current_settings
 from .library import ORIGINAL, copy_books, restore_original, store_fixed
+from .translations import tr
 
 TITLE = 'epubQTools'
 
@@ -30,7 +31,8 @@ class EpubQToolsAction(InterfaceAction):
 
     name = 'epubQTools'
     action_spec = ('epubQTools', 'beautify.png',
-                   'Popraw zaznaczone książki EPUB (jak epubQTools -e)', None)
+                   tr('Fix the selected EPUB books (like epubQTools -e)'),
+                   None)
     popup_type = QToolButton.ToolButtonPopupMode.MenuButtonPopup
     action_type = 'current'
     dont_add_to = frozenset(['context-menu-device', 'toolbar-device'])
@@ -38,14 +40,14 @@ class EpubQToolsAction(InterfaceAction):
     def genesis(self):
         self.menu = QMenu(self.gui)
         self.create_menu_action(
-            self.menu, 'epubqtools-fix', 'Popraw zaznaczone książki',
+            self.menu, 'epubqtools-fix', tr('Fix the selected books'),
             icon='beautify.png', triggered=self.fix_selected)
         self.create_menu_action(
-            self.menu, 'epubqtools-restore', 'Przywróć oryginał',
+            self.menu, 'epubqtools-restore', tr('Restore the original'),
             icon='edit-undo.png', triggered=self.restore_selected)
         self.menu.addSeparator()
         self.create_menu_action(
-            self.menu, 'epubqtools-settings', 'Ustawienia…',
+            self.menu, 'epubqtools-settings', tr('Settings…'),
             icon='config.png', triggered=self.show_settings)
         self.qaction.setMenu(self.menu)
         self.qaction.triggered.connect(self.fix_selected)
@@ -67,7 +69,7 @@ class EpubQToolsAction(InterfaceAction):
         book_ids = self.selected_ids()
         if not book_ids:
             return error_dialog(self.gui, TITLE,
-                                'Nie zaznaczono żadnej książki.', show=True)
+                                tr('No book is selected.'), show=True)
         db = self.gui.current_db.new_api
         work_dir = PersistentTemporaryDirectory('_epubqtools')
         books, skipped = copy_books(db, book_ids, work_dir)
@@ -75,30 +77,30 @@ class EpubQToolsAction(InterfaceAction):
             shutil.rmtree(work_dir, ignore_errors=True)
             return error_dialog(
                 self.gui, TITLE,
-                'Żadna z zaznaczonych książek nie ma formatu EPUB.',
+                tr('None of the selected books has the EPUB format.'),
                 show=True)
         job = self.gui.job_manager.run_job(
             Dispatcher(self.fix_done), 'arbitrary_n',
             args=['calibre_plugins.epubqtools.worker', 'fix_books',
                   (self.interface_action_base_plugin.plugin_path, books,
                    current_settings())],
-            description='epubQTools: poprawianie książek (%d)' % len(books))
+            description=tr('epubQTools: fixing books (%d)') % len(books))
         job.epubqtools = {'library_id': self.gui.current_db.library_id,
                           'work_dir': work_dir, 'skipped': skipped}
         self.gui.status_bar.show_message(
-            'epubQTools: poprawianie książek (%d)…' % len(books), 3000)
+            tr('epubQTools: fixing books (%d)…') % len(books), 3000)
 
     def fix_done(self, job):
         info = job.epubqtools
         try:
             if job.failed:
                 return self.gui.job_exception(
-                    job, dialog_title='epubQTools: nieoczekiwany błąd')
+                    job, dialog_title=tr('epubQTools: unexpected error'))
             if self.gui.current_db.library_id != info['library_id']:
                 return error_dialog(
                     self.gui, TITLE,
-                    'W trakcie pracy otwarto inną bibliotekę – poprawione '
-                    'książki nie zostały zapisane.', show=True)
+                    tr('Another library was opened while working – the '
+                       'fixed books were not saved.'), show=True)
             self.store_results(job.result, info['skipped'])
         finally:
             shutil.rmtree(info['work_dir'], ignore_errors=True)
@@ -116,19 +118,20 @@ class EpubQToolsAction(InterfaceAction):
         if saved:
             self.refresh([r['id'] for r in saved])
         problems = [r for r in saved if r['problems']]
-        lines = ['Poprawione: %d z %d' % (len(saved),
+        lines = [tr('Fixed: %d of %d') % (len(saved),
                                           len(results) + len(skipped))]
         if problems:
-            lines += ['', 'Zapisane, ale z problemami (zob. szczegóły):',
+            lines += ['', tr('Saved, but with problems (see details):'),
                       titles(problems)]
         if failed:
-            lines += ['', 'Nie udało się poprawić (bez zmian w bibliotece):',
+            lines += ['',
+                      tr('Could not be fixed (no changes in the library):'),
                       titles(failed)]
         if gone:
-            lines += ['', 'Usunięte z biblioteki w trakcie pracy:',
+            lines += ['', tr('Removed from the library while working:'),
                       titles(gone)]
         if skipped:
-            lines += ['', 'Bez formatu EPUB (pominięte):',
+            lines += ['', tr('Without the EPUB format (skipped):'),
                       '\n'.join('  • ' + t for t in skipped)]
         details = '\n\n'.join('=== %s ===\n%s' % (r['title'], r['log'].strip())
                               for r in results)
@@ -144,16 +147,16 @@ class EpubQToolsAction(InterfaceAction):
         if not with_original:
             return info_dialog(
                 self.gui, TITLE,
-                'Zaznaczone książki nie mają zachowanego oryginału '
-                '(format ORIGINAL_EPUB).', show=True)
+                tr('The selected books have no saved original (format '
+                   'ORIGINAL_EPUB).'), show=True)
         if not question_dialog(
                 self.gui, TITLE,
-                'Przywrócić oryginał w zaznaczonych książkach (%d)? '
-                'Poprawiona wersja EPUB zostanie zastąpiona oryginałem '
-                '(ORIGINAL_EPUB).' % len(with_original)):
+                tr('Restore the original in the selected books (%d)? The '
+                   'fixed EPUB will be replaced with the original '
+                   '(ORIGINAL_EPUB).') % len(with_original)):
             return
         restored = [i for i in with_original if restore_original(db, i)]
         if restored:
             self.refresh(restored)
         self.gui.status_bar.show_message(
-            'epubQTools: przywrócono oryginał (%d)' % len(restored), 3000)
+            tr('epubQTools: original restored (%d)') % len(restored), 3000)

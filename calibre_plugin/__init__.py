@@ -10,13 +10,15 @@ kept as ORIGINAL_EPUB. Build the plugin with build_calibre_plugin.py."""
 
 from calibre.customize import InterfaceActionBase
 
+from .translations import tr
+
 
 class EpubQToolsPlugin(InterfaceActionBase):
 
     name = 'epubQTools'
-    description = ('Poprawia zaznaczone książki EPUB tak jak '
-                   '„epubQTools -e”. Poprawiona wersja staje się formatem '
-                   'EPUB, oryginał zostaje jako ORIGINAL_EPUB.')
+    description = tr('Fixes the selected EPUB books like “epubQTools -e”. '
+                     'The fixed version becomes the EPUB format, the '
+                     'original is kept as ORIGINAL_EPUB.')
     supported_platforms = ['windows', 'osx', 'linux']
     author = 'Robert Błaut'
     version = (1, 0, 0)
