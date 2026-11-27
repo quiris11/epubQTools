@@ -65,6 +65,9 @@ class ReadResourceTest(unittest.TestCase):
         with self.assertRaises(OSError):
             read_resource('no-such-file.txt')
 
+    # in calibre sys.executable is calibre-debug, which has no option -I
+    @unittest.skipIf(getattr(sys, 'frozen', False),
+                     'sys.executable is not a Python interpreter')
     def test_zip_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             zip_path = os.path.join(tmp, 'epubQTools.zip')
