@@ -1,20 +1,109 @@
 epubQTools [![Release](https://img.shields.io/github/release/quiris11/epubqtools.svg)](https://github.com/quiris11/epubqtools/releases/latest)
 ==========
 
-Tools for checking, correcting and hyphenating EPUB files.
+Tools for checking, fixing and hyphenating EPUB books, especially for Kindle
+readers (Send to Kindle). epubQTools fixes the problems which spoil reading
+(broken CSS, covers, links, notes, obfuscated fonts...), hyphenates Polish books,
+adds an approximate page list and removes texts and pages added by some shops.
 
-#### External apps used by this tool available for download:
-* **kindlegen** (only unpacked binary is needed): http://www.amazon.com/kindleformat/kindlegen
-* **epubcheck (zip file)** (Java installed is required for run it): https://github.com/IDPF/epubcheck/releases
+There are two ways to use it:
+* **calibre plugin** - the easiest way, no terminal needed: select books in
+  calibre and click a button. It fixes books (like `-e` below).
+* **command line** - all functions: fixing, checking (also with EpubCheck),
+  renaming files, preparing files for Send to Kindle, converting with kindlegen.
 
-Put both into the per-user tools folder (or point to another folder with `--tools DIR`):
-* Linux/macOS: `~/.local/share/epubQTools/` (`$XDG_DATA_HOME/epubQTools/` if set)
-* Windows: `%LOCALAPPDATA%\epubQTools\`
+The original files are not changed: fixed books are new files (or, in calibre,
+a new version of the book with the original kept). Only `-n`, `--author`,
+`--title` and `--fix-missing-container` change the original files.
 
-If this folder does not exist, the folder next to the program is used (as in older versions).
-kindlegen is also looked up in `PATH`.
+## calibre plugin
 
+### Installing
+Requires calibre 6.0 or newer (https://calibre-ebook.com).
+1. Download **epubQTools-calibre-VERSION.zip** from the
+   [latest release](https://github.com/quiris11/epubQTools/releases/latest)
+   (in "Assets"). Do not unpack it.
+2. In calibre choose **Preferences → Plugins → Load plugin from file** and select
+   the downloaded file. Confirm the warning about installing a plugin.
+3. calibre asks where to show the plugin's button: select **The main toolbar**.
+4. Restart calibre. The **epubQTools** button is on the toolbar.
 
+If the button is not there, add it in **Preferences → Toolbars & menus → The main
+toolbar** (choose "epubQTools" in the list of available actions).
+
+To update the plugin, install the new file the same way (the settings are kept).
+To remove it: **Preferences → Plugins**, select "epubQTools", **Remove plugin**.
+
+### Using
+Select one or more books and click the **epubQTools** button (or the arrow next to
+it for the menu):
+* **Popraw zaznaczone książki** (fix the selected books) - the same as the button.
+  The fixed book replaces the EPUB format and the original is kept as the
+  **ORIGINAL_EPUB** format. The original is kept only the first time, so fixing
+  a book again starts from the original, not from the fixed version.
+* **Przywróć oryginał** (restore the original) - the EPUB format becomes the
+  original again and ORIGINAL_EPUB is removed.
+* **Ustawienia…** (settings) - see below.
+
+The books are fixed in the background (shown in calibre's Jobs), so calibre can
+be used meanwhile. At the end a window shows how many books were fixed and lists
+the books saved with problems (with a warning), the books which could not be fixed
+(e.g. with DRM; they are not changed) and the books without the EPUB format.
+**Show details** shows all messages for every book.
+
+### Settings
+The defaults give the same result as `-e` on the command line:
+
+| Setting | Default | Command line option |
+|---|---|---|
+| Dziel wyrazy (hyphenate; Polish books only) | on | `-s` turns it off |
+| Dziel też wyrazy w nagłówkach (hyphenate headers) | on | `-r` turns it off |
+| Dołącz reset CSS (link the reset CSS) | on | `-c` turns it off |
+| Wyrównanie tekstu (alignment): justify / left / no change | justify | – / `--left` / `--skip-justify` |
+| Usuń kolory (remove colors; not with "no change") | off | `--remove-colors` |
+| Margines lewy i prawy (left and right margin) | off | `--book-margin` |
+| Usuń wbudowane fonty (remove embedded fonts) | off | `--remove-fonts` |
+| Dodaj przybliżoną listę stron (approximate page list) | on | `--skip-page-list` turns it off |
+
+## Command line
+
+### Installing
+1. Install Python 3 (https://www.python.org; on Linux it is usually installed).
+2. Download "Source code (zip)" from the
+   [latest release](https://github.com/quiris11/epubQTools/releases/latest)
+   and unpack it, e.g. to the folder `epubQTools-1.0`.
+3. Install the libraries (on Windows use `py` instead of `python3` here and below):
+   ```
+   python3 -m pip install lxml css-parser tinycss2
+   ```
+4. Optional external tools:
+   * **EpubCheck** (for `-p`, needs Java): download the zip file from
+     https://github.com/w3c/epubcheck/releases (do not unpack it)
+   * **kindlegen** (for `-k`, only the unpacked program file is needed)
+   * **pytidylib** with the system libtidy (`python3 -m pip install pytidylib`):
+     additional HTML checks in `-q`
+
+   Put EpubCheck and kindlegen into the tools folder (or point to another folder
+   with `--tools DIR`):
+   * Linux/macOS: `~/.local/share/epubQTools/` (`$XDG_DATA_HOME/epubQTools/` if set)
+   * Windows: `%LOCALAPPDATA%\epubQTools\`
+
+   If this folder does not exist, the folder next to the program is used (as in
+   older versions). kindlegen is also looked up in `PATH`.
+
+### Quick start
+The last argument is the folder with the books (subfolders are included):
+```
+python3 epubQTools-1.0 -e ~/Books        # fix all books, results in ~/Books/MOH/*_moh.epub
+python3 epubQTools-1.0 -q ~/Books        # check the books
+python3 epubQTools-1.0 -q -m ~/Books     # check the fixed books (_moh.epub)
+python3 epubQTools-1.0 -i -e ~/Books     # choose the books to fix in the console
+python3 epubQTools-1.0 -n -e -t ~/Books  # rename the originals to "Author - Title.epub", fix them
+                                         # and copy to ~/Books/TS2K as "Title.epub" for Send to Kindle
+```
+A book already fixed is skipped; `-f` fixes it again.
+
+### All options
 ```
 usage: epubQTools [-h] [-V] [--tools [DIR]] [-l [DIR]] [-i [NR]] [--author [Surname, First Name]] [--title [Title]]
                                                         [-v] [-a] [-n] [-t] [-q] [-p] [-w] [-u] [--list-fonts] [-m] [-e] [-s]
@@ -44,7 +133,7 @@ options:
   -t, --prepare-send-to-kindle
                         copy MOH files to 'title.epub' (Send to Kindle friendly)
   -q, --qcheck          validate files with qcheck internal tool
-  -p, --epubcheck       validate epub files with EpubCheck 4 tool
+  -p, --epubcheck       validate epub files with EpubCheck tool
   -w, --skip-font-mime  do not report non-standard font media types (only with -q)
   -u, --skip-css-warnings
                         do not report CSS warnings, only CSS errors (only with -q)
@@ -74,7 +163,7 @@ options:
 versions (next to the originals, or directly in 'MOH' for books from subfolders) are skipped and
 listed in a warning.
 
-#### Page list (-e):
+### Page list (-e):
 Books without a page list (no NCX `pageList`, no nav `page-list`, no `pagebreak` markers) get
 a list of approximate pages: empty `<span id="eqt_page_N"></span>` markers in the text, a
 `pageList` in the NCX and, in EPUB 3, a hidden `<nav epub:type="page-list">`. Every spine file
@@ -84,7 +173,7 @@ book, systematic error under 4%).
 Send to Kindle keeps such a list, so the "Pages" option works also for books for which Amazon
 does not generate pages itself (e.g. books with tables). Turn it off with `--skip-page-list`.
 
-#### Pop-up notes (-e):
+### Pop-up notes (-e):
 Note asides (linked with `epub:type="noteref"` or `role="doc-noteref"` links, or with
 `epub:type` `footnote`, `endnote`, `rearnote` or `note`) are fixed for pop-ups of Send to Kindle.
 If a note starts with its number and ends with a back link (e.g. "↩"), the number becomes the
@@ -114,7 +203,7 @@ attribute), it gets the `eqt_note_number` class and a rule `.eqt_note_number` se
 `display: inline !important`: Send to Kindle (KFX) does not show such notes in pop-ups. The rules
 of the book are not changed; the declaration is removed from the `style` attribute.
 
-#### Output messages:
+### Output messages:
 By default (without `-v`) only problems are printed while the books are processed: warnings, errors
 and messages of EpubCheck and kindlegen, each book's problems after a line `--- path/to/book.epub`.
 Books without problems print nothing; at the end of each step a summary is printed (e.g. the list of
@@ -130,7 +219,7 @@ books finished with problems). In a terminal the book being processed is shown i
 The internal check (`-q`) prints one finding per line (`* ` or `file: ` with `-a`), marked
 `CRITICAL!`, `ERROR!` or `WARNING!` where it applies.
 
-#### CSS check (-q):
+### CSS check (-q):
 CSS files are parsed with tinycss2 (CSS Syntax Level 3) and checked for problems that matter
 in e-book readers (not for CSS 2.1 validity - vendor prefixes and modern properties are fine):
 * `CSS ERROR!` - a reader drops the declaration or rule: syntax errors, a declaration without
@@ -141,37 +230,37 @@ in e-book readers (not for CSS 2.1 validity - vendor prefixes and modern propert
   `font-family`, `line-height`, `color` or `background-color`, `position: fixed/absolute`,
   `display: flex/grid`, `vh/vw/vmin/vmax` units, a color on `body`/`html`, `@import`
 
-#### Additional requirements:
-* python -m pip install lxml
-* python -m pip install css-parser
-* python -m pip install tinycss2
-* python -m pip install pyinstaller (for compilation only)
+## For developers
 
-#### Tests:
-Run from the main folder (with the requirements above installed):
+### Requirements
+```
+python -m pip install lxml css-parser tinycss2
+python -m pip install pyinstaller    # for standalone applications only
+```
+
+### Tests
+Run from the main folder:
 ```
 python -m unittest
 ```
 
-#### calibre plugin:
-The plugin fixes the selected books in calibre like `-e`. The fixed book becomes
-the EPUB format and the original is kept as ORIGINAL_EPUB (only the first time,
-so fixing again starts from the original). The button menu has "Przywróć
-oryginał" (restore the original) and the settings (hyphenation, reset CSS, text
-alignment, colors, margin, fonts, page list; the defaults are like `-e`). The
-work runs as a calibre job; a book which cannot be fixed stays unchanged.
-Build (needs tinycss2, which calibre lacks) and install:
+### Building the calibre plugin
 ```
-python build_calibre_plugin.py
-calibre-customize -a epubQTools-calibre.zip
+python build_calibre_plugin.py [OUTPUT.zip]
 ```
+The plugin is a zip file with `calibre_plugin/`, `lib/` and tinycss2 (calibre
+lacks it), taken from the Python which runs the script. The default output is
+`epubQTools-calibre.zip` in the main folder (ignored by git). Install it as above
+or with `calibre-customize -a epubQTools-calibre.zip` (on macOS it is in
+`/Applications/calibre.app/Contents/MacOS/`; then add the button to the toolbar
+in the preferences).
 
-#### Compilation tips for creating standalone applications with Pyinstaller tool:
-* build on Mac (with Python 3.7.x from Homebrew):
+### Standalone applications (PyInstaller)
+* on Mac:
 ```
 pyinstaller -Fn epubQTools ~/github/epubQTools/__main__.py
 ```
-* build on Windows (with Python 3.7.x):
+* on Windows:
 ```
 C:\Python37\Scripts\pyinstaller.exe -Fn epubQTools .\epubQTools\__main__.py
 ```

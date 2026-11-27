@@ -19,7 +19,7 @@ class EpubQToolsPlugin(InterfaceActionBase):
                    'EPUB, oryginał zostaje jako ORIGINAL_EPUB.')
     supported_platforms = ['windows', 'osx', 'linux']
     author = 'Robert Błaut'
-    version = (0, 9, 0)
+    version = (1, 0, 0)
     minimum_calibre_version = (6, 0, 0)
     actual_plugin = 'calibre_plugins.epubqtools.action:EpubQToolsAction'
 

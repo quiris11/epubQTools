@@ -27,7 +27,7 @@ from lib.fix_name_author import fix_name_author
 __license__ = 'GNU Affero GPL v3'
 __copyright__ = '2014, Robert Błaut listy@blaut.biz'
 __appname__ = 'epubQTools'
-numeric_version = (0, 9)
+numeric_version = (1, 0)
 __version__ = '.'.join(map(str, numeric_version))
 __author__ = 'Robert Błaut <listy@blaut.biz>'
 
@@ -95,7 +95,7 @@ parser.add_argument("-q", "--qcheck", help="validate files with qcheck "
                     "internal tool",
                     action="store_true")
 parser.add_argument("-p", "--epubcheck", help="validate epub files with "
-                    " EpubCheck 4 tool",
+                    " EpubCheck tool",
                     action="store_true")
 parser.add_argument("-w", "--skip-font-mime",
                     help="do not report non-standard font media types "
