@@ -23,7 +23,7 @@ WARNING! - may cause problems in some readers:
 import re
 import sys
 
-from lib.resource_data import read_resource
+from .resource_data import read_resource
 
 try:
     import tinycss2

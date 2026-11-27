@@ -9,10 +9,10 @@
 import zipfile
 import os
 from lxml import etree
-from lib.epubqfix import pack_epub
-from lib.epubqfix import unpack_epub
-from lib.epubqfix import clean_temp
-from lib.epubqfix import find_roots
+from .epubqfix import pack_epub
+from .epubqfix import unpack_epub
+from .epubqfix import clean_temp
+from .epubqfix import find_roots
 
 OPFNS = {'opf': 'http://www.idpf.org/2007/opf'}
 DCNS = {'dc': 'http://purl.org/dc/elements/1.1/'}

@@ -29,16 +29,16 @@ import traceback
 
 from urllib.parse import quote, unquote
 from itertools import cycle
-from lib.htmlconstants import entities
-from lib.epubqcheck import best_cover_image_item
-from lib.csscheck import (class_rules, fix_missing_semicolons,
+from .htmlconstants import entities
+from .epubqcheck import best_cover_image_item
+from .csscheck import (class_rules, fix_missing_semicolons,
                           fix_property_typos, fix_unusual_spaces,
                           font_face_families,
                           remove_class_rules, remove_page_descriptors,
                           remove_src_descriptors)
-from lib.hyphenator import Hyphenator
-from lib.resource_data import read_resource
-from lib.beautify_book import beautify_book
+from .hyphenator import Hyphenator
+from .resource_data import read_resource
+from .beautify_book import beautify_book
 from collections import Counter
 from functools import reduce
 

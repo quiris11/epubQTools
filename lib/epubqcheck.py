@@ -11,12 +11,12 @@ import os
 import sys
 import tempfile
 import shutil
-import lib.fntutls
+from . import fntutls
 import io
 import struct
 from urllib.parse import unquote
-from lib.htmlconstants import entities
-from lib.csscheck import check_css
+from .htmlconstants import entities
+from .csscheck import check_css
 
 try:
     from tidylib import tidy_document
@@ -734,13 +734,13 @@ def check_body_font_family(singf, epub, _file_dec, is_body_family,
 
 def list_font_basic_properties(raw_file):
     try:
-        font_family = lib.fntutls.get_all_font_names(
+        font_family = fntutls.get_all_font_names(
             raw_file)['family_name']
     except KeyError:
         font_family = 'NOT DEFINED'
-    italic = lib.fntutls.get_font_characteristics(raw_file)[1]
-    bold = lib.fntutls.get_font_characteristics(raw_file)[2]
-    regular = lib.fntutls.get_font_characteristics(raw_file)[3]
+    italic = fntutls.get_font_characteristics(raw_file)[1]
+    bold = fntutls.get_font_characteristics(raw_file)[2]
+    regular = fntutls.get_font_characteristics(raw_file)[3]
     return font_family, regular, bold, italic
 
 
@@ -836,7 +836,7 @@ def qcheck(root, _file, alter, mod, is_list_fonts, skip_font_mime=False,
                                     list_font_basic_properties(c)[3]
                                 )
                             )
-                        except (lib.fntutls.UnsupportedFont,
+                        except (fntutls.UnsupportedFont,
                                 struct.error) as e:
                             print(
                                 '%sERROR! Problem with font file "%s": %s' %

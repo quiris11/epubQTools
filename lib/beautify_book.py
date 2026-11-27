@@ -12,7 +12,7 @@ import re
 import shutil
 import logging
 from collections import Counter
-from lib.epubqcheck import list_font_basic_properties
+from .epubqcheck import list_font_basic_properties
 from urllib.parse import unquote
 
 try:
@@ -575,10 +575,10 @@ def fix_display_none(opftree, epub_dir, cont_src_list):
 
 
 def beautify_book(root, f, user_font_dir, pair_family):
-    from lib.epubqfix import pack_epub
-    from lib.epubqfix import unpack_epub
-    from lib.epubqfix import clean_temp
-    from lib.epubqfix import find_roots
+    from .epubqfix import pack_epub
+    from .epubqfix import unpack_epub
+    from .epubqfix import clean_temp
+    from .epubqfix import find_roots
     # same name as in qfix (also for '.EPUB' or '.epub' inside the name)
     f = os.path.splitext(f)[0] + '_moh.epub'
     print('START beautify for: ' + f)
