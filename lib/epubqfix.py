@@ -5046,16 +5046,17 @@ def fix_structure_in_original(root, f, zbf):
     return 0
 
 
-def qfix(root, f, moh_dir, *args):
+def qfix(root, f, moh_dir, *args, **kwargs):
     """Process one book. An unexpected error stops only this book, not the
     whole batch: it is reported, temporary files are removed and a partly
-    written _moh file is deleted. The _moh file is written to moh_dir."""
+    written _moh file is deleted. The _moh file is written to moh_dir.
+    The options are the arguments of _qfix, given in order or by name."""
     newfile = os.path.join(moh_dir, os.path.splitext(f)[0] + '_moh.epub')
     mtime_before = (os.path.getmtime(newfile) if os.path.exists(newfile)
                     else None)
     tempdirs_before = list(open_tempdirs)
     try:
-        return _qfix(root, f, moh_dir, *args)
+        return _qfix(root, f, moh_dir, *args, **kwargs)
     except Exception:
         print('')
         print('! CRITICAL! Unexpected error while processing "%s":' % f)

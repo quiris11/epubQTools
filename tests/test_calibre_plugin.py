@@ -1,0 +1,209 @@
+# -*- coding: utf-8 -*-
+#
+# This file is part of epubQTools, licensed under GNU Affero GPLv3 or later.
+# Copyright © Robert Błaut. See NOTICE for more information.
+#
+"""Parts of the calibre plugin which work without calibre: settings,
+work with the library (on a fake library) and the built zip."""
+import importlib.util
+import inspect
+import os
+import shutil
+import subprocess
+import tempfile
+import unittest
+import zipfile
+
+import build_calibre_plugin
+from lib import epubqfix
+
+PLUGIN = os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), 'calibre_plugin')
+
+
+def load(name):
+    """A module of calibre_plugin/ without its package (its __init__.py
+    needs calibre)."""
+    spec = importlib.util.spec_from_file_location(
+        'eqt_plugin_' + name, os.path.join(PLUGIN, name + '.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+options = load('options')
+library = load('library')
+
+
+class FakeDB(object):
+    """The calls of db.new_api used by the plugin, with the behaviour of
+    calibre 9.19: save_original_format overwrites ORIGINAL_EPUB."""
+
+    def __init__(self, books):
+        self.books = books          # id -> {'title': str, fmt: bytes}
+
+    def has_id(self, book_id):
+        return book_id in self.books
+
+    def has_format(self, book_id, fmt):
+        return fmt in self.books.get(book_id, {})
+
+    def field_for(self, field, book_id):
+        return self.books[book_id][field]
+
+    def copy_format_to(self, book_id, fmt, dest):
+        with open(dest, 'wb') as f:
+            f.write(self.books[book_id][fmt])
+
+    def save_original_format(self, book_id, fmt):
+        self.books[book_id]['ORIGINAL_' + fmt] = self.books[book_id][fmt]
+        return True
+
+    def add_format(self, book_id, fmt, path, run_hooks=True):
+        with open(path, 'rb') as f:
+            self.books[book_id][fmt] = f.read()
+        return True
+
+    def restore_original_format(self, book_id, original_fmt):
+        book = self.books[book_id]
+        book[original_fmt[len('ORIGINAL_'):]] = book.pop(original_fmt)
+        return True
+
+
+class TestOptions(unittest.TestCase):
+
+    def test_defaults_are_like_e(self):
+        o = options.qfix_options({})
+        self.assertEqual(o['_resetmargins'], True)      # -c is store_false
+        self.assertEqual(o['arg_justify'], True)        # --skip-justify too
+        self.assertEqual(o['arg_left'], False)
+        self.assertEqual(o['skip_hyph'], False)
+        self.assertEqual(o['dont_hyph_headers'], False)
+        self.assertEqual(o['skip_pages'], False)
+        self.assertEqual(o['del_colors'], False)
+        self.assertEqual(o['del_fonts'], False)
+        self.assertIsNone(o['html_margin'])
+        self.assertIsNone(o['fontdir'])
+        self.assertEqual(o['fix_container_only'], False)
+
+    def test_names_are_arguments_of_qfix(self):
+        params = list(inspect.signature(epubqfix._qfix).parameters)
+        self.assertEqual(sorted(options.qfix_options({})),
+                         sorted(params[3:]))
+
+    def test_settings(self):
+        o = options.qfix_options({
+            'hyphenate': False, 'hyphenate_headers': False,
+            'reset_css': False, 'align': options.ALIGN_LEFT,
+            'remove_colors': True, 'remove_fonts': True,
+            'book_margin': 15, 'page_list': False})
+        self.assertEqual(
+            (o['skip_hyph'], o['dont_hyph_headers'], o['_resetmargins'],
+             o['arg_justify'], o['arg_left'], o['del_colors'],
+             o['del_fonts'], o['html_margin'], o['skip_pages']),
+            (True, True, False, False, True, True, True, '15', True))
+        o = options.qfix_options({'align': options.ALIGN_KEEP})
+        self.assertEqual((o['arg_justify'], o['arg_left']), (False, False))
+
+    def test_wrong_values(self):
+        s = options.with_defaults({'align': 'center', 'book_margin': 'x',
+                                   'unknown': 1})
+        self.assertEqual(s, options.DEFAULTS)
+        self.assertIsNone(options.with_defaults({'book_margin': -3})
+                          ['book_margin'])
+        self.assertEqual(options.with_defaults({'book_margin': '7'})
+                         ['book_margin'], 7)
+
+
+class TestLibrary(unittest.TestCase):
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir)
+
+    def fixed(self, data):
+        path = os.path.join(self.dir, 'fixed.epub')
+        with open(path, 'wb') as f:
+            f.write(data)
+        return path
+
+    def test_file_name(self):
+        self.assertEqual(library.file_name('Ala: ma/kota?', 1),
+                         'Ala_ ma_kota_.epub')
+        self.assertEqual(library.file_name('Żółć', 1), 'Żółć.epub')
+        self.assertEqual(library.file_name('...', 7), 'book 7.epub')
+        self.assertEqual(len(library.file_name('a' * 300, 1)), 105)
+
+    def test_copy_books_prefers_original(self):
+        db = FakeDB({1: {'title': 'A', 'EPUB': b'fixed',
+                         'ORIGINAL_EPUB': b'orig'},
+                     2: {'title': 'B', 'EPUB': b'b'},
+                     3: {'title': 'C', 'MOBI': b'c'}})
+        books, skipped = library.copy_books(db, [1, 2, 3], self.dir)
+        self.assertEqual([(b[0], b[2]) for b in books], [(1, 'A'), (2, 'B')])
+        self.assertEqual(skipped, ['C'])
+        with open(books[0][1], 'rb') as f:
+            self.assertEqual(f.read(), b'orig')
+        self.assertEqual(os.path.dirname(books[1][1]),
+                         os.path.join(self.dir, '2'))
+
+    def test_store_keeps_first_original(self):
+        db = FakeDB({1: {'title': 'A', 'EPUB': b'orig'}})
+        self.assertTrue(library.store_fixed(db, 1, self.fixed(b'fix1')))
+        self.assertTrue(library.store_fixed(db, 1, self.fixed(b'fix2')))
+        self.assertEqual(db.books[1]['EPUB'], b'fix2')
+        self.assertEqual(db.books[1]['ORIGINAL_EPUB'], b'orig')
+
+    def test_store_book_gone(self):
+        db = FakeDB({1: {'title': 'A', 'MOBI': b'm'}})
+        self.assertFalse(library.store_fixed(db, 1, self.fixed(b'x')))
+        self.assertFalse(library.store_fixed(db, 2, self.fixed(b'x')))
+        self.assertNotIn('EPUB', db.books[1])
+
+    def test_store_epub_removed_original_kept(self):
+        db = FakeDB({1: {'title': 'A', 'ORIGINAL_EPUB': b'orig'}})
+        self.assertTrue(library.store_fixed(db, 1, self.fixed(b'fix')))
+        self.assertEqual(db.books[1], {'title': 'A', 'EPUB': b'fix',
+                                       'ORIGINAL_EPUB': b'orig'})
+
+    def test_restore(self):
+        db = FakeDB({1: {'title': 'A', 'EPUB': b'orig'},
+                     2: {'title': 'B', 'EPUB': b'b'}})
+        library.store_fixed(db, 1, self.fixed(b'fix'))
+        self.assertTrue(library.restore_original(db, 1))
+        self.assertEqual(db.books[1], {'title': 'A', 'EPUB': b'orig'})
+        self.assertFalse(library.restore_original(db, 2))
+
+
+class TestBuild(unittest.TestCase):
+
+    def test_zip(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        out = os.path.join(tmp, 'plugin.zip')
+        names = build_calibre_plugin.build(out)
+        with zipfile.ZipFile(out) as z:
+            self.assertIsNone(z.testzip())
+            self.assertEqual(sorted(z.namelist()), sorted(names))
+        for name in ('__init__.py', 'action.py', 'config.py', 'library.py',
+                     'options.py', 'worker.py',
+                     'plugin-import-name-epubqtools.txt', 'NOTICE',
+                     'lib/__init__.py', 'lib/epubqfix.py',
+                     'lib/resources/dictionaries/hyph_pl_PL.dic',
+                     'deps/tinycss2/__init__.py'):
+            self.assertIn(name, names)
+        self.assertFalse([n for n in names
+                          if n.endswith('.pyc') or '__pycache__' in n or
+                          n.endswith('.DS_Store')])
+        root = os.path.dirname(PLUGIN)
+        tracked = subprocess.run(
+            ['git', '-C', root, 'ls-files', 'lib', 'calibre_plugin'],
+            capture_output=True, text=True).stdout.split()
+        for path in tracked:
+            name = path[len('calibre_plugin/'):] if path.startswith(
+                'calibre_plugin/') else path
+            self.assertIn(name, names)
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -157,6 +157,19 @@ Run from the main folder (with the requirements above installed):
 python -m unittest
 ```
 
+#### calibre plugin:
+The plugin fixes the selected books in calibre like `-e`. The fixed book becomes
+the EPUB format and the original is kept as ORIGINAL_EPUB (only the first time,
+so fixing again starts from the original). The button menu has "Przywróć
+oryginał" (restore the original) and the settings (hyphenation, reset CSS, text
+alignment, colors, margin, fonts, page list; the defaults are like `-e`). The
+work runs as a calibre job; a book which cannot be fixed stays unchanged.
+Build (needs tinycss2, which calibre lacks) and install:
+```
+python build_calibre_plugin.py
+calibre-customize -a epubQTools-calibre.zip
+```
+
 #### Compilation tips for creating standalone applications with Pyinstaller tool:
 * build on Mac (with Python 3.7.x from Homebrew):
 ```

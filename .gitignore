@@ -14,3 +14,6 @@
 .DS_Store
 *.sublime-workspace
 *.sublime-project
+
+# calibre plugin built by build_calibre_plugin.py
+epubQTools-calibre.zip
