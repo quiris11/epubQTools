@@ -37,6 +37,7 @@ def load(name):
 options = load('options')
 library = load('library')
 translations = load('translations')
+update = load('update')
 ORIG = library.ORIGINAL_FILE
 
 
@@ -240,6 +241,62 @@ class TestLibrary(unittest.TestCase):
                                        ORIG: b'orig'})
 
 
+def release(tag='v1.1', zip_name='epubQTools-calibre-1.1.zip', **extra):
+    """An answer of GitHub for the latest release."""
+    answer = {'tag_name': tag, 'draft': False, 'prerelease': False,
+              'html_url': 'https://github.com/quiris11/epubQTools/releases/'
+                          'tag/' + tag,
+              'assets': [{'name': zip_name}] if zip_name else []}
+    answer.update(extra)
+    return answer
+
+
+class TestUpdate(unittest.TestCase):
+
+    def test_versions(self):
+        self.assertEqual(update.parse_version('v1.2'), (1, 2, 0))
+        self.assertEqual(update.parse_version('1.2.3'), (1, 2, 3))
+        self.assertEqual(update.parse_version('V2'), (2, 0, 0))
+        for wrong in (None, '', 'v', 'v1.0-beta', 'latest', '1..2'):
+            self.assertIsNone(update.parse_version(wrong), wrong)
+        self.assertEqual(update.version_text((1, 0, 0)), '1.0')
+        self.assertEqual(update.version_text((1, 2, 1)), '1.2.1')
+        self.assertTrue(update.is_newer('1.10', (1, 9, 0)))
+        self.assertTrue(update.is_newer('1.0.1', (1, 0, 0)))
+        self.assertFalse(update.is_newer('1.0', (1, 0, 0)))
+        self.assertFalse(update.is_newer('0.9', (1, 0, 0)))
+        self.assertFalse(update.is_newer(None, (1, 0, 0)))
+
+    def test_newer_release(self):
+        self.assertEqual(update.newer_release(release(), (1, 0, 0)), {
+            'version': '1.1',
+            'url': 'https://github.com/quiris11/epubQTools/releases/tag/'
+                   'v1.1'})
+        self.assertEqual(update.newer_release(
+            release('v1.0.2', 'epubQTools-calibre-1.0.2.zip'),
+            (1, 0, 0))['version'], '1.0.2')
+
+    def test_no_newer_release(self):
+        current = (1, 0, 0)
+        for answer in (release('v1.0'),            # the same version
+                       release('v0.9'),            # older
+                       release(zip_name=None),     # without the plugin
+                       release(zip_name='epubQTools-1.1.zip'),
+                       release(draft=True), release(prerelease=True),
+                       release('nightly'),
+                       release(html_url='https://example.com/x'),
+                       release(assets=None), {}, None, [], 'v1.1'):
+            self.assertIsNone(update.newer_release(answer, current), answer)
+
+    def test_check_due(self):
+        day = update.CHECK_EVERY
+        self.assertTrue(update.check_due(None, 1000))
+        self.assertTrue(update.check_due('x', 1000))
+        self.assertFalse(update.check_due(1000, 1000 + day - 1))
+        self.assertTrue(update.check_due(1000, 1000 + day))
+        self.assertTrue(update.check_due(1000 + day, 1000))  # clock back
+
+
 class TestTranslations(unittest.TestCase):
 
     def texts(self):
@@ -292,7 +349,8 @@ class TestBuild(unittest.TestCase):
             self.assertIsNone(z.testzip())
             self.assertEqual(sorted(z.namelist()), sorted(names))
         for name in ('__init__.py', 'action.py', 'config.py', 'library.py',
-                     'options.py', 'translations.py', 'worker.py',
+                     'options.py', 'translations.py', 'update.py',
+                     'worker.py',
                      'plugin-import-name-epubqtools.txt', 'NOTICE',
                      'lib/__init__.py', 'lib/epubqfix.py',
                      'lib/resources/dictionaries/hyph_pl_PL.dic',

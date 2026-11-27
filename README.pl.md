@@ -72,6 +72,17 @@ poprawić – zostają bez zmian.
 
 Wtyczka mówi językiem calibre (po polsku albo po angielsku).
 
+### Nowe wersje
+Kilka sekund po uruchomieniu calibre wtyczka pyta GitHuba, czy wyszła nowsza
+wersja epubQTools z wtyczką do calibre (najwyżej raz dziennie). Jeśli tak,
+okienko raz pyta, czy otworzyć stronę pobierania, a w menu przycisku jest
+**Nowa wersja … – pobierz…**, dopóki jej nie zainstalujesz. Żeby zaktualizować,
+pobierz zip i wczytaj go tak jak przy pierwszej instalacji. Do GitHuba idzie
+tylko to pytanie (GitHub widzi więc Twój adres internetowy, jak przy każdym
+wejściu na jego strony), nic o Twoich książkach. Bez internetu nic się nie
+pokazuje, a przy następnym uruchomieniu calibre wtyczka spróbuje znowu. Można to
+wyłączyć w ustawieniach.
+
 ### Ustawienia
 | Ustawienie | Domyślnie | Co robi |
 |---|---|---|
@@ -83,8 +94,10 @@ Wtyczka mówi językiem calibre (po polsku albo po angielsku).
 | Margines lewy i prawy | nie | Dodaje z lewej i prawej strony margines podanej szerokości (w pikselach). Działa tylko z „Dołącz reset CSS”. |
 | Usuń wbudowane fonty | nie | Usuwa fonty książki; czytnik używa własnego fontu. |
 | Dodaj przybliżoną listę stron (w książkach bez niej) | tak | Dodaje numery stron (jedna strona = mniej więcej tyle samo tekstu), więc czytnik może pokazywać numery stron. Książki z własną listą stron nie są zmieniane. |
+| Sprawdzaj nową wersję wtyczki na GitHubie (raz dziennie) | tak | Zob. [Nowe wersje](#nowe-wersje). Wyłączone: wtyczka nie łączy się z internetem. |
 
-**Przywróć domyślne** w okienku ustawień przywraca wartości z tabeli.
+**Przywróć domyślne** w okienku ustawień przywraca wartości z tabeli, oprócz
+sprawdzania nowych wersji.
 
 ## Wiersz poleceń (terminal)
 

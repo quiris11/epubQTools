@@ -26,6 +26,23 @@ def current_settings():
     return with_defaults(prefs.get('settings'))
 
 
+def check_updates():
+    """Check on GitHub for a new version of the plugin (on by default)."""
+    return prefs.get('check_updates', True) is not False
+
+
+def update_state():
+    """What the last check for a new version found: 'last_check' (seconds),
+    'found' (newer release or None), 'notified' (version shown in the
+    window)."""
+    state = prefs.get('update')
+    return dict(state) if isinstance(state, dict) else {}
+
+
+def save_update_state(state):
+    prefs['update'] = state
+
+
 class ConfigWidget(QWidget):
 
     def __init__(self):
@@ -96,6 +113,19 @@ class ConfigWidget(QWidget):
         bl.addWidget(self.page_list)
         layout.addWidget(box)
 
+        box = QGroupBox(tr('New versions'), self)
+        bl = QVBoxLayout(box)
+        self.check_updates = QCheckBox(
+            tr('Check for a new version of the plugin on GitHub (once a '
+               'day)'), box)
+        self.check_updates.setToolTip(
+            tr('calibre asks GitHub once a day whether a newer version of '
+               'epubQTools was released. Nothing about your books is '
+               'sent.'))
+        self.check_updates.setChecked(check_updates())
+        bl.addWidget(self.check_updates)
+        layout.addWidget(box)
+
         row = QHBoxLayout()
         row.addStretch(1)
         defaults = QPushButton(tr('Restore defaults'), self)
@@ -145,3 +175,4 @@ class ConfigWidget(QWidget):
 
     def save_settings(self):
         prefs['settings'] = self.settings()
+        prefs['check_updates'] = self.check_updates.isChecked()

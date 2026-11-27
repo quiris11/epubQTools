@@ -24,6 +24,14 @@ POLISH = {
     'Fix the selected books': 'Popraw zaznaczone książki',
     'Restore the original': 'Przywróć oryginał',
     'Settings…': 'Ustawienia…',
+    'Download the new version…': 'Pobierz nową wersję…',
+
+    # action.py: new version on GitHub
+    'New version %s – download…': 'Nowa wersja %s – pobierz…',
+    'A new version of epubQTools is available: %s (you have %s). Open the '
+    'download page?':
+    'Jest nowa wersja epubQTools: %s (masz %s). Otworzyć stronę '
+    'pobierania?',
 
     # action.py: fixing
     'No book is selected.': 'Nie zaznaczono żadnej książki.',
@@ -89,6 +97,13 @@ POLISH = {
     'with “Add a CSS reset”.':
     'Margines jest zapisywany w resecie CSS, więc ta opcja działa tylko '
     'z „Dołącz reset CSS”.',
+    'New versions': 'Nowe wersje',
+    'Check for a new version of the plugin on GitHub (once a day)':
+    'Sprawdzaj nową wersję wtyczki na GitHubie (raz dziennie)',
+    'calibre asks GitHub once a day whether a newer version of epubQTools '
+    'was released. Nothing about your books is sent.':
+    'calibre raz dziennie pyta GitHuba, czy wyszła nowsza wersja '
+    'epubQTools. Nic o Twoich książkach nie jest wysyłane.',
     'Restore defaults': 'Przywróć domyślne',
     'Settings like “-c -r -e” in the terminal.':
     'Ustawienia jak „-c -r -e” w terminalu.',

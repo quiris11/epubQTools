@@ -5,18 +5,23 @@
 #
 
 """Toolbar button of the plugin: fix the selected books (default action),
-restore the originals, settings."""
+restore the originals, settings, a new version on GitHub."""
 
 import shutil
+import threading
+import time
 
-from qt.core import QMenu, QModelIndex, QToolButton
+from qt.core import (QMenu, QModelIndex, QTimer, QToolButton, QUrl,
+                     pyqtSignal)
 
-from calibre.gui2 import (Dispatcher, error_dialog, info_dialog,
+from calibre.gui2 import (Dispatcher, error_dialog, info_dialog, open_url,
                           question_dialog, warning_dialog)
 from calibre.gui2.actions import InterfaceAction
 from calibre.ptempfile import PersistentTemporaryDirectory
 
-from .config import current_settings
+from . import update
+from .config import (check_updates, current_settings, save_update_state,
+                     update_state)
 from .library import copy_books, has_original, restore_original, store_fixed
 from .translations import tr
 
@@ -37,6 +42,10 @@ class EpubQToolsAction(InterfaceAction):
     action_type = 'current'
     dont_add_to = frozenset(['context-menu-device', 'toolbar-device'])
 
+    # sent from the thread of the check: (time of the check, newer release
+    # or None)
+    update_checked = pyqtSignal(object, object)
+
     def genesis(self):
         self.menu = QMenu(self.gui)
         self.create_menu_action(
@@ -49,8 +58,20 @@ class EpubQToolsAction(InterfaceAction):
         self.create_menu_action(
             self.menu, 'epubqtools-settings', tr('Settings…'),
             icon='config.png', triggered=self.show_settings)
+        self.update_action = self.create_menu_action(
+            self.menu, 'epubqtools-update', tr('Download the new version…'),
+            icon='plugins/plugin_updater_updates.png',
+            triggered=self.open_update_page)
+        self.update_action.setVisible(False)
+        self.update_found = None
         self.qaction.setMenu(self.menu)
         self.qaction.triggered.connect(self.fix_selected)
+        self.update_checked.connect(self.update_check_done)
+
+    def initialization_complete(self):
+        self.show_update(update_state().get('found'))
+        # a moment after the start, so calibre is not slowed down
+        QTimer.singleShot(5000, self.start_update_check)
 
     def selected_ids(self):
         return list(self.gui.library_view.get_selected_ids())
@@ -64,6 +85,65 @@ class EpubQToolsAction(InterfaceAction):
 
     def show_settings(self):
         self.interface_action_base_plugin.do_user_config(self.gui)
+        self.show_update(self.update_found)
+
+    def plugin_version(self):
+        return self.interface_action_base_plugin.version
+
+    def show_update(self, found):
+        """Menu item for a newer version found on GitHub (hidden when the
+        check is turned off or the plugin was updated)."""
+        if not (isinstance(found, dict) and check_updates() and
+                str(found.get('url')).startswith('https://github.com/') and
+                update.is_newer(found.get('version'),
+                                self.plugin_version())):
+            found = None
+        self.update_found = found
+        if found:
+            self.update_action.setText(
+                tr('New version %s – download…') % found['version'])
+        self.update_action.setVisible(bool(found))
+
+    def open_update_page(self):
+        if self.update_found:
+            open_url(QUrl(self.update_found['url']))
+
+    def start_update_check(self):
+        """Ask GitHub in the background, at most once a day; without the
+        internet nothing is shown and the next start tries again."""
+        if not check_updates():
+            return
+        now = time.time()
+        if not update.check_due(update_state().get('last_check'), now):
+            return
+        current = self.plugin_version()
+
+        def run():
+            try:
+                found = update.fetch_latest(current)
+            except Exception:
+                return
+            self.update_checked.emit(now, found)
+
+        threading.Thread(target=run, name='epubQTools: new version',
+                         daemon=True).start()
+
+    def update_check_done(self, when, found):
+        state = update_state()
+        state['last_check'] = when
+        state['found'] = found
+        notify = bool(found) and state.get('notified') != found['version']
+        if notify:
+            state['notified'] = found['version']
+        save_update_state(state)
+        self.show_update(found)
+        if notify and self.update_found and question_dialog(
+                self.gui, TITLE,
+                tr('A new version of epubQTools is available: %s (you have '
+                   '%s). Open the download page?') % (
+                    found['version'],
+                    update.version_text(self.plugin_version()))):
+            self.open_update_page()
 
     def fix_selected(self):
         book_ids = self.selected_ids()

@@ -69,6 +69,17 @@ fixed and stay unchanged.
 
 The plugin speaks the language of calibre (Polish or English).
 
+### New versions
+A few seconds after calibre starts, the plugin asks GitHub whether a newer
+version of epubQTools with the calibre plugin was released (at most once a
+day). If so, a window asks once whether to open the download page, and the
+menu of the button shows **New version … – download…** until you install it.
+To update, download the zip and load it like at the first installation. Only
+the question goes to GitHub (so GitHub sees your internet address, as on any
+visit to its pages), nothing about your books. Without the internet nothing is
+shown and the next start of calibre tries again. You can turn it off in the
+settings.
+
 ### Settings
 | Setting | Default | What it does |
 |---|---|---|
@@ -80,8 +91,10 @@ The plugin speaks the language of calibre (Polish or English).
 | Left and right margin | off | Adds a margin of the given width (in pixels) on the left and right side. Works only with “Add a CSS reset”. |
 | Remove embedded fonts | off | Removes the fonts of the book; the reader uses its own font. |
 | Add an approximate page list (in books without one) | on | Adds page numbers (one page = about the same amount of text), so the reader can show page numbers. Books with their own page list are not changed. |
+| Check for a new version of the plugin on GitHub (once a day) | on | See [New versions](#new-versions). Off: the plugin does not connect to the internet. |
 
-**Restore defaults** in the settings window brings back the values above.
+**Restore defaults** in the settings window brings back the values above,
+except checking for new versions.
 
 ## Command line
 
