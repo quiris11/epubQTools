@@ -6,8 +6,9 @@ epubQTools [![Release](https://img.shields.io/github/release/quiris11/epubqtools
 Narzędzia do sprawdzania, poprawiania i dzielenia wyrazów w książkach EPUB,
 przede wszystkim z myślą o czytnikach Kindle (Send to Kindle). epubQTools
 poprawia to, co psuje czytanie (błędy w CSS, okładki, linki, przypisy,
-zaciemnione fonty…), dzieli wyrazy w polskich książkach, dodaje przybliżoną
-listę stron i usuwa teksty oraz strony dodawane przez niektóre księgarnie.
+zaciemnione fonty…), dzieli wyrazy (po polsku, a ze słownikami calibre także
+w około 40 innych językach), dodaje przybliżoną listę stron i usuwa teksty oraz
+strony dodawane przez niektóre księgarnie.
 
 Można z niego korzystać na dwa sposoby:
 * **wtyczka do calibre** – najprościej, bez terminala: zaznaczasz książki
@@ -19,6 +20,22 @@ Można z niego korzystać na dwa sposoby:
 Oryginalne pliki nie są zmieniane: poprawione książki to nowe pliki (a w calibre
 nowa wersja książki, przy czym oryginał zostaje zachowany). Oryginały zmieniają
 tylko `-n`, `--author`, `--title` i `--fix-missing-container`.
+
+## Dzielenie wyrazów a język książki
+Wyrazy są dzielone według zasad języka książki (zapisanego w książce):
+* **polski** – zawsze, polski słownik jest częścią epubQTools;
+* **inne języki** – słownikami calibre: we wtyczce zawsze, w terminalu wtedy,
+  gdy calibre jest zainstalowany (w zwykłych miejscach: `/Applications`
+  w macOS, `/opt/calibre` w Linuksie, `Program Files\Calibre2` w Windows albo
+  jako polecenie `calibre`). Bez calibre takie książki nie są dzielone. calibre
+  ma słowniki m.in. do angielskiego, niemieckiego, hiszpańskiego, włoskiego,
+  portugalskiego, niderlandzkiego, szwedzkiego, rosyjskiego, ukraińskiego,
+  czeskiego, słowackiego i węgierskiego; nie ma słownika francuskiego;
+* książka **bez języka** staje się polska. Polska staje się też książka z innym
+  językiem, jeśli jej tekst jest wyraźnie polski (pomyłka wydawcy).
+
+Tylko w książkach polskich pojedyncze litery (np. „i”, „w”, „z”) nie zostają
+na końcu wiersza: twarda spacja łączy je z następnym wyrazem.
 
 ## Wtyczka do calibre
 
@@ -67,7 +84,7 @@ Ustawienia domyślne dają ten sam wynik co `-c -r -e` w terminalu:
 
 | Ustawienie | Domyślnie | Opcja w terminalu |
 |---|---|---|
-| Dziel wyrazy (tylko książki po polsku) | tak | `-s` wyłącza |
+| Dziel wyrazy (zob. [Dzielenie wyrazów a język książki](#dzielenie-wyrazów-a-język-książki)) | tak | `-s` wyłącza |
 | Dziel też wyrazy w nagłówkach | nie | włączone bez `-r` |
 | Dołącz reset CSS | nie | włączony bez `-c` |
 | Wyrównanie tekstu: wyjustuj / do lewej / bez zmian | wyjustuj | – / `--left` / `--skip-justify` |

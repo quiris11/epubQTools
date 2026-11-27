@@ -5,7 +5,8 @@ epubQTools [![Release](https://img.shields.io/github/release/quiris11/epubqtools
 
 Tools for checking, fixing and hyphenating EPUB books, especially for Kindle
 readers (Send to Kindle). epubQTools fixes the problems which spoil reading
-(broken CSS, covers, links, notes, obfuscated fonts...), hyphenates Polish books,
+(broken CSS, covers, links, notes, obfuscated fonts...), hyphenates words
+(in Polish and, with the dictionaries of calibre, in about 40 other languages),
 adds an approximate page list and removes texts and pages added by some shops.
 
 There are two ways to use it:
@@ -17,6 +18,22 @@ There are two ways to use it:
 The original files are not changed: fixed books are new files (or, in calibre,
 a new version of the book with the original kept). Only `-n`, `--author`,
 `--title` and `--fix-missing-container` change the original files.
+
+## Hyphenation and book language
+Words are hyphenated by the rules of the book's language (written in the book):
+* **Polish** - always, the Polish dictionary is part of epubQTools.
+* **Other languages** - with the dictionaries of calibre: in the plugin always,
+  on the command line when calibre is installed (found in the usual folders:
+  `/Applications` on macOS, `/opt/calibre` on Linux, `Program Files\Calibre2`
+  on Windows, or as `calibre` on the PATH). Without calibre these books are not
+  hyphenated. calibre has dictionaries e.g. for English, German, Spanish,
+  Italian, Portuguese, Dutch, Swedish, Russian, Ukrainian, Czech, Slovak,
+  Hungarian; it has none for French.
+* A book **without a language** becomes Polish. A book with another language
+  whose text is clearly Polish (a mistake of the publisher) becomes Polish too.
+
+In Polish books only, a single letter (e.g. "i", "w", "z") is not left at the end
+of a line: a non-breaking space joins it with the next word.
 
 ## calibre plugin
 
@@ -61,7 +78,7 @@ The defaults give the same result as `-c -r -e` on the command line:
 
 | Setting | Default | Command line option |
 |---|---|---|
-| Hyphenate words (Polish books only) | on | `-s` turns it off |
+| Hyphenate words (see [Hyphenation and book language](#hyphenation-and-book-language)) | on | `-s` turns it off |
 | Hyphenate also words in headings | off | on without `-r` |
 | Add a CSS reset | off | on without `-c` |
 | Text alignment: justify text aligned to the left / align justified text to the left / no change | justify | – / `--left` / `--skip-justify` |
