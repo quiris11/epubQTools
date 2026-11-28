@@ -244,6 +244,19 @@ def book_texts(epub, opftree, folder):
             yield from body.itertext()
 
 
+def title_type(opftree, title):
+    """EPUB 3 title-type of a dc:title ("main", "subtitle", "collection"...)
+    or None when the title is not marked."""
+    tid = title.get('id')
+    if not tid:
+        return None
+    for meta in opftree.xpath('//opf:meta[@property="title-type"]',
+                              namespaces=OPFNS):
+        if (meta.get('refines') or '').strip() == '#' + tid and meta.text:
+            return meta.text.strip().lower()
+    return None
+
+
 def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
                     skip_font_mime=False):
 
@@ -375,9 +388,19 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
         print(_file_dec + 'CRITICAL! dc:title (book title) element is NOT '
               'defined in OPF file...')
     else:
-        if len(titles) > 1:
-            print(_file_dec + 'Warning! Multiple dc:title (book title) '
-                  'elements defined in OPF file may be problematic...')
+        # EPUB 3 marks a subtitle, a title of the series etc. with
+        # <meta refines="#id" property="title-type">; older readers take the
+        # first dc:title, so only a first title other than "main" is a problem
+        types = [title_type(opftree, t) for t in titles]
+        if len(titles) > 1 and types[0] != 'main':
+            if 'main' in types:
+                print(_file_dec + 'Warning! Multiple dc:title (book title) '
+                      'elements defined in OPF file and the first one is '
+                      'not the main title (title-type "main")...')
+            else:
+                print(_file_dec + 'Warning! Multiple dc:title (book title) '
+                      'elements defined in OPF file and none is marked as '
+                      'the main title (title-type "main")...')
         for t in titles:
             if t.text is None or t.text.strip() == '':
                 print(_file_dec + 'CRITICAL! dc:title (book title) is '

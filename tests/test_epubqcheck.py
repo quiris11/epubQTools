@@ -43,7 +43,8 @@ def opf(items, spine, lang='<dc:language>en</dc:language>'):
         'spine': ''.join('<itemref idref="%s"/>' % i for i in spine)}
 
 
-class QcheckLanguageTest(unittest.TestCase):
+class QcheckTestCase(unittest.TestCase):
+    """A small book b.epub checked by qcheck."""
 
     def setUp(self):
         self.dir = tempfile.mkdtemp()
@@ -51,7 +52,7 @@ class QcheckLanguageTest(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.dir)
 
-    def check(self, lang, text):
+    def check(self, lang, text, titles=None):
         with zipfile.ZipFile(os.path.join(self.dir, 'b.epub'), 'w') as z:
             z.writestr('mimetype', 'application/epub+zip')
             z.writestr('META-INF/container.xml', (
@@ -59,14 +60,22 @@ class QcheckLanguageTest(unittest.TestCase):
                 'oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
                 '<rootfile full-path="OEBPS/content.opf" media-type='
                 '"application/oebps-package+xml"/></rootfiles></container>'))
-            z.writestr('OEBPS/content.opf', opf(
+            content = opf(
                 [('c1', '../text/c1.xhtml', 'application/xhtml+xml')],
-                ['c1'], lang))
+                ['c1'], lang)
+            if titles is not None:
+                content = content.replace('<dc:title>Book</dc:title>',
+                                          titles)
+            z.writestr('OEBPS/content.opf', content)
             z.writestr('text/c1.xhtml', XHTML % ('<p>%s</p>' % text))
         out = io.StringIO()
         with redirect_stdout(out):
             qcheck(self.dir, 'b.epub', True, False, False)
-        return [x for x in out.getvalue().splitlines() if 'language' in x]
+        return [x for x in out.getvalue().splitlines()
+                if 'language' in x or 'dc:title' in x]
+
+
+class QcheckLanguageTest(QcheckTestCase):
 
     def test_other_language_is_not_a_problem(self):
         for lang in ('en', 'de-DE', 'tr'):
@@ -88,6 +97,42 @@ class QcheckLanguageTest(unittest.TestCase):
                      '<dc:language> </dc:language>'):
             self.assertEqual(self.check(lang, ENGLISH_TEXT),
                              ['b.epub: No dc:language defined'])
+
+
+class QcheckTitlesTest(QcheckTestCase):
+
+    def titles(self, titles):
+        return self.check('<dc:language>en</dc:language>', ENGLISH_TEXT,
+                          titles)
+
+    def test_main_title_first(self):
+        # EPUB 3 subtitle (e.g. books of d2d.pl)
+        self.assertEqual(self.titles(
+            '<dc:title id="t">Wyznawcy władzy</dc:title>'
+            '<meta refines="#t" property="title-type">main</meta>'
+            '<dc:title id="s">Religijny fundamentalizm</dc:title>'
+            '<meta refines="#s" property="title-type">subtitle</meta>'), [])
+
+    def test_subtitle_first(self):
+        self.assertEqual(self.titles(
+            '<dc:title id="s">Religijny fundamentalizm</dc:title>'
+            '<meta refines="#s" property="title-type">subtitle</meta>'
+            '<dc:title id="t">Wyznawcy władzy</dc:title>'
+            '<meta refines="#t" property="title-type">main</meta>'),
+            ['b.epub: Warning! Multiple dc:title (book title) elements '
+             'defined in OPF file and the first one is not the main title '
+             '(title-type "main")...'])
+
+    def test_titles_not_marked(self):
+        self.assertEqual(self.titles(
+            '<dc:title>Wyznawcy władzy</dc:title>'
+            '<dc:title>Religijny fundamentalizm</dc:title>'),
+            ['b.epub: Warning! Multiple dc:title (book title) elements '
+             'defined in OPF file and none is marked as the main title '
+             '(title-type "main")...'])
+
+    def test_one_title(self):
+        self.assertEqual(self.titles('<dc:title>Book</dc:title>'), [])
 
 
 if __name__ == '__main__':
