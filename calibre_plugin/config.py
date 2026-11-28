@@ -7,19 +7,24 @@
 """Settings window of the plugin (Preferences > Plugins > Customize, or
 the menu of the toolbar button)."""
 
-from qt.core import (QButtonGroup, QCheckBox, QGroupBox, QHBoxLayout,
-                     QLabel, QPushButton, QRadioButton, QSpinBox,
-                     QVBoxLayout, QWidget)
+from qt.core import (QButtonGroup, QCheckBox, QComboBox, QGroupBox,
+                     QHBoxLayout, QLabel, QPoint, QPushButton, QRadioButton,
+                     QSpinBox, QTimer, QVBoxLayout, QWidget)
 
 from calibre.utils.config import JSONConfig
 
 from .options import (ALIGN_JUSTIFY, ALIGN_KEEP, ALIGN_LEFT, DEFAULTS,
-                      with_defaults)
+                      KINDLE_SITES, with_defaults)
+from .options import kindle_site as valid_kindle_site
 from .translations import tr
 
 # stored in the calibre configuration folder (plugins/epubQTools.json),
 # separately on every computer
 prefs = JSONConfig('plugins/epubQTools')
+
+# layout of the settings window: 2 = two columns; calibre remembers the size
+# of the window, so the size saved for an earlier layout is changed once
+SETTINGS_LAYOUT = 2
 
 
 def current_settings():
@@ -29,6 +34,11 @@ def current_settings():
 def check_updates():
     """Check on GitHub for a new version of the plugin (on by default)."""
     return prefs.get('check_updates', True) is not False
+
+
+def kindle_site():
+    """Amazon site with the Send to Kindle page (amazon.com by default)."""
+    return valid_kindle_site(prefs.get('kindle_site'))
 
 
 def update_state():
@@ -47,7 +57,13 @@ class ConfigWidget(QWidget):
 
     def __init__(self):
         QWidget.__init__(self)
-        layout = QVBoxLayout(self)
+        # two columns, so the window fits on the screen of a small laptop:
+        # the text of the book on the left, the rest on the right
+        columns = QHBoxLayout(self)
+        layout = QVBoxLayout()
+        right = QVBoxLayout()
+        columns.addLayout(layout)
+        columns.addLayout(right)
 
         box = QGroupBox(tr('Hyphenation'), self)
         bl = QVBoxLayout(box)
@@ -99,19 +115,29 @@ class ConfigWidget(QWidget):
         row.addStretch(1)
         bl.addLayout(row)
         layout.addWidget(box)
-
-        box = QGroupBox(tr('Fonts'), self)
-        bl = QVBoxLayout(box)
-        self.remove_fonts = QCheckBox(tr('Remove embedded fonts'), box)
-        bl.addWidget(self.remove_fonts)
-        layout.addWidget(box)
+        layout.addStretch(1)
 
         box = QGroupBox(tr('Other'), self)
         bl = QVBoxLayout(box)
+        self.remove_fonts = QCheckBox(tr('Remove embedded fonts'), box)
+        bl.addWidget(self.remove_fonts)
         self.page_list = QCheckBox(
             tr('Add an approximate page list (in books without one)'), box)
         bl.addWidget(self.page_list)
-        layout.addWidget(box)
+        right.addWidget(box)
+
+        box = QGroupBox(tr('Passing to Send to Kindle'), self)
+        bl = QHBoxLayout(box)
+        bl.addWidget(QLabel(tr('Amazon site:'), box))
+        self.kindle_site = QComboBox(box)
+        self.kindle_site.addItems(KINDLE_SITES)
+        self.kindle_site.setCurrentText(kindle_site())
+        self.kindle_site.setToolTip(
+            tr('The site of your Amazon account, where “Pass to Send to '
+               'Kindle…” opens the Send to Kindle page.'))
+        bl.addWidget(self.kindle_site)
+        bl.addStretch(1)
+        right.addWidget(box)
 
         box = QGroupBox(tr('New versions'), self)
         bl = QVBoxLayout(box)
@@ -124,7 +150,8 @@ class ConfigWidget(QWidget):
                'sent.'))
         self.check_updates.setChecked(check_updates())
         bl.addWidget(self.check_updates)
-        layout.addWidget(box)
+        right.addWidget(box)
+        right.addStretch(1)
 
         row = QHBoxLayout()
         row.addStretch(1)
@@ -132,10 +159,44 @@ class ConfigWidget(QWidget):
         defaults.setToolTip(tr('Settings like “-c -r -e” in the terminal.'))
         defaults.clicked.connect(lambda: self.show_settings(DEFAULTS))
         row.addWidget(defaults)
-        layout.addLayout(row)
-        layout.addStretch(1)
+        right.addLayout(row)
 
         self.show_settings(current_settings())
+        self.window_fitted = False
+
+    def showEvent(self, event):
+        QWidget.showEvent(self, event)
+        if not self.window_fitted:
+            self.window_fitted = True
+            # after calibre has restored the size saved last time
+            QTimer.singleShot(0, self.fit_window)
+
+    def fit_window(self):
+        """The window of calibre with the settings big enough to show them
+        without scrolling: once fitted to a new layout, later only made
+        bigger when too small (the size set by the user is kept)."""
+        window = self.window()
+        if window is self:
+            return
+        hint = window.sizeHint()
+        if prefs.get('settings_layout') != SETTINGS_LAYOUT:
+            prefs['settings_layout'] = SETTINGS_LAYOUT
+            size = hint
+        else:
+            size = window.size().expandedTo(hint)
+        screen = window.screen().availableGeometry()
+        size = size.boundedTo(screen.size())
+        if size == window.size():
+            return
+        window.resize(size)
+        frame = window.frameGeometry()
+        x = max(screen.left(), min(frame.left(),
+                                   screen.right() + 1 - frame.width()))
+        y = max(screen.top(), min(frame.top(),
+                                  screen.bottom() + 1 - frame.height()))
+        if (x, y) != (frame.left(), frame.top()):
+            window.move(window.pos() + QPoint(x - frame.left(),
+                                              y - frame.top()))
 
     def show_settings(self, settings):
         s = with_defaults(settings)
@@ -176,3 +237,4 @@ class ConfigWidget(QWidget):
     def save_settings(self):
         prefs['settings'] = self.settings()
         prefs['check_updates'] = self.check_updates.isChecked()
+        prefs['kindle_site'] = self.kindle_site.currentText()

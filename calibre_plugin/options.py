@@ -8,6 +8,8 @@
 qfix. Plain Python (no calibre imports), so it can be tested without
 calibre."""
 
+from urllib.parse import urlsplit
+
 # alignment of the text in CSS files
 ALIGN_JUSTIFY = 'justify'           # "text-align: left" -> justify (as -e)
 ALIGN_LEFT = 'left'                 # "text-align: justify" -> left (--left)
@@ -66,3 +68,33 @@ def qfix_options(settings):
         'dont_hyph_headers': not s['hyphenate_headers'],
         'skip_pages': not s['page_list'],
     }
+
+
+# Amazon sites with the Send to Kindle page (www.<site>/sendtokindle,
+# checked 2026-11-28; amazon.se and amazon.pl have none)
+KINDLE_SITES = ('amazon.com', 'amazon.co.uk', 'amazon.de', 'amazon.fr',
+                'amazon.it', 'amazon.es', 'amazon.nl', 'amazon.ca',
+                'amazon.com.au', 'amazon.co.jp', 'amazon.in',
+                'amazon.com.br', 'amazon.com.mx')
+
+
+def kindle_site(value):
+    """A site from KINDLE_SITES (amazon.com for unknown values)."""
+    return value if value in KINDLE_SITES else KINDLE_SITES[0]
+
+
+def send_to_kindle_url(site):
+    return 'https://www.%s/sendtokindle' % kindle_site(site)
+
+
+def is_amazon_url(url):
+    """True for a secure (https) address on one of KINDLE_SITES or on its
+    subdomain, e.g. https://www.amazon.de/ap/signin; not for
+    amazon.com.example.org or https://amazon.com@example.org."""
+    try:
+        parts = urlsplit(url)
+        host = (parts.hostname or '').lower().rstrip('.')
+    except ValueError:
+        return False
+    return parts.scheme == 'https' and any(
+        host == site or host.endswith('.' + site) for site in KINDLE_SITES)

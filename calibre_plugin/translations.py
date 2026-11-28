@@ -66,6 +66,55 @@ POLISH = {
     'epubQTools: original restored (%d)':
     'epubQTools: przywrócono oryginał (%d)',
 
+    # action.py, sendtokindle.py: passing to Send to Kindle
+    'Pass to Send to Kindle…': 'Przekaż do Send to Kindle…',
+    'None of the selected books was fixed by epubQTools – fix them first.':
+    'Żadna z zaznaczonych książek nie została poprawiona przez epubQTools '
+    '– najpierw je popraw.',
+    'calibre has no built-in browser, so the page was opened in your web '
+    'browser and the folder with the books (%d) next to it. Drag the books '
+    'to the page and click the button for sending.':
+    'calibre nie ma wbudowanej przeglądarki, więc strona otworzyła się '
+    'w Twojej przeglądarce, a obok folder z książkami (%d). Przeciągnij '
+    'książki na stronę i kliknij przycisk wysyłania.',
+    'Skipped – not fixed by epubQTools:':
+    'Pominięte – niepoprawione przez epubQTools:',
+    'Ready to send (%d): %s': 'Gotowe do wysłania (%d): %s',
+    'Skipped – not fixed by epubQTools (%d): %s':
+    'Pominięte – niepoprawione przez epubQTools (%d): %s',
+    'Click the button for choosing files on the page – the books are added '
+    'by themselves – and then the button for sending.':
+    'Kliknij na stronie przycisk wybierania plików – książki dodadzą się '
+    'same – a potem przycisk wysyłania.',
+    'Send via my browser…': 'Wyślij przez moją przeglądarkę…',
+    'For sending without logging in here: opens the page in your web '
+    'browser and the folder with the books next to it – drag the books to '
+    'the page.':
+    'Do wysyłania bez logowania się tutaj: otwiera stronę w Twojej '
+    'przeglądarce, a obok folder z książkami – przeciągnij książki na '
+    'stronę.',
+    'Forget the saved login': 'Usuń zapamiętane logowanie',
+    'Prefer not to log in here? Use “Send via my browser…”.':
+    'Wolisz nie logować się tutaj? Użyj przycisku „Wyślij przez moją '
+    'przeglądarkę…”.',
+    'Removes the Amazon login remembered on this computer.':
+    'Usuwa zapamiętane na tym komputerze logowanie do Amazona.',
+    'Secure connection: %s': 'Bezpieczne połączenie: %s',
+    '%s – not a secure Amazon page, do not log in here':
+    '%s – to nie jest bezpieczna strona Amazona, nie loguj się tutaj',
+    'You log in directly on the Amazon page. The plugin does not read your '
+    'password and sends nothing by itself – its code is open.':
+    'Logujesz się bezpośrednio na stronie Amazona. Wtyczka nie czyta hasła '
+    'i sama niczego nie wysyła – jej kod jest otwarty.',
+    'The page was opened in your web browser and the folder with the books '
+    'next to it. Drag the books to the page and click the button for '
+    'sending. The folder is removed when calibre is closed.':
+    'Strona otworzyła się w Twojej przeglądarce, a obok folder z książkami. '
+    'Przeciągnij książki na stronę i kliknij przycisk wysyłania. Folder '
+    'zostanie usunięty po zamknięciu calibre.',
+    'The Amazon login remembered on this computer was removed.':
+    'Usunięto zapamiętane na tym komputerze logowanie do Amazona.',
+
     # config.py: settings window
     'Hyphenation': 'Dzielenie wyrazów',
     'Hyphenate words': 'Dziel wyrazy',
@@ -88,7 +137,6 @@ POLISH = {
     'Kolory są usuwane przy zmianie wyrównania, więc ta opcja działa tylko '
     'wtedy, gdy wyrównanie nie jest „Bez zmian”.',
     'Left and right margin:': 'Margines lewy i prawy:',
-    'Fonts': 'Fonty',
     'Remove embedded fonts': 'Usuń wbudowane fonty',
     'Other': 'Inne',
     'Add an approximate page list (in books without one)':
@@ -97,6 +145,12 @@ POLISH = {
     'with “Add a CSS reset”.':
     'Margines jest zapisywany w resecie CSS, więc ta opcja działa tylko '
     'z „Dołącz reset CSS”.',
+    'Passing to Send to Kindle': 'Przekazywanie do Send to Kindle',
+    'Amazon site:': 'Strona Amazona:',
+    'The site of your Amazon account, where “Pass to Send to Kindle…” '
+    'opens the Send to Kindle page.':
+    'Strona Twojego konta Amazon, na której „Przekaż do Send to Kindle…” '
+    'otwiera stronę Send to Kindle.',
     'New versions': 'Nowe wersje',
     'Check for a new version of the plugin on GitHub (once a day)':
     'Sprawdzaj nową wersję wtyczki na GitHubie (raz dziennie)',

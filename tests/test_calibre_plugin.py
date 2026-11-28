@@ -138,6 +138,29 @@ class TestOptions(unittest.TestCase):
         o = options.qfix_options({'align': options.ALIGN_KEEP})
         self.assertEqual((o['arg_justify'], o['arg_left']), (False, False))
 
+    def test_kindle_site(self):
+        self.assertEqual(options.kindle_site('amazon.de'), 'amazon.de')
+        for wrong in (None, '', 'amazon.pl', 'evil.example'):
+            self.assertEqual(options.kindle_site(wrong), 'amazon.com')
+        self.assertEqual(options.send_to_kindle_url('amazon.co.uk'),
+                         'https://www.amazon.co.uk/sendtokindle')
+        self.assertEqual(options.send_to_kindle_url('x'),
+                         'https://www.amazon.com/sendtokindle')
+
+    def test_is_amazon_url(self):
+        for url in ('https://www.amazon.com/sendtokindle',
+                    'https://www.amazon.de/ap/signin?x=1',
+                    'https://amazon.co.uk/', 'https://WWW.Amazon.COM/',
+                    'https://www.amazon.com./', 'https://www.amazon.com:443/'):
+            self.assertTrue(options.is_amazon_url(url), url)
+        for url in ('http://www.amazon.com/sendtokindle',
+                    'https://www.amazon.pl/', 'https://notamazon.com/',
+                    'https://amazon.com.example.org/',
+                    'https://amazon.com@example.org/',
+                    'https://example.org/?amazon.com', 'file:///amazon.com',
+                    'about:blank', '', 'https://[x/'):
+            self.assertFalse(options.is_amazon_url(url), url)
+
     def test_wrong_values(self):
         s = options.with_defaults({'align': 'center', 'book_margin': 'x',
                                    'unknown': 1})
@@ -183,6 +206,31 @@ class TestLibrary(unittest.TestCase):
                 self.assertEqual(f.read(), data)
         self.assertEqual(os.path.dirname(books[1][1]),
                          os.path.join(self.dir, '2'))
+
+    def test_copy_fixed_books(self):
+        """Only the EPUB of the books fixed by epubQTools, named with the
+        title only."""
+        db = FakeDB({1: {'title': 'Kamizelka', 'EPUB': b'fix1',
+                         ORIG: b'orig'},
+                     2: {'title': 'Not fixed', 'EPUB': b'b'},
+                     3: {'title': 'Polished', 'EPUB': b'p',
+                         'ORIGINAL_EPUB': b'o'},
+                     4: {'title': 'kamizelka', 'EPUB': b'fix4',
+                         ORIG: b'orig'},
+                     5: {'title': 'Ala: ma/kota?', 'EPUB': b'fix5',
+                         ORIG: b'orig'},
+                     6: {'title': 'Only original', ORIG: b'orig'}})
+        paths, skipped = library.copy_fixed_books(
+            db, [1, 2, 3, 4, 5, 6, 7], self.dir)
+        self.assertEqual([os.path.basename(p) for p in paths],
+                         ['Kamizelka.epub', 'kamizelka (2).epub',
+                          'Ala_ ma_kota_.epub'])
+        self.assertEqual(skipped, ['Not fixed', 'Polished', 'Only original'])
+        for path, data in zip(paths, (b'fix1', b'fix4', b'fix5')):
+            with open(path, 'rb') as f:
+                self.assertEqual(f.read(), data)
+        self.assertEqual(sorted(os.listdir(self.dir)),
+                         sorted(os.path.basename(p) for p in paths))
 
     def test_store_keeps_first_original(self):
         db = FakeDB({1: {'title': 'A', 'EPUB': b'orig'}})
@@ -349,8 +397,8 @@ class TestBuild(unittest.TestCase):
             self.assertIsNone(z.testzip())
             self.assertEqual(sorted(z.namelist()), sorted(names))
         for name in ('__init__.py', 'action.py', 'config.py', 'library.py',
-                     'options.py', 'translations.py', 'update.py',
-                     'worker.py',
+                     'options.py', 'sendtokindle.py', 'translations.py',
+                     'update.py', 'worker.py',
                      'plugin-import-name-epubqtools.txt', 'NOTICE',
                      'lib/__init__.py', 'lib/epubqfix.py',
                      'lib/resources/dictionaries/hyph_pl_PL.dic',

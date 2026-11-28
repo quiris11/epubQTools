@@ -5,7 +5,8 @@
 #
 
 """Toolbar button of the plugin: fix the selected books (default action),
-restore the originals, settings, a new version on GitHub."""
+restore the originals, pass the fixed books to Send to Kindle, settings,
+a new version on GitHub."""
 
 import shutil
 import threading
@@ -20,9 +21,11 @@ from calibre.gui2.actions import InterfaceAction
 from calibre.ptempfile import PersistentTemporaryDirectory
 
 from . import update
-from .config import (check_updates, current_settings, save_update_state,
-                     update_state)
-from .library import copy_books, has_original, restore_original, store_fixed
+from .config import (check_updates, current_settings, kindle_site,
+                     save_update_state, update_state)
+from .library import (copy_books, copy_fixed_books, has_original,
+                      restore_original, store_fixed)
+from .options import send_to_kindle_url
 from .translations import tr
 
 TITLE = 'epubQTools'
@@ -54,6 +57,11 @@ class EpubQToolsAction(InterfaceAction):
         self.create_menu_action(
             self.menu, 'epubqtools-restore', tr('Restore the original'),
             icon='edit-undo.png', triggered=self.restore_selected)
+        self.create_menu_action(
+            self.menu, 'epubqtools-send-to-kindle',
+            tr('Pass to Send to Kindle…'), icon='send.png',
+            triggered=self.send_to_kindle)
+        self.send_window = None
         self.menu.addSeparator()
         self.create_menu_action(
             self.menu, 'epubqtools-settings', tr('Settings…'),
@@ -245,3 +253,46 @@ class EpubQToolsAction(InterfaceAction):
             self.refresh(restored)
         self.gui.status_bar.show_message(
             tr('epubQTools: original restored (%d)') % len(restored), 3000)
+
+    def send_to_kindle(self):
+        """Open the Send to Kindle page with the EPUB of the selected books
+        fixed by epubQTools (the other ones are skipped)."""
+        from . import sendtokindle
+        book_ids = self.selected_ids()
+        if not book_ids:
+            return error_dialog(self.gui, TITLE,
+                                tr('No book is selected.'), show=True)
+        db = self.gui.current_db.new_api
+        work_dir = PersistentTemporaryDirectory('_epubqtools_kindle')
+        paths, skipped = copy_fixed_books(db, book_ids, work_dir)
+        if not paths:
+            shutil.rmtree(work_dir, ignore_errors=True)
+            return error_dialog(
+                self.gui, TITLE,
+                tr('None of the selected books was fixed by epubQTools – '
+                   'fix them first.'), show=True)
+        url = send_to_kindle_url(kindle_site())
+        if not sendtokindle.has_browser():
+            sendtokindle.open_in_system_browser(url, work_dir)
+            lines = [tr('calibre has no built-in browser, so the page was '
+                        'opened in your web browser and the folder with '
+                        'the books (%d) next to it. Drag the books to the '
+                        'page and click the button for sending.') % len(paths)]
+            if skipped:
+                lines += ['', tr('Skipped – not fixed by epubQTools:'),
+                          '\n'.join('  • ' + t for t in skipped)]
+            return info_dialog(self.gui, TITLE, '\n'.join(lines), show=True)
+        window = self.send_window
+        if window is None:
+            window = sendtokindle.SendToKindleWindow(self.gui, url)
+            window.destroyed.connect(self.send_window_closed)
+            self.send_window = window
+        elif window.url != url:         # another site in the settings
+            window.load(url)
+        window.set_books(work_dir, paths, skipped)
+        window.show()
+        window.raise_()
+        window.activateWindow()
+
+    def send_window_closed(self):
+        self.send_window = None

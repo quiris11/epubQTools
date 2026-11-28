@@ -120,3 +120,29 @@ def restore_original(db, book_id, work_dir):
     if db.has_format(book_id, ORIGINAL):
         return bool(db.restore_original_format(book_id, ORIGINAL))
     return False
+
+
+def copy_fixed_books(db, book_ids, dest_dir):
+    """Copy the EPUB of the books fixed by epubQTools (with ORIGINAL_FILE)
+    to dest_dir, every one named with its title only (Send to Kindle shows
+    the file name). Return (paths, skipped): skipped - titles of the
+    books not fixed by epubQTools or without an EPUB."""
+    paths, skipped, used = [], [], set()
+    for book_id in book_ids:
+        if not db.has_id(book_id):
+            continue
+        title = db.field_for('title', book_id)
+        if not (has_original_file(db, book_id) and
+                db.has_format(book_id, 'EPUB')):
+            skipped.append(title)
+            continue
+        name = file_name(title, book_id)
+        base, number = name[:-len('.epub')], 2
+        while name.lower() in used:
+            name = '%s (%d).epub' % (base, number)
+            number += 1
+        used.add(name.lower())
+        path = os.path.join(dest_dir, name)
+        db.copy_format_to(book_id, 'EPUB', path)
+        paths.append(path)
+    return paths, skipped
