@@ -1324,12 +1324,25 @@ def hyphenate_and_fix_conjunctions(source_file, hyphen_mark, hyph,
         elif tel.is_tail:
             parent.tail = newt
 
-    # set correct xml:lang attribute for html tag
+    xml_lang = '{http://www.w3.org/XML/1998/namespace}lang'
     html_tag = source_file.xpath('//xhtml:html', namespaces=XHTMLNS)[0]
-    html_tag.attrib['{http://www.w3.org/XML/1998/namespace}lang'] = (
-        MY_LANGUAGE if is_pl else book_lang.strip())
-    if 'lang' in html_tag.attrib:
-        del html_tag.attrib['lang']
+    if skip_hyph:
+        # set correct xml:lang attribute for html tag: the reader hyphenates
+        # the text itself (hyphens: auto) with a dictionary for this language
+        html_tag.attrib[xml_lang] = (
+            MY_LANGUAGE if is_pl else book_lang.strip())
+        if 'lang' in html_tag.attrib:
+            del html_tag.attrib['lang']
+    else:
+        # the book is hyphenated with soft hyphens (hyphens: manual): no
+        # language on html and body, so Kindle takes the language of the book
+        # metadata (Send to Kindle sets "en") - a Kindle without a dictionary
+        # for the language of a paragraph ignores its soft hyphens
+        for tag in [html_tag] + source_file.xpath('//xhtml:body',
+                                                  namespaces=XHTMLNS):
+            for attr in (xml_lang, 'lang'):
+                if attr in tag.attrib:
+                    del tag.attrib[attr]
 
     try:
         texts = etree.XPath(

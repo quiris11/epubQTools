@@ -165,20 +165,36 @@ class HyphenateBookLanguageTest(unittest.TestCase):
         h = hyphenation.hyphenator_from_bytes(DIC % 1)
         out = self.run_hyph('<p>a banana</p><p xml:lang="pl">banana</p>',
                             'en', h)
-        self.assertIn('xml:lang="en"', out)
+        self.assertIn('<html xmlns="http://www.w3.org/1999/xhtml">', out)
         # no non-breaking space after "a"; the Polish paragraph is left
         self.assertIn('<p>a ba-na-na</p><p xml:lang="pl">banana</p>', out)
 
     def test_polish(self):
         out = self.run_hyph('<p>w kolorowa</p><p xml:lang="pl-pl">kolorowa'
                             '</p>', 'pl', hyphenation.polish_hyphenator())
-        self.assertIn('xml:lang="pl"', out)
+        self.assertIn('<html xmlns="http://www.w3.org/1999/xhtml">', out)
         self.assertIn('<p>w ko-lo-ro-wa</p>', out)
         self.assertIn('>ko-lo-ro-wa</p>', out)
 
     def test_skip(self):
         out = self.run_hyph('<p>ba­nana</p>', 'en', None, skip=True)
         self.assertIn('<p>banana</p>', out)
+        # not hyphenated: the reader needs the language of the text
+        self.assertIn('xml:lang="en"', out)
+
+    def test_no_language_on_html_and_body(self):
+        tree = etree.fromstring((
+            '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="pl" '
+            'lang="pl"><head><title>T</title></head><body xml:lang="pl" '
+            'lang="pl"><p xml:lang="en">a</p><p>w kolorowa</p></body>'
+            '</html>').encode())
+        out = etree.tostring(hyphenate_and_fix_conjunctions(
+            tree, '-', hyphenation.polish_hyphenator(), False, False, 'pl'),
+            encoding='unicode')
+        self.assertIn('<html xmlns="http://www.w3.org/1999/xhtml"><head>',
+                      out)
+        self.assertIn('<body><p xml:lang="en">a</p>', out)
+        self.assertIn('<p>w ko-lo-ro-wa</p>', out)
 
 
 OPF = ('<?xml version="1.0" encoding="utf-8"?>'
@@ -274,7 +290,7 @@ class QfixLanguageTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, cdir)
         opf, xhtml, out = self.run_qfix(cdir)
         self.assertIn('<dc:language>en-US</dc:language>', opf)
-        self.assertIn('xml:lang="en-US"', xhtml)
+        self.assertNotIn('lang=', xhtml)
         self.assertIn('a ba%sna%sna' % (HYPHEN_MARK, HYPHEN_MARK), xhtml)
         self.assertIn('dictionary for the book language "en-US": '
                       'hyph_en_US.dic', out)
