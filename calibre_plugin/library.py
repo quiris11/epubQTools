@@ -22,6 +22,21 @@ import re
 
 ORIGINAL = 'ORIGINAL_EPUB'
 ORIGINAL_FILE = 'data/epubQTools original.epub'
+# the sentence the LubimyCzytac metadata plugin appends to the description
+# of the book: "Książka ma 152 strony." or, in its simplified form,
+# "Liczba stron w książce: 152"
+DESCRIPTION_PAGES_RE = re.compile(
+    r'Książka\s+ma\s+(\d+)\s+stron|Liczba\s+stron\s+w\s+książce:\s*(\d+)')
+
+
+def description_pages(comments):
+    """Number of pages of the printed book from the description (the last
+    sentence of the LubimyCzytac plugin), or None."""
+    found = DESCRIPTION_PAGES_RE.findall(comments or '')
+    if not found:
+        return None
+    pages = int(found[-1][0] or found[-1][1])
+    return pages or None
 
 
 def has_original_file(db, book_id):
@@ -61,10 +76,11 @@ def file_name(title, book_id):
     return (name[:100].strip(' .') or 'book %d' % book_id) + '.epub'
 
 
-def copy_books(db, book_ids, work_dir):
+def copy_books(db, book_ids, work_dir, with_pages=False):
     """Copy what every book is fixed from to its own folder in work_dir.
-    Return (books, skipped): books - (book_id, path, title) for qfix,
-    skipped - titles of the books without an EPUB."""
+    Return (books, skipped): books - (book_id, path, title, pages) for
+    qfix, pages - the number of pages from the description of the book
+    (with_pages) or None, skipped - titles of the books without an EPUB."""
     books, skipped = [], []
     for book_id in book_ids:
         title = db.field_for('title', book_id)
@@ -76,7 +92,9 @@ def copy_books(db, book_ids, work_dir):
         os.makedirs(book_dir, exist_ok=True)
         path = os.path.join(book_dir, file_name(title, book_id))
         copy_source(db, book_id, source, path)
-        books.append((book_id, path, title))
+        pages = (description_pages(db.field_for('comments', book_id))
+                 if with_pages else None)
+        books.append((book_id, path, title, pages))
     return books, skipped
 
 

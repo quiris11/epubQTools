@@ -124,6 +124,16 @@ class ConfigWidget(QWidget):
         self.page_list = QCheckBox(
             tr('Add an approximate page list (in books without one)'), box)
         bl.addWidget(self.page_list)
+        self.description_pages = QCheckBox(
+            tr('Number of pages from the LubimyCzytac description'), box)
+        self.description_pages.setToolTip(
+            tr('When the description of the book has the number of pages '
+               'added by the LubimyCzytac metadata plugin (“Książka ma 152 '
+               'strony.”), the page list gets that many pages. The pages '
+               'are still approximate, only their number matches the '
+               'printed book.'))
+        self.page_list.toggled.connect(self.description_pages.setEnabled)
+        bl.addWidget(self.description_pages)
         right.addWidget(box)
 
         box = QGroupBox(tr('Passing to Send to Kindle'), self)
@@ -212,6 +222,8 @@ class ConfigWidget(QWidget):
         self.update_margin()
         self.remove_fonts.setChecked(s['remove_fonts'])
         self.page_list.setChecked(s['page_list'])
+        self.description_pages.setChecked(s['description_pages'])
+        self.description_pages.setEnabled(s['page_list'])
 
     def update_margin(self):
         """The margin only with the CSS reset (qfix writes it there)."""
@@ -232,6 +244,7 @@ class ConfigWidget(QWidget):
             'book_margin': (self.margin.value()
                             if self.use_margin.isChecked() else None),
             'page_list': self.page_list.isChecked(),
+            'description_pages': self.description_pages.isChecked(),
         })
 
     def save_settings(self):

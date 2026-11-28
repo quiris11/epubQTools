@@ -160,7 +160,10 @@ class EpubQToolsAction(InterfaceAction):
                                 tr('No book is selected.'), show=True)
         db = self.gui.current_db.new_api
         work_dir = PersistentTemporaryDirectory('_epubqtools')
-        books, skipped = copy_books(db, book_ids, work_dir)
+        settings = current_settings()
+        books, skipped = copy_books(
+            db, book_ids, work_dir,
+            with_pages=settings['page_list'] and settings['description_pages'])
         if not books:
             shutil.rmtree(work_dir, ignore_errors=True)
             return error_dialog(
@@ -171,7 +174,7 @@ class EpubQToolsAction(InterfaceAction):
             Dispatcher(self.fix_done), 'arbitrary_n',
             args=['calibre_plugins.epubqtools.worker', 'fix_books',
                   (self.interface_action_base_plugin.plugin_path, books,
-                   current_settings())],
+                   settings)],
             description=tr('epubQTools: fixing books (%d)') % len(books))
         job.epubqtools = {'library_id': self.gui.current_db.library_id,
                           'work_dir': work_dir, 'skipped': skipped}

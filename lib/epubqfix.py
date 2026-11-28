@@ -82,6 +82,11 @@ NAV_ARIA_LABEL_RE = re.compile(
 # approximate pages: a block takes ceil(chars / 68) lines, a page 29 lines
 PAGE_LINE_CHARS = 68
 PAGE_LINES = 29
+# a page of the given number of pages (from the description of the book in
+# calibre) has from PAGE_LINES_MIN to PAGE_LINES_MAX lines, otherwise the
+# number doesn't fit the text (e.g. another edition) and PAGE_LINES is used
+PAGE_LINES_MIN = 10
+PAGE_LINES_MAX = 90
 PAGE_ID = 'eqt_page_%d'
 PAGE_TAG_RE = re.compile(
     r'(<!--.*?-->|<(?:"[^"]*"|\'[^\']*\'|[^>"\'])*>)', re.S)
@@ -4447,7 +4452,7 @@ def process_xhtml_file(xhfile, opftree, _resetmargins, skip_hyph, opf_path,
 
 def process_epub(_tempdir, _resetmargins, skip_hyph, arg_justify, arg_left,
                  del_colors, del_fonts, html_margin, dont_hyph_headers,
-                 skip_pages):
+                 skip_pages, pages=None):
     global qfixerr
     qfixerr = False
     opf_dir, opf_file_path, is_fixed = find_roots(_tempdir)
@@ -4653,7 +4658,7 @@ def process_epub(_tempdir, _resetmargins, skip_hyph, arg_justify, arg_left,
     remove_hidden_div_classes(opftree, opf_dir_abs,
                               hidden_names | extra_classes)
     if not skip_pages:
-        add_page_list(opftree, opf_dir_abs)
+        add_page_list(opftree, opf_dir_abs, pages)
     # write all OPF changes back to file
     opftree = quote_urls(opftree)
     with open(opf_file_path_abs, 'wb') as f:
@@ -4888,13 +4893,13 @@ def remove_hidden_div_texts_from_images(opftree, opfdir, hidden_names):
     return set(removed_from)
 
 
-def insert_page_markers(raw, nr):
+def insert_page_markers(raw, nr, page_lines=PAGE_LINES):
     """Insert empty <span id="eqt_page_N"></span> markers of approximate
     pages into the body of the XHTML text, numbered from nr + 1.
     Model calibrated on Polish books with print page numbers: a block
     (paragraph, heading, list item...) takes ceil(chars / 68) lines and a
-    page has 29 lines. A marker is placed before the first word of the
-    page; in a <nav> (empty spans are invalid there) it waits until after
+    page has 29 lines (page_lines, may be a fraction). A marker is placed
+    before the first word of the page; in a <nav> (empty spans are invalid there) it waits until after
     the nav. Soft hyphens are not counted.
     Returns the new text and the list of the inserted page numbers."""
     body = re.search(r'<body\b[^>]*>', raw)
@@ -4904,7 +4909,7 @@ def insert_page_markers(raw, nr):
     pages = []
     lines = 0               # lines of the finished blocks
     chars = 0               # visible characters of the current block
-    next_page = PAGE_LINES  # first line of the next page
+    next_page = page_lines  # first line of the next page
     pending = False         # a page started, its marker waits for a word
     after_space = True
     skip = None             # <script>, <style> or <svg> being skipped
@@ -4931,7 +4936,7 @@ def insert_page_markers(raw, nr):
                     chars = 0
                     if lines >= next_page:
                         pending = True
-                        next_page += PAGE_LINES
+                        next_page += page_lines
             out.append(part)
             continue
         if skip is not None:
@@ -4946,7 +4951,7 @@ def insert_page_markers(raw, nr):
             elif c not in SOFT_HYPHENS:
                 if lines + chars // PAGE_LINE_CHARS >= next_page:
                     pending = True
-                    next_page += PAGE_LINES
+                    next_page += page_lines
                 if pending and after_space and not nav:
                     pages.append(nr + len(pages) + 1)
                     text.append('<span id="%s"></span>' %
@@ -4977,11 +4982,47 @@ def has_page_list(opftree, rootepubdir, spine):
     return False
 
 
-def add_page_list(opftree, rootepubdir):
+def count_pages(raws, page_lines):
+    """Number of the approximate pages of the texts (every file starts
+    a page)."""
+    return sum(1 + len(insert_page_markers(raw, 0, page_lines)[1])
+               for raw in raws)
+
+
+def page_lines_for(raws, target):
+    """Lines of a page (a fraction) giving the book target pages, or the
+    closest number of pages. None when target doesn't fit the text: it
+    would need a page shorter than PAGE_LINES_MIN or longer than
+    PAGE_LINES_MAX lines."""
+    lo, hi = PAGE_LINES_MIN, PAGE_LINES_MAX
+    lo_pages, hi_pages = count_pages(raws, lo), count_pages(raws, hi)
+    if not hi_pages <= target <= lo_pages:
+        return None
+    if hi_pages == target:
+        return hi
+    if lo_pages == target:
+        return lo
+    # longer pages - fewer pages: lo gives more pages than target, hi fewer
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        pages = count_pages(raws, mid)
+        if pages == target:
+            return mid
+        if pages > target:
+            lo, lo_pages = mid, pages
+        else:
+            hi, hi_pages = mid, pages
+    return lo if lo_pages - target <= target - hi_pages else hi
+
+
+def add_page_list(opftree, rootepubdir, target=None):
     """Add a list of approximate pages (NCX pageList and, in EPUB 3,
     a hidden nav page-list) to a book without one. Send to Kindle keeps
     the list, so the "Pages" option works also for books for which Amazon
-    doesn't generate the pages itself (e.g. books with tables)."""
+    doesn't generate the pages itself (e.g. books with tables).
+    target - number of pages of the printed book (from its description
+    in calibre): the page gets as many lines as needed for that many
+    pages; None or a number not fitting the text - pages of 29 lines."""
     items = {i.get('id'): unquote(i.get('href', '')) for i in
              opftree.xpath('//opf:manifest/opf:item', namespaces=OPFNS)}
     spine = [items[i] for i in
@@ -5007,21 +5048,37 @@ def add_page_list(opftree, rootepubdir):
     if nav_map is None:
         return
     raws = {}
+    for href in spine:
+        try:
+            with open(os.path.join(rootepubdir, href), encoding='utf-8',
+                      newline='') as f:
+                raws[href] = f.read()
+        except (IOError, UnicodeDecodeError):
+            continue
+    page_lines = PAGE_LINES
+    if target and raws:
+        found = page_lines_for(list(raws.values()), target)
+        if found is None:
+            print('! WARNING! The number of pages from the description of '
+                  'the book (%d) does not fit its text, pages of %d lines '
+                  'are used...' % (target, PAGE_LINES))
+        else:
+            page_lines = found
+            print('* Number of pages from the description of the book: %d '
+                  '(a page of %.1f lines)...' % (target, page_lines))
     pages = []      # (number, href, marker id or '')
     for href in spine:
-        path = os.path.join(rootepubdir, href)
-        try:
-            with open(path, encoding='utf-8', newline='') as f:
-                raw = f.read()
-        except (IOError, UnicodeDecodeError):
+        if href not in raws:
             continue
         # every file starts a new page
         pages.append((len(pages) + 1, href, ''))
-        raw, numbers = insert_page_markers(raw, len(pages))
+        raw, numbers = insert_page_markers(raws[href], len(pages),
+                                           page_lines)
         pages += [(n, href, PAGE_ID % n) for n in numbers]
-        raws[href] = raw
         if numbers:
-            with open(path, 'w', encoding='utf-8', newline='') as f:
+            raws[href] = raw
+            with open(os.path.join(rootepubdir, href), 'w',
+                      encoding='utf-8', newline='') as f:
                 f.write(raw)
     if not pages:
         return
@@ -5184,7 +5241,8 @@ def qfix(root, f, moh_dir, *args, **kwargs):
 
 def _qfix(root, f, moh_dir, _forced, _resetmargins, zbf,
          skip_hyph, arg_justify, arg_left, del_colors, del_fonts,
-         fix_container_only, html_margin, dont_hyph_headers, skip_pages):
+         fix_container_only, html_margin, dont_hyph_headers, skip_pages,
+         pages=None):
     global qfixerr
     qfixerr = False
     if fix_container_only:
@@ -5210,7 +5268,8 @@ def _qfix(root, f, moh_dir, _forced, _resetmargins, zbf,
         print('* Hyphenating is turned OFF...')
     is_failed = process_epub(
         _tempdir, _resetmargins, skip_hyph, arg_justify, arg_left,
-        del_colors, del_fonts, html_margin, dont_hyph_headers, skip_pages)
+        del_colors, del_fonts, html_margin, dont_hyph_headers, skip_pages,
+        pages)
     if not is_failed:
         os.makedirs(moh_dir, exist_ok=True)
         pack_epub(os.path.join(moh_dir, newfile), _tempdir)

@@ -56,7 +56,8 @@ class FakeDB(object):
         return fmt in self.books.get(book_id, {}) and '/' not in fmt
 
     def field_for(self, field, book_id):
-        return self.books[book_id][field]
+        # None for an empty field (e.g. a book without a description)
+        return self.books[book_id].get(field)
 
     def copy_format_to(self, book_id, fmt, dest):
         with open(dest, 'wb') as f:
@@ -114,6 +115,8 @@ class TestOptions(unittest.TestCase):
         self.assertEqual(o['skip_hyph'], False)
         self.assertEqual(o['dont_hyph_headers'], True)      # -r
         self.assertEqual(o['skip_pages'], False)
+        self.assertIsNone(o['pages'])
+        self.assertEqual(options.DEFAULTS['description_pages'], False)
         self.assertEqual(o['del_colors'], False)
         self.assertEqual(o['del_fonts'], False)
         self.assertIsNone(o['html_margin'])
@@ -206,6 +209,30 @@ class TestLibrary(unittest.TestCase):
                 self.assertEqual(f.read(), data)
         self.assertEqual(os.path.dirname(books[1][1]),
                          os.path.join(self.dir, '2'))
+
+    def test_copy_books_with_pages(self):
+        lc = '<p>Opis.</p><p id="strony">Książka ma 152 strony.</p>'
+        db = FakeDB({1: {'title': 'A', 'EPUB': b'a', 'comments': lc},
+                     2: {'title': 'B', 'EPUB': b'b'}})
+        books, _ = library.copy_books(db, [1, 2], self.dir)
+        self.assertEqual([b[3] for b in books], [None, None])
+        books, _ = library.copy_books(db, [1, 2], self.dir, with_pages=True)
+        self.assertEqual([b[3] for b in books], [152, None])
+
+    def test_description_pages(self):
+        pages = library.description_pages
+        self.assertEqual(pages('<p id="strony">Książka ma 1 strona.</p>'), 1)
+        self.assertEqual(pages('<p id="strony">Książka ma 304 strony.</p>'),
+                         304)
+        self.assertEqual(pages('<p id="numberOfPages">Liczba stron w '
+                               'książce: 512</p>'), 512)
+        # the sentence of the plugin is the last one
+        self.assertEqual(pages('<p>Książka ma 20 stron o wojnie.</p>'
+                               '<p id="strony">Książka ma 225 stron.</p>'),
+                         225)
+        for text in (None, '', '<p>Opis bez liczby stron.</p>',
+                     '<p>Książka ma 0 stron.</p>'):
+            self.assertIsNone(pages(text), text)
 
     def test_copy_fixed_books(self):
         """Only the EPUB of the books fixed by epubQTools, named with the

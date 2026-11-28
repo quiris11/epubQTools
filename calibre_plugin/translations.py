@@ -141,6 +141,16 @@ POLISH = {
     'Other': 'Inne',
     'Add an approximate page list (in books without one)':
     'Dodaj przybliżoną listę stron (w książkach bez niej)',
+    'Number of pages from the LubimyCzytac description':
+    'Liczba stron z opisu LubimyCzytać',
+    'When the description of the book has the number of pages added by '
+    'the LubimyCzytac metadata plugin (“Książka ma 152 strony.”), the page '
+    'list gets that many pages. The pages are still approximate, only '
+    'their number matches the printed book.':
+    'Gdy opis książki ma liczbę stron dopisaną przez wtyczkę pobierania '
+    'danych LubimyCzytać („Książka ma 152 strony.”), lista stron ma tyle '
+    'stron. Strony nadal są przybliżone, tylko ich liczba zgadza się '
+    'z książką papierową.',
     'The margin is written to the CSS reset, so this option works only '
     'with “Add a CSS reset”.':
     'Margines jest zapisywany w resecie CSS, więc ta opcja działa tylko '

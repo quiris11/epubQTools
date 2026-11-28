@@ -39,6 +39,7 @@ from lib.epubqfix import (pack_epub, repair_epub_structure,
                           fix_links_in_tree, remove_empty_toc_entries,
                           split_extra_cover_images,
                           image_data_end, insert_page_markers,
+                          page_lines_for,
                           is_fundraising_page, is_purchase_info_page,
                           remove_purchase_info_pages,
                           is_hiding_style, is_support_page,
@@ -1754,6 +1755,14 @@ class InsertPageMarkersTest(unittest.TestCase):
         self.assertIn('<p title="a > b">y', new)
         self.assertNotIn('<span', new[:new.index('>y')])
 
+    def test_fractional_page(self):
+        # pages of 10.5 lines start after lines 11 and 21 (not 10 and 20)
+        raw = self.BODY % ''.join('<p>Line %d</p>' % i for i in range(31))
+        new, pages = insert_page_markers(raw, 0, 10.5)
+        self.assertEqual(pages, [1, 2])
+        self.assertIn('<p><span id="eqt_page_1"></span>Line 11</p>', new)
+        self.assertIn('<p><span id="eqt_page_2"></span>Line 21</p>', new)
+
     def test_no_marker_in_nav(self):
         # empty spans are invalid in nav, the marker waits until after it
         raw = self.BODY % ('<nav><ol>%s</ol></nav><p>After</p>' %
@@ -1783,7 +1792,7 @@ class AddPageListTest(unittest.TestCase):
     BODY = ('<html xmlns="http://www.w3.org/1999/xhtml"><head><title>T'
             '</title></head><body>%s</body></html>')
 
-    def run_add(self, body, name='rozdział.xhtml'):
+    def run_add(self, body, name='rozdział.xhtml', target=None):
         with tempfile.TemporaryDirectory() as d:
             os.mkdir(os.path.join(d, 'Text'))
             with open(os.path.join(d, 'toc.ncx'), 'w') as f:
@@ -1793,9 +1802,43 @@ class AddPageListTest(unittest.TestCase):
                 f.write(self.BODY % body)
             opftree = etree.ElementTree(etree.fromstring(
                 self.OPF.replace('rozdzia%C5%82.xhtml', quote(name))))
-            add_page_list(opftree, d)
+            add_page_list(opftree, d, target)
             with open(os.path.join(d, 'toc.ncx'), encoding='utf-8') as f:
                 return f.read()
+
+    def page_numbers(self, ncx):
+        return re.findall(r'<pageTarget\b[^>]*\bvalue="(\d+)"', ncx)
+
+    def test_target_pages(self):
+        # 300 lines: 11 pages of 29 lines, 20 or 25 pages when asked
+        body = '<p>Line</p>' * 300
+        self.assertEqual(len(self.page_numbers(self.run_add(body))), 11)
+        for target in (20, 25):
+            with redirect_stdout(io.StringIO()) as out:
+                ncx = self.run_add(body, target=target)
+            self.assertEqual(self.page_numbers(ncx),
+                             [str(n) for n in range(1, target + 1)])
+            self.assertIn('dtb:totalPageCount" content="%d"' % target, ncx)
+            self.assertIn('Number of pages from the description of the '
+                          'book: %d' % target, out.getvalue())
+
+    def test_target_not_fitting_text(self):
+        # 1000 pages of 300 lines would need pages shorter than 10 lines
+        body = '<p>Line</p>' * 300
+        with redirect_stdout(io.StringIO()) as out:
+            ncx = self.run_add(body, target=1000)
+        self.assertEqual(len(self.page_numbers(ncx)), 11)
+        self.assertIn('! WARNING! The number of pages from the description '
+                      'of the book (1000) does not fit', out.getvalue())
+
+    def test_page_lines_for(self):
+        raws = [self.BODY % ('<p>Line</p>' * n) for n in (100, 50)]
+        lines = page_lines_for(raws, 12)
+        # every file starts a page: 2 + breaks in the files
+        self.assertEqual(sum(1 + len(insert_page_markers(r, 0, lines)[1])
+                             for r in raws), 12)
+        self.assertIsNone(page_lines_for(raws, 1))
+        self.assertIsNone(page_lines_for(raws, 100))
 
     def test_encoded_href(self):
         # the second chapter starts on page 2 (after 40 lines)

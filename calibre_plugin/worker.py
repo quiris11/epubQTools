@@ -23,8 +23,9 @@ def add_dependencies(plugin_path):
 
 
 def fix_books(plugin_path, books, settings, notification=lambda x, y: y):
-    """Fix every (book_id, path, title) of books with qfix. The fixed file
-    is written to the MOH folder next to the copy. Return a list of dicts:
+    """Fix every (book_id, path, title, pages) of books with qfix (pages:
+    number of pages for the page list or None). The fixed file is written
+    to the MOH folder next to the copy. Return a list of dicts:
     id, title, fixed (path of the fixed file or None), problems (the book
     finished with PROBLEMS), log (all messages of qfix)."""
     add_dependencies(plugin_path)
@@ -32,7 +33,7 @@ def fix_books(plugin_path, books, settings, notification=lambda x, y: y):
     from .options import qfix_options
     options = qfix_options(settings)
     results = []
-    for nr, (book_id, path, title) in enumerate(books):
+    for nr, (book_id, path, title, pages) in enumerate(books):
         notification(nr / len(books), title)
         root, name = os.path.split(path)
         moh_dir = os.path.join(root, 'MOH')
@@ -40,7 +41,7 @@ def fix_books(plugin_path, books, settings, notification=lambda x, y: y):
         before = len(epubqfix.problem_files)
         out = io.StringIO()
         with redirect_stdout(out), redirect_stderr(out):
-            epubqfix.qfix(root, name, moh_dir, **options)
+            epubqfix.qfix(root, name, moh_dir, **dict(options, pages=pages))
         results.append({
             'id': book_id,
             'title': title,

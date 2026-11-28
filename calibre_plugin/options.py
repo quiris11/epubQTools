@@ -26,6 +26,9 @@ DEFAULTS = {
     'book_margin': None,            # --book-margin, pixels or None (only
                                     # with reset_css)
     'page_list': True,              # --skip-page-list turns it off
+    'description_pages': False,     # only in the plugin: the number of
+                                    # pages from the description of the
+                                    # book (LubimyCzytac metadata plugin)
 }
 
 
@@ -67,6 +70,7 @@ def qfix_options(settings):
                         else str(s['book_margin'])),
         'dont_hyph_headers': not s['hyphenate_headers'],
         'skip_pages': not s['page_list'],
+        'pages': None,              # set for every book by fix_books
     }
 
 
