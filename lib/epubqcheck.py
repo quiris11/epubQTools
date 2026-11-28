@@ -609,15 +609,26 @@ def qcheck_opf_file(opf_root, opf_path, _epubfile, _file_dec, alter,
     except IndexError:
         print(_file_dec + 'dtb:uid not properly defined')
 
-    # Check for duplicated content attribute of navPoints in NCX file
-    srcs = etree.XPath('//ncx:navPoint/ncx:content/@src',
-                       namespaces=NCXNS)(ncxtree)
+    # Check for duplicated content attribute of navPoints in NCX file. A part
+    # without its own page links to its first chapter - the first navPoint
+    # inside it with the same src is not a problem.
+    def nav_src(navpoint):
+        return navpoint.xpath('string(ncx:content/@src)', namespaces=NCXNS)
+
     seen = set()
     dupl = []
-    for x in srcs:
+    for np in etree.XPath('//ncx:navPoint', namespaces=NCXNS)(ncxtree):
+        x = nav_src(np)
+        if not x:
+            continue
+        parent = np.getparent()
+        first_in_part = (
+            etree.QName(parent).localname == 'navPoint' and
+            nav_src(parent) == x and
+            parent.xpath('ncx:navPoint', namespaces=NCXNS)[0] is np)
         if x not in seen:
             seen.add(x)
-        else:
+        elif not first_in_part:
             dupl.append(x)
 
         # check if NCX item links to body with id (kindlegen reports error)

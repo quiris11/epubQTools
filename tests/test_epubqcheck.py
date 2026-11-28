@@ -35,6 +35,20 @@ XHTML = '''<?xml version="1.0" encoding="utf-8"?>
 <body>%s</body></html>'''
 
 
+def ncx(navpoints):
+    """NCX with nested navPoints: [(src, [children]), ...]."""
+    def points(items):
+        return ''.join(
+            '<navPoint id="n%s"><navLabel><text>%s</text></navLabel>'
+            '<content src="%s"/>%s</navPoint>' % (src.replace('#', '_'),
+                                                  src, src, points(children))
+            for src, children in items)
+    return ('<?xml version="1.0" encoding="utf-8"?><ncx xmlns="http://www.'
+            'daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta '
+            'name="dtb:uid" content="x"/></head><docTitle><text>Book</text>'
+            '</docTitle><navMap>%s</navMap></ncx>' % points(navpoints))
+
+
 def opf(items, spine, lang='<dc:language>en</dc:language>'):
     return OPF % {
         'lang': lang,
@@ -52,7 +66,7 @@ class QcheckTestCase(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.dir)
 
-    def check(self, lang, text, titles=None):
+    def check(self, lang, text, titles=None, navpoints=None):
         with zipfile.ZipFile(os.path.join(self.dir, 'b.epub'), 'w') as z:
             z.writestr('mimetype', 'application/epub+zip')
             z.writestr('META-INF/container.xml', (
@@ -60,9 +74,11 @@ class QcheckTestCase(unittest.TestCase):
                 'oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
                 '<rootfile full-path="OEBPS/content.opf" media-type='
                 '"application/oebps-package+xml"/></rootfiles></container>'))
-            content = opf(
-                [('c1', '../text/c1.xhtml', 'application/xhtml+xml')],
-                ['c1'], lang)
+            items = [('c1', '../text/c1.xhtml', 'application/xhtml+xml')]
+            if navpoints is not None:
+                items.append(('ncx', 'toc.ncx', 'application/x-dtbncx+xml'))
+                z.writestr('OEBPS/toc.ncx', ncx(navpoints))
+            content = opf(items, ['c1'], lang)
             if titles is not None:
                 content = content.replace('<dc:title>Book</dc:title>',
                                           titles)
@@ -72,7 +88,7 @@ class QcheckTestCase(unittest.TestCase):
         with redirect_stdout(out):
             qcheck(self.dir, 'b.epub', True, False, False)
         return [x for x in out.getvalue().splitlines()
-                if 'language' in x or 'dc:title' in x]
+                if 'language' in x or 'dc:title' in x or 'navPoints' in x]
 
 
 class QcheckLanguageTest(QcheckTestCase):
@@ -133,6 +149,40 @@ class QcheckTitlesTest(QcheckTestCase):
 
     def test_one_title(self):
         self.assertEqual(self.titles('<dc:title>Book</dc:title>'), [])
+
+
+
+class QcheckNcxDuplicatesTest(QcheckTestCase):
+
+    def navpoints(self, navpoints):
+        return self.check('<dc:language>en</dc:language>', ENGLISH_TEXT,
+                          navpoints=navpoints)
+
+    def test_part_links_to_its_first_chapter(self):
+        # a part without its own page (e.g. 13 pięter of Filip Springer)
+        self.assertEqual(self.navpoints([
+            ('../text/c1.xhtml', [('../text/c1.xhtml', []),
+                                  ('../text/c1.xhtml#ch2', [])]),
+            ('../text/c2.xhtml', [])]), [])
+
+    def test_part_chapter_and_section(self):
+        self.assertEqual(self.navpoints([
+            ('../text/c1.xhtml', [('../text/c1.xhtml', [
+                ('../text/c1.xhtml', [])])])]), [])
+
+    def test_same_src_side_by_side(self):
+        self.assertEqual(
+            self.navpoints([('../text/c1.xhtml', []),
+                            ('../text/c1.xhtml', [])]),
+            ["b.epub: Duplicated content attributes of navPoints: "
+             "['../text/c1.xhtml'] found in NCX file"])
+
+    def test_second_chapter_with_src_of_part(self):
+        self.assertEqual(
+            self.navpoints([('../text/c1.xhtml', [
+                ('../text/c1.xhtml#ch1', []), ('../text/c1.xhtml', [])])]),
+            ["b.epub: Duplicated content attributes of navPoints: "
+             "['../text/c1.xhtml'] found in NCX file"])
 
 
 if __name__ == '__main__':
