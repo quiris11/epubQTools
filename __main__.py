@@ -249,7 +249,8 @@ BOOK_PREFIX = '--- '                # book name before its problems
 
 def line_kind(line, qcheck_mode=False):
     """Kind of an output line according to the message convention (see
-    README): 'header', 'book', 'warning', 'error', 'ok', 'info' (information
+    README): 'header', 'book', 'css_warning' (warnings of the CSS check, less
+    important than the others), 'warning', 'error', 'ok', 'info' (information
     about the work done, START and FINISH lines) or None (other lines, e.g.
     messages of EpubCheck or kindlegen)."""
     s = line.strip()
@@ -260,7 +261,7 @@ def line_kind(line, qcheck_mode=False):
     if (('WARNING!' in s or s.startswith('WARNING(')) and
             'CRITICAL!' not in s and 'ERROR!' not in s and
             'FAILED' not in s):
-        return 'warning'
+        return 'css_warning' if 'CSS WARNING!' in s else 'warning'
     if (s.startswith('!') or 'CRITICAL!' in s or 'ERROR!' in s or
             'with PROBLEMS' in s or 'PROBLEMS FOUND' in s or
             s.endswith(('FAILED!', 'NOT FIXED')) or 'FAILED! ' in s or
@@ -284,12 +285,15 @@ def line_kind(line, qcheck_mode=False):
 
 class ColorStream(object):
     """Colors whole output lines in a terminal according to the message
-    convention (see README): red - errors, yellow - warnings, green - success.
+    convention (see README): red - errors, yellow - warnings, grey - CSS
+    warnings (many and less important, so they do not hide the others),
+    green - success.
     Lines are buffered until the end of line, so a line printed in parts
     (e.g. '... decryption of font file "x"... ' + 'FAILED!') gets one color."""
     RESET = '\033[0m'
     COLORS = {'header': '\033[1;36m',       # bold cyan
               'book': '\033[1m',            # bold
+              'css_warning': '\033[90m',   # grey
               'warning': '\033[33m', 'error': '\033[31m', 'ok': '\033[32m'}
 
     def __init__(self, stream):

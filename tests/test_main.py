@@ -271,5 +271,66 @@ class CommandLineTest(unittest.TestCase):
         self.assertNotIn('[directory]', result.stderr)
 
 
+@unittest.skipIf(sys.platform == 'win32', 'needs a pseudo-terminal')
+class TerminalColorsTest(unittest.TestCase):
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix='eqt-test-')
+
+    def tearDown(self):
+        shutil.rmtree(self.dir)
+
+    def run_in_terminal(self, *args):
+        import pty
+        master, slave = pty.openpty()
+        env = dict(os.environ, TERM='xterm')
+        env.pop('NO_COLOR', None)
+        proc = subprocess.Popen([sys.executable, REPO] + list(args),
+                                stdout=slave, stderr=slave, cwd=self.dir,
+                                env=env)
+        os.close(slave)
+        out = b''
+        while True:
+            try:
+                data = os.read(master, 4096)
+            except OSError:         # Linux: the program has ended
+                break
+            if not data:
+                break
+            out += data
+        os.close(master)
+        proc.wait()
+        return out.decode('utf-8', 'replace').replace('\r\n', '\n')
+
+    def test_css_warnings_grey(self):
+        with zipfile.ZipFile(os.path.join(self.dir, 'b.epub'), 'w') as z:
+            z.writestr('mimetype', 'application/epub+zip')
+            z.writestr(
+                'META-INF/container.xml',
+                '<?xml version="1.0"?><container version="1.0" xmlns="urn:'
+                'oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+                '<rootfile full-path="content.opf" media-type="application/'
+                'oebps-package+xml"/></rootfiles></container>')
+            z.writestr(
+                'content.opf',
+                '<?xml version="1.0"?><package xmlns="http://www.idpf.org/'
+                '2007/opf" version="2.0" unique-identifier="id"><metadata '
+                'xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>T'
+                '</dc:title><dc:identifier id="id">x</dc:identifier>'
+                '<dc:language>en</dc:language></metadata><manifest><item '
+                'id="c" href="c.xhtml" media-type="application/xhtml+xml"/>'
+                '<item id="s" href="s.css" media-type="text/css"/>'
+                '</manifest><spine><itemref idref="c"/></spine></package>')
+            z.writestr('c.xhtml', '<?xml version="1.0"?><html xmlns="http://'
+                       'www.w3.org/1999/xhtml"><head><title>t</title></head>'
+                       '<body><p>Text.</p></body></html>')
+            z.writestr('s.css', 'p { position: fixed }\np { colr: red }\n')
+        out = self.run_in_terminal('-q', '-v', self.dir)
+        self.assertIn('\033[90m* CSS WARNING! Problem in "s.css" (line 1)',
+                      out)
+        self.assertIn('\033[31m* CSS ERROR! Problem in "s.css" (line 2)', out)
+        self.assertIn('\033[33m* HTML cover is NOT defined.', out)
+
+
 if __name__ == '__main__':
     unittest.main()
