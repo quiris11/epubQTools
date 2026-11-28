@@ -43,8 +43,9 @@ Gdy epubQTools dzieli wyrazy, usuwa oznaczenie języka (`lang`, `xml:lang`)
 z elementów `<html>` i `<body>` w plikach z tekstem. Język w opisie książki
 (`dc:language`) zostaje.
 
-Wygląda to na paradoks: Kindle uznaje wtedy polską książkę za angielską,
-a mimo to dzieli wyrazy **według polskich zasad**, np.
+Wygląda to na paradoks: Kindle uznaje polską książkę wysłaną przez Send to Kindle
+za angielską (robi to Amazon, nie epubQTools – patrz punkt 3), a mimo to dzieli
+wyrazy **według polskich zasad**, np.
 „współ-od-po-wie-dzial-nych”. Tak ma być. Oto dlaczego:
 
 1. epubQTools wstawia w wyrazy niewidoczne miejsca podziału (miękkie łączniki)
@@ -55,7 +56,9 @@ a mimo to dzieli wyrazy **według polskich zasad**, np.
    z oprogramowaniem 5.20). Tekst oznaczony jako polski nie był więc dzielony
    wcale, choć miękkie łączniki w nim były.
 3. Bez oznaczenia języka w tekście Kindle bierze język z opisu książki.
-   Send to Kindle wpisuje tam zwykle angielski. Słownik angielski Kindle ma,
+   Od połowy lipca 2026 serwery Amazona przy wysyłce przez Send to Kindle
+   zamieniają tam polski na angielski (`pl` → `en`), bez względu na to, co jest
+   w EPUB-ie. Słownik angielski Kindle ma,
    więc dzielenie się włącza.
 4. Przy `hyphens: manual` Kindle **nie używa** słownika angielskiego do
    wyznaczania podziałów. Dzieli tylko w miejscach wstawionych przez epubQTools,
@@ -63,7 +66,8 @@ a mimo to dzieli wyrazy **według polskich zasad**, np.
 
 Słownik angielski jest tu tylko „przepustką”, która włącza dzielenie, a o tym,
 gdzie wyraz zostanie podzielony, decyduje epubQTools. Jeśli w opisie książki
-zostanie polski, Kindle bez polskiego słownika nadal nie podzieli wyrazów.
+zostanie polski, Kindle bez polskiego słownika nadal nie podzieli wyrazów. Tak
+jest w książkach wysłanych przed połową lipca 2026.
 
 Gdy dzielenie jest wyłączone, epubQTools wpisuje na `<html>` język książki
 (z `dc:language`), tak jak w wersji 1.0. Wtedy wyrazy dzieli sam czytnik według

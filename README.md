@@ -41,8 +41,9 @@ When epubQTools hyphenates words, it removes the language (`lang`, `xml:lang`)
 from the `<html>` and `<body>` elements of the text files. The language in the
 book metadata (`dc:language`) stays.
 
-It looks like a paradox: the Kindle then takes a Polish book for an English
-one, and still hyphenates the words **by the Polish rules**, e.g.
+It looks like a paradox: the Kindle takes a Polish book sent with Send to
+Kindle for an English one (Amazon does it, not epubQTools – see point 3), and
+still hyphenates the words **by the Polish rules**, e.g.
 "współ-od-po-wie-dzial-nych". This is intended. Here is why:
 
 1. epubQTools puts invisible hyphenation points (soft hyphens) into the words
@@ -53,7 +54,9 @@ one, and still hyphenates the words **by the Polish rules**, e.g.
    with software 5.20). So text marked as Polish was not hyphenated at all,
    although it had the soft hyphens.
 3. Without a language in the text, the Kindle takes the language of the book
-   metadata. Send to Kindle usually puts English there. The Kindle has an
+   metadata. Since mid-July 2026 Amazon's servers replace Polish with English
+   there (`pl` → `en`) when a book is sent with Send to Kindle, whatever the
+   EPUB says. The Kindle has an
    English dictionary, so hyphenation is turned on.
 4. With `hyphens: manual` the Kindle does **not** use the English dictionary to
    find hyphenation points. It breaks words only at the points put in by
@@ -61,7 +64,8 @@ one, and still hyphenates the words **by the Polish rules**, e.g.
 
 The English dictionary is only a "pass" that turns hyphenation on; where a word
 is broken is decided by epubQTools. If the book metadata stays Polish, a Kindle
-without a Polish dictionary still does not hyphenate the words.
+without a Polish dictionary still does not hyphenate the words. This is so in
+books sent before mid-July 2026.
 
 When hyphenation is turned off, epubQTools puts the language of the book (from
 `dc:language`) on `<html>`, as in version 1.0. Then the reader hyphenates the
