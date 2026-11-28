@@ -49,8 +49,8 @@ still hyphenates the words **by the Polish rules**, e.g.
 1. epubQTools puts invisible hyphenation points (soft hyphens) into the words
    by the Polish rules and sets `hyphens: manual` in the styles, which means
    "break words only at these points".
-2. A Kindle hyphenates words at all only in text in a language it has its own
-   dictionary for. The Kindle has no Polish dictionary (checked on a Paperwhite
+2. A Kindle reading the KFX format hyphenates words at all only in text in a
+   language it has its own dictionary for. The Kindle has no Polish dictionary (checked on a Paperwhite
    with software 5.20). So text marked as Polish was not hyphenated at all,
    although it had the soft hyphens.
 3. Without a language in the text, the Kindle takes the language of the book
@@ -66,6 +66,10 @@ The English dictionary is only a "pass" that turns hyphenation on; where a word
 is broken is decided by epubQTools. If the book metadata stays Polish, a Kindle
 without a Polish dictionary still does not hyphenate the words. This is so in
 books sent before mid-July 2026.
+
+All this is about newer Kindles, which get books from Send to Kindle in the KFX
+format. Older Kindles get them in the AZW3 format and use the soft hyphens
+whatever the language, so on them hyphenation worked before version 1.1 too.
 
 When hyphenation is turned off, epubQTools puts the language of the book (from
 `dc:language`) on `<html>`, as in version 1.0. Then the reader hyphenates the

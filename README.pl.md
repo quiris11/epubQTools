@@ -51,8 +51,8 @@ wyrazy **według polskich zasad**, np.
 1. epubQTools wstawia w wyrazy niewidoczne miejsca podziału (miękkie łączniki)
    według zasad polskich i ustawia w stylach `hyphens: manual`, czyli „dziel
    tylko w tych miejscach”.
-2. Kindle w ogóle dzieli wyrazy tylko w tekście w języku, dla którego ma własny
-   słownik. Słownika polskiego Kindle nie ma (sprawdzone na Paperwhite
+2. Kindle czytający format KFX w ogóle dzieli wyrazy tylko w tekście w języku,
+   dla którego ma własny słownik. Słownika polskiego Kindle nie ma (sprawdzone na Paperwhite
    z oprogramowaniem 5.20). Tekst oznaczony jako polski nie był więc dzielony
    wcale, choć miękkie łączniki w nim były.
 3. Bez oznaczenia języka w tekście Kindle bierze język z opisu książki.
@@ -68,6 +68,11 @@ Słownik angielski jest tu tylko „przepustką”, która włącza dzielenie, a
 gdzie wyraz zostanie podzielony, decyduje epubQTools. Jeśli w opisie książki
 zostanie polski, Kindle bez polskiego słownika nadal nie podzieli wyrazów. Tak
 jest w książkach wysłanych przed połową lipca 2026.
+
+Wszystko to dotyczy nowszych czytników Kindle, które dostają książki z Send to
+Kindle w formacie KFX. Starsze czytniki dostają je w formacie AZW3 i używają
+miękkich łączników bez względu na język, więc na nich dzielenie działało także
+przed wersją 1.1.
 
 Gdy dzielenie jest wyłączone, epubQTools wpisuje na `<html>` język książki
 (z `dc:language`), tak jak w wersji 1.0. Wtedy wyrazy dzieli sam czytnik według
