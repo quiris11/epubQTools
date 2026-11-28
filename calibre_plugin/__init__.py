@@ -22,7 +22,7 @@ class EpubQToolsPlugin(InterfaceActionBase):
                      'original is kept in the data files of the book.')
     supported_platforms = ['windows', 'osx', 'linux']
     author = 'Robert Błaut'
-    version = (1, 0, 0)
+    version = (1, 1, 0)
     minimum_calibre_version = (6, 17, 0)   # data files of books
     actual_plugin = 'calibre_plugins.epubqtools.action:EpubQToolsAction'
 

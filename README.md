@@ -36,6 +36,41 @@ of calibre: the plugin always has them, the terminal uses them when calibre is
 installed on the computer. calibre has no French dictionary, so French books are
 not hyphenated. A book without a language is treated as Polish.
 
+### Kindle: an "English" book with words hyphenated the Polish way
+When epubQTools hyphenates words, it removes the language (`lang`, `xml:lang`)
+from the `<html>` and `<body>` elements of the text files. The language in the
+book metadata (`dc:language`) stays.
+
+It looks like a paradox: the Kindle then takes a Polish book for an English
+one, and still hyphenates the words **by the Polish rules**, e.g.
+"współ-od-po-wie-dzial-nych". This is intended. Here is why:
+
+1. epubQTools puts invisible hyphenation points (soft hyphens) into the words
+   by the Polish rules and sets `hyphens: manual` in the styles, which means
+   "break words only at these points".
+2. A Kindle hyphenates words at all only in text in a language it has its own
+   dictionary for. The Kindle has no Polish dictionary (checked on a Paperwhite
+   with software 5.20). So text marked as Polish was not hyphenated at all,
+   although it had the soft hyphens.
+3. Without a language in the text, the Kindle takes the language of the book
+   metadata. Send to Kindle usually puts English there. The Kindle has an
+   English dictionary, so hyphenation is turned on.
+4. With `hyphens: manual` the Kindle does **not** use the English dictionary to
+   find hyphenation points. It breaks words only at the points put in by
+   epubQTools, that is the Polish way.
+
+The English dictionary is only a "pass" that turns hyphenation on; where a word
+is broken is decided by epubQTools. If the book metadata stays Polish, a Kindle
+without a Polish dictionary still does not hyphenate the words.
+
+When hyphenation is turned off, epubQTools puts the language of the book (from
+`dc:language`) on `<html>`, as in version 1.0. Then the reader hyphenates the
+words itself with its own dictionary, and it takes the language from the text
+first, from the book metadata only after that. Without a language in the text,
+a Kindle would take the English put in by Send to Kindle and break Polish words
+by the English rules (e.g. "współod-powiedzialnych"). With Polish in the text, a
+Kindle without a Polish dictionary does not hyphenate the words at all.
+
 ## calibre plugin
 
 ### Installing
@@ -102,7 +137,7 @@ except checking for new versions.
 1. Install Python 3 (https://www.python.org).
 2. Download "Source code (zip)" from the
    [latest release](https://github.com/quiris11/epubQTools/releases/latest)
-   and unpack it, e.g. to the folder `epubQTools-1.0`.
+   and unpack it, e.g. to the folder `epubQTools-1.1`.
 3. Install the libraries it needs (on Windows type `py` instead of `python3`,
    here and below):
    ```
@@ -113,9 +148,9 @@ except checking for new versions.
 The last part of the command is the folder with the books (subfolders are
 included):
 ```
-python3 epubQTools-1.0 -e ~/Books      # fix all books; the fixed books go to ~/Books/MOH
-python3 epubQTools-1.0 -i -e ~/Books   # choose from a list which books to fix
-python3 epubQTools-1.0 -q ~/Books      # check the books and list their problems
+python3 epubQTools-1.1 -e ~/Books      # fix all books; the fixed books go to ~/Books/MOH
+python3 epubQTools-1.1 -i -e ~/Books   # choose from a list which books to fix
+python3 epubQTools-1.1 -q ~/Books      # check the books and list their problems
 ```
 Books already fixed are skipped (`-f` fixes them again).
 

@@ -38,6 +38,41 @@ calibre: wtyczka ma je zawsze, a terminal używa ich wtedy, gdy calibre jest
 zainstalowany na komputerze. calibre nie ma słownika francuskiego, więc książki
 francuskie nie są dzielone. Książka bez języka jest traktowana jak polska.
 
+### Kindle: książka „po angielsku”, a wyrazy dzielone po polsku
+Gdy epubQTools dzieli wyrazy, usuwa oznaczenie języka (`lang`, `xml:lang`)
+z elementów `<html>` i `<body>` w plikach z tekstem. Język w opisie książki
+(`dc:language`) zostaje.
+
+Wygląda to na paradoks: Kindle uznaje wtedy polską książkę za angielską,
+a mimo to dzieli wyrazy **według polskich zasad**, np.
+„współ-od-po-wie-dzial-nych”. Tak ma być. Oto dlaczego:
+
+1. epubQTools wstawia w wyrazy niewidoczne miejsca podziału (miękkie łączniki)
+   według zasad polskich i ustawia w stylach `hyphens: manual`, czyli „dziel
+   tylko w tych miejscach”.
+2. Kindle w ogóle dzieli wyrazy tylko w tekście w języku, dla którego ma własny
+   słownik. Słownika polskiego Kindle nie ma (sprawdzone na Paperwhite
+   z oprogramowaniem 5.20). Tekst oznaczony jako polski nie był więc dzielony
+   wcale, choć miękkie łączniki w nim były.
+3. Bez oznaczenia języka w tekście Kindle bierze język z opisu książki.
+   Send to Kindle wpisuje tam zwykle angielski. Słownik angielski Kindle ma,
+   więc dzielenie się włącza.
+4. Przy `hyphens: manual` Kindle **nie używa** słownika angielskiego do
+   wyznaczania podziałów. Dzieli tylko w miejscach wstawionych przez epubQTools,
+   czyli po polsku.
+
+Słownik angielski jest tu tylko „przepustką”, która włącza dzielenie, a o tym,
+gdzie wyraz zostanie podzielony, decyduje epubQTools. Jeśli w opisie książki
+zostanie polski, Kindle bez polskiego słownika nadal nie podzieli wyrazów.
+
+Gdy dzielenie jest wyłączone, epubQTools wpisuje na `<html>` język książki
+(z `dc:language`), tak jak w wersji 1.0. Wtedy wyrazy dzieli sam czytnik według
+własnego słownika, a język bierze najpierw z tekstu, dopiero potem z opisu
+książki. Gdyby w tekście nie było języka, Kindle wziąłby angielski wpisany przez
+Send to Kindle i podzieliłby polskie wyrazy według zasad angielskich (np.
+„współod-powiedzialnych”). Z polskim językiem w tekście Kindle bez polskiego
+słownika nie dzieli wyrazów wcale.
+
 ## Wtyczka do calibre
 
 ### Instalacja
@@ -105,7 +140,7 @@ sprawdzania nowych wersji.
 1. Zainstaluj Pythona 3 (https://www.python.org).
 2. Pobierz „Source code (zip)” z
    [najnowszego wydania](https://github.com/quiris11/epubQTools/releases/latest)
-   i rozpakuj go, np. do katalogu `epubQTools-1.0`.
+   i rozpakuj go, np. do katalogu `epubQTools-1.1`.
 3. Zainstaluj potrzebne biblioteki (w Windows zamiast `python3` wpisuj `py`, tu
    i niżej):
    ```
@@ -115,9 +150,9 @@ sprawdzania nowych wersji.
 ### Używanie
 Na końcu polecenia podajesz katalog z książkami (razem z podkatalogami):
 ```
-python3 epubQTools-1.0 -e ~/Książki      # popraw wszystkie książki; poprawione trafią do ~/Książki/MOH
-python3 epubQTools-1.0 -i -e ~/Książki   # wybierz z listy, które książki poprawić
-python3 epubQTools-1.0 -q ~/Książki      # sprawdź książki i wypisz ich problemy
+python3 epubQTools-1.1 -e ~/Książki      # popraw wszystkie książki; poprawione trafią do ~/Książki/MOH
+python3 epubQTools-1.1 -i -e ~/Książki   # wybierz z listy, które książki poprawić
+python3 epubQTools-1.1 -q ~/Książki      # sprawdź książki i wypisz ich problemy
 ```
 Książki już poprawione są pomijane (`-f` poprawia je ponownie).
 
